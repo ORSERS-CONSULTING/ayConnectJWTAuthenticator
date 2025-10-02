@@ -1,13 +1,46 @@
 const axios = require('axios');
 const { GATEWAY_BASE_URL } = require('../config/env');
 const { getIdcsToken } = require('./idcsServices');
-
+function joinUrl(base, path) {
+  return `${String(base).replace(/\/+$/,'')}/${String(path).replace(/^\/+/,'')}`;
+}
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
   const res = await axios({ url, method, params, data, headers: { Authorization: `Bearer ${token}` } });
   return res.data;
 }
+
+async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
+  const url = joinUrl(GATEWAY_BASE_URL, path);
+  const token = await getIdcsToken(url);
+
+  const headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    ...extraHeaders,
+  };
+
+  // helpful logs
+  const b64Len = typeof data.file_base64 === 'string' ? data.file_base64.length : 0;
+  console.log('[UPLOAD ->]', 'POST', url, { keys: Object.keys(data), b64Len });
+
+  const res = await axios({
+    method: 'POST',
+    url,
+    data,
+    headers,
+    // allow bigger payloads for base64
+    maxBodyLength: 50 * 1024 * 1024,
+    maxContentLength: 50 * 1024 * 1024,
+    validateStatus: () => true,
+  });
+
+  console.log('[UPLOAD <-]', res.status, typeof res.data);
+  return res;
+}
+
 
 function sendMobileOtp(mobile_number) { return callGateway('POST', 'send-mobile-otp', { params: { mobile_number } }); }
 function verifyMobileOtp(mobile, otp) { return callGateway('POST', 'verify-mobile-otp', { params: { mobile_number: mobile, otp_code: otp } }); }
@@ -59,10 +92,15 @@ function ordsGetDocumentTypes() {
   // no params needed; still goes through callGateway which adds the IDCS token
   return callGateway('GET', 'document-types');
 }
+
+
 function uploadDocuments(docPayload) {
-  return callGateway('POST', 'upload-documents', {
-    data: docPayload,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  // ensure pure base64 (no data: prefix)
+  if (typeof docPayload.file_base64 === 'string' && docPayload.file_base64.startsWith('data:')) {
+    docPayload = { ...docPayload, file_base64: docPayload.file_base64.split(',')[1] || docPayload.file_base64 };
+  }
+
+  // TODO: confirm correct upstream path
+  return callGatewayUpload('upload-documents', docPayload); // <-- set the RIGHT path
 }
 module.exports = { callGateway, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
