@@ -97,6 +97,9 @@ async function uploadUserDocuments(req, res) {
     });
 
     const resp = await uploadDocuments(body);
+    console.log('[/uploadUserDocuments] upstream status:', resp.status);
+    console.log('[/uploadUserDocuments] upstream data:', JSON.stringify(resp.data)?.slice(0, 500));
+
     const data = resp?.data ?? resp;
 
     console.log('[/uploadUserDocuments] upstream response:', data);
