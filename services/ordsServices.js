@@ -31,11 +31,19 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
     headers,
     maxBodyLength: 50 * 1024 * 1024,
     maxContentLength: 50 * 1024 * 1024,
-    validateStatus: () => true,
+    validateStatus: () => true,           // we handle all statuses
+    responseType: 'text',                 // keep raw string (empty possible)
+    transformResponse: [(x) => x],        // do not auto-parse JSON
   });
 
-  console.log('[UPLOAD <-]', res.status, 'keys:', res.data && Object.keys(res.data));
-  return res;
+  // res.data may be "" (empty string). Avoid Object.keys on a string.
+  const preview =
+    typeof res.data === 'string'
+      ? (res.data.length ? `${res.data.slice(0, 120)}…` : '<empty>')
+      : '<non-string>';
+  console.log('[UPLOAD <-]', res.status, 'body:', preview);
+
+  return res; // keep full axios response (status, headers, data)
 }
 
 

@@ -97,25 +97,65 @@ async function uploadUserDocuments(req, res) {
     });
 
     const resp = await uploadDocuments(body);
-    console.log('[/uploadUserDocuments] upstream status:', resp.status);
-    console.log('[/uploadUserDocuments] upstream data:', JSON.stringify(resp.data)?.slice(0, 500));
 
-    const data = resp?.data ?? resp;
+    const is2xx = resp.status >= 200 && resp.status < 300;
+    const raw = resp.data; // string (possibly empty) because responseType:'text'
+    let parsed = null;
 
-    console.log('[/uploadUserDocuments] upstream response:', data);
-    // Be explicit: only success if upstream confirms an upload
-    const uploaded = data?.uploaded === true || typeof data?.id === 'number' || typeof data?.document_id === 'number';
-    if (!uploaded) {
-      return res.status(200).json({ uploaded: false, message: 'Upstream did not confirm upload', raw: data });
+    // Try to parse JSON if present
+    if (typeof raw === 'string' && raw.trim().length) {
+      try { parsed = JSON.parse(raw); } catch { /* not JSON */ }
     }
 
-    return res.status(201).json({ uploaded: true, id: data.id ?? data.document_id, raw: data });
+    // Try to extract ID from Location header if ORDS sent one
+    const location = resp.headers?.location || resp.headers?.Location;
+    let idFromLocation = null;
+    if (typeof location === 'string') {
+      const m = location.match(/\/(\d+)(?:\?.*)?$/);
+      if (m) idFromLocation = Number(m[1]);
+    }
+
+    // Success policy: any 2xx = success, but prefer explicit flags/ids if present
+    const uploadedExplicit =
+      parsed?.uploaded === true ||
+      typeof parsed?.id === 'number' ||
+      typeof parsed?.document_id === 'number' ||
+      typeof idFromLocation === 'number';
+
+    const uploaded = is2xx && (uploadedExplicit || true); // accept empty 2xx as success
+    const resolvedId = parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
+
+    console.log('[/uploadUserDocuments] upstream status:', resp.status);
+    console.log('[/uploadUserDocuments] upstream parsed:', parsed ?? '<no-json>');
+    console.log('[/uploadUserDocuments] upstream location:', location ?? '<none>');
+
+    if (!uploaded) {
+      return res.status(resp.status || 200).json({
+        uploaded: false,
+        message: 'Upstream did not confirm upload',
+        upstream: { status: resp.status, headers: resp.headers, body: raw ?? '' },
+      });
+    }
+
+    // 201 if created-ish, else 200
+    const outStatus = resp.status === 201 ? 201 : (is2xx ? 201 : 200);
+
+    return res.status(outStatus).json({
+      uploaded: true,
+      id: resolvedId,
+      upstream: {
+        status: resp.status,
+        headers: resp.headers,
+        body: parsed ?? raw ?? '',
+      },
+    });
   } catch (e) {
     const code = e.response?.status ?? 500;
     console.error('[/uploadUserDocuments] ERROR:', e.response?.data ?? e.message);
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+
 
 module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments };
 
