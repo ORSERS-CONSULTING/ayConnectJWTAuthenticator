@@ -1,9 +1,7 @@
 const axios = require('axios');
 const { GATEWAY_BASE_URL } = require('../config/env');
 const { getIdcsToken } = require('./idcsServices');
-function joinUrl(base, path) {
-  return `${String(base).replace(/\/+$/,'')}/${String(path).replace(/^\/+/,'')}`;
-}
+
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
@@ -12,7 +10,8 @@ async function callGateway(method, path, { params, data } = {}) {
 }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
-  const url = joinUrl(GATEWAY_BASE_URL, path);
+  const url = `${GATEWAY_BASE_URL}/${path}`;
+  console.log(url);
   const token = await getIdcsToken(url);
 
   const headers = {
@@ -54,20 +53,20 @@ function ordsLogin({ email, mobile_number }) {
 }
 function registerClient({ client_code }) { return callGateway('POST', 'register-client', { params: { client_code } }) }
 function checkClientCode({ client_code }) { return callGateway('POST', 'check-client-code', { params: { client_code } }) }
-function registerExistingClient({client_code}){ return callGateway('POST', 'register-existing-client', { paramS: { client_code}})}
+function registerExistingClient({ client_code }) { return callGateway('POST', 'register-existing-client', { paramS: { client_code } }) }
 function registerUser({ email, mobile_number, full_name }) {
   if (!email || !mobile_number || !full_name) {
     throw new Error('Please fill all the fileds');
   }
 
-  return callGateway('POST', 'register', {params});
+  return callGateway('POST', 'register', { params });
 }
-function resendClientCode({email}){
+function resendClientCode({ email }) {
   if (!email) {
     throw new Error('Please fill all the fileds');
   }
 
-  return callGateway('POST', 'resend-Walking-Code', {params : {email}})
+  return callGateway('POST', 'resend-Walking-Code', { params: { email } })
 }
 function getClientEmail({ client_code }) {
   if (!client_code) {
@@ -75,13 +74,13 @@ function getClientEmail({ client_code }) {
   }
   return callGateway('POST', 'getExistedClientEmail', { params: { client_code } });
 }
-function ordsGetServices(){
+function ordsGetServices() {
   return callGateway('GET', 'getServices')
 }
-function ordsGetDepartments(){
+function ordsGetDepartments() {
   return callGateway('GET', 'getDepartments')
 }
-function ordsGetProcedures(){
+function ordsGetProcedures() {
   return callGateway('GET', 'getProcedures')
 }
 function ordsGetUserDocs(user_id) {
