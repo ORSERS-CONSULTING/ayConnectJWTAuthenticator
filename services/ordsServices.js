@@ -22,7 +22,6 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
     ...extraHeaders,
   };
 
-  // helpful logs
   const b64Len = typeof data.file_base64 === 'string' ? data.file_base64.length : 0;
   console.log('[UPLOAD ->]', 'POST', url, { keys: Object.keys(data), b64Len });
 
@@ -31,15 +30,15 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
     url,
     data,
     headers,
-    // allow bigger payloads for base64
     maxBodyLength: 50 * 1024 * 1024,
     maxContentLength: 50 * 1024 * 1024,
     validateStatus: () => true,
   });
 
-  console.log('[UPLOAD <-]', res.status, typeof res.data);
+  console.log('[UPLOAD <-]', res.status, 'keys:', res.data && Object.keys(res.data));
   return res;
 }
+
 
 
 function sendMobileOtp(mobile_number) { return callGateway('POST', 'send-mobile-otp', { params: { mobile_number } }); }
