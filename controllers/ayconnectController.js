@@ -62,50 +62,54 @@ async function getUserDocs(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
- 
 
 async function uploadUserDocuments(req, res) {
   try {
-    // allow user_id to be omitted and default from the app JWT
     const userFromToken = String(req.user?.id || req.user?.sub || '');
     const b = req.body || {};
 
     const body = {
-      user_id: b.user_id ?? userFromToken,                // required (defaults from token)
-      document_id: Number(b.document_id),                 // required
-      file_name: b.file_name,                             // required
-      file_type: b.file_type,                             // required
-      file_base64: b.file_base64,                         // required
-
-      // optional extras — forwarded as-is
+      user_id: b.user_id ?? userFromToken,
+      document_id: Number(b.document_id),
+      file_name: b.file_name,
+      file_type: b.file_type,
+      file_base64: b.file_base64,
       uploaded_by: b.uploaded_by,
       original_file_name: b.original_file_name,
       document_display_name: b.document_display_name,
       expiry_date: b.expiry_date,
     };
 
-    // basic validation
-    const missing = ['user_id','document_id','file_name','file_type','file_base64']
-      .filter(k => !body[k]);
+    const missing = ['user_id', 'document_id', 'file_name', 'file_type', 'file_base64'].filter(k => !body[k]);
     if (missing.length) {
       return res.status(400).json({ message: `Missing fields: ${missing.join(', ')}` });
     }
 
-    // strip "data:*;base64," if present
     if (typeof body.file_base64 === 'string' && body.file_base64.startsWith('data:')) {
       body.file_base64 = body.file_base64.split(',')[1] || body.file_base64;
     }
 
-    // ~20MB guard (optional)
-    const approxBytes = Math.ceil((body.file_base64.length * 3) / 4);
-    if (approxBytes > 20 * 1024 * 1024) {
-      return res.status(413).json({ message: 'File too large (max ~20MB)' });
+    const approxBytes = Math.ceil((body.file_base64.replace(/=+$/, '').length * 3) / 4);
+
+    console.log('[/uploadUserDocuments] payload:', {
+      ...body,
+      file_base64: `[hidden ${approxBytes} bytes]`,
+    });
+
+    const resp = await uploadDocuments(body);
+    const data = resp?.data ?? resp;
+
+    console.log('[/uploadUserDocuments] upstream response:', data);
+    // Be explicit: only success if upstream confirms an upload
+    const uploaded = data?.uploaded === true || typeof data?.id === 'number' || typeof data?.document_id === 'number';
+    if (!uploaded) {
+      return res.status(200).json({ uploaded: false, message: 'Upstream did not confirm upload', raw: data });
     }
 
-    const data = await uploadDocuments(body); // <— forwards ALL fields to ORDS
-    return res.json(data);
+    return res.status(201).json({ uploaded: true, id: data.id ?? data.document_id, raw: data });
   } catch (e) {
     const code = e.response?.status ?? 500;
+    console.error('[/uploadUserDocuments] ERROR:', e.response?.data ?? e.message);
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
