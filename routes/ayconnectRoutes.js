@@ -7,6 +7,6 @@ router.get('/user-docs', authUser, ctrl.getUserDocs);
 router.get('/document-types', authUser, ctrl.getDocumentTypes);
 router.get('/getProcedures', authUser, ctrl.getProcedures);
 router.get('/getDepartments', authUser, ctrl.getDepartments);
-router.post('/uploadUserDocuments', authUser, ctrl.getDocumentTypes);
+router.post('/uploadUserDocuments', authUser, ctrl.uploadUserDocuments);
 
 module.exports = router;

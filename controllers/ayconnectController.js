@@ -62,7 +62,7 @@ async function getUserDocs(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
+ 
 
 async function uploadUserDocuments(req, res) {
   try {
