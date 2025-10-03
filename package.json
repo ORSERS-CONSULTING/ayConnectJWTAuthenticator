@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js",
+    "start": "nodemon bootstrap.js",
+    "dev": "nodemon bootstrap.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -20,6 +21,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "oci-sdk": "^2.118.1"
   }
 }

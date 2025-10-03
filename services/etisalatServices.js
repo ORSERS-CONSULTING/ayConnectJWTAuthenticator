@@ -1,9 +1,9 @@
 const axios = require('axios');
-const {
-    ETISALAT_USER,
-    ETISALAT_PASSWORD,
-    ETISALAT_SENDER,
-} = require('../config/env');
+// const {
+//     ETISALAT_USER,
+//     ETISALAT_PASSWORD,
+//     ETISALAT_SENDER,
+// } = require('../config/env');
 
 function svExpiry(minutes = 5) {
     // "YYYY-MM-DD HH:mm:ss" (Etisalat format)
@@ -23,7 +23,7 @@ function svExpiry(minutes = 5) {
 
 async function sendSms({ opts }) {
     const { to, message } = opts;
-    if (!ETISALAT_USER || !ETISALAT_PASSWORD || !ETISALAT_SENDER) {
+    if (!process.env.ETISALAT_USER || !process.env.ETISALAT_PASSWORD || !process.env.ETISALAT_SENDER) {
         throw new Error('Etisalat credentials missing');
     }
 
@@ -32,7 +32,7 @@ async function sendSms({ opts }) {
         .replace("T", " ")
         .slice(0, 19);
 
-    const url = `https://smartmessaging.etisalat.ae:9095/campaignService/campaigns/qs?msgCategory=4.2&channel=2.1&recipient=${to}&contentType=3.1&dr=false&expiryDt=${expiry}&msg=${message}&user=${ETISALAT_USER}&pswd=${ETISALAT_PASSWORD}&dndCategory=Campaign&sender=${ETISALAT_SENDER}`;
+    const url = `https://smartmessaging.etisalat.ae:9095/campaignService/campaigns/qs?msgCategory=4.2&channel=2.1&recipient=${to}&contentType=3.1&dr=false&expiryDt=${expiry}&msg=${message}&user=${process.env.ETISALAT_USER}&pswd=${process.env.ETISALAT_PASSWORD}&dndCategory=Campaign&sender=${process.env.ETISALAT_SENDER}`;
     const { data, status } = await axios.get(url, { timeout: 15000 });
     return { ok: status >= 200 && status < 300, raw: data };
 }
