@@ -1,20 +1,27 @@
 // config/vault.js
-const common  = require("oci-common");
-const secrets = require("oci-secrets");
+const { InstancePrincipalsAuthenticationDetailsProvider } = require("oci-common");
+const { SecretsClient } = require("oci-secrets");
 
 async function getSecret(secretOcid) {
-  // Instance Principals (only works on OCI Compute/OKE)
-  const provider = new common.InstancePrincipalsAuthenticationDetailsProvider();
+  if (!secretOcid) throw new Error("secret OCID missing");
 
-  const client = new secrets.SecretsClient({
-    authenticationDetailsProvider: provider,
-  });
+  // Auth: Instance Principals (for Compute VM in a Dynamic Group with policy)
+  const provider = new InstancePrincipalsAuthenticationDetailsProvider();
 
-  // Set region explicitly (your tenancy is UAE East)
+  // Client
+  const client = new SecretsClient({ authenticationDetailsProvider: provider });
+
+  // Region (explicit is safer)
   client.regionId = process.env.OCI_REGION || "me-dubai-1";
 
-  const resp = await client.getSecretBundle({ secretId: secretOcid });
-  const b64  = resp.secretBundle.secretBundleContent.content;
+  // Fetch CURRENT version (you can also use 'LATEST')
+  const { secretBundle } = await client.getSecretBundle({
+    secretId: secretOcid,
+    stage: "CURRENT",
+  });
+
+  // Secrets come base64-encoded
+  const b64 = secretBundle.secretBundleContent.content;
   return Buffer.from(b64, "base64").toString("utf8");
 }
 
