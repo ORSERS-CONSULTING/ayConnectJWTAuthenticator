@@ -5,22 +5,22 @@ const { SecretsClient } = require("oci-secrets");
 async function getSecret(secretOcid) {
   if (!secretOcid) throw new Error("secret OCID missing");
 
-  // Auth: Instance Principals (for Compute VM in a Dynamic Group with policy)
+  if (typeof InstancePrincipalsAuthenticationDetailsProvider !== "function") {
+    // Helpful diagnostics if PM2 uses wrong node_modules
+    const cmn = require("oci-common");
+    console.error("[vault] oci-common keys:", Object.keys(cmn || {}));
+    throw new Error("InstancePrincipalsAuthenticationDetailsProvider not found from oci-common");
+  }
+
   const provider = new InstancePrincipalsAuthenticationDetailsProvider();
-
-  // Client
   const client = new SecretsClient({ authenticationDetailsProvider: provider });
-
-  // Region (explicit is safer)
   client.regionId = process.env.OCI_REGION || "me-dubai-1";
 
-  // Fetch CURRENT version (you can also use 'LATEST')
   const { secretBundle } = await client.getSecretBundle({
     secretId: secretOcid,
     stage: "CURRENT",
   });
 
-  // Secrets come base64-encoded
   const b64 = secretBundle.secretBundleContent.content;
   return Buffer.from(b64, "base64").toString("utf8");
 }
