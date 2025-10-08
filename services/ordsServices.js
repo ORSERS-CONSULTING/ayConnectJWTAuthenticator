@@ -1,16 +1,16 @@
 const axios = require('axios');
-const { GATEWAY_BASE_URL } = require('../config/env');
 const { getIdcsToken } = require('./idcsServices');
 
 async function callGateway(method, path, { params, data } = {}) {
-  const url = `${GATEWAY_BASE_URL}/${path}`;
+  const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
+  console.log(url)
   const token = await getIdcsToken(url);
   const res = await axios({ url, method, params, data, headers: { Authorization: `Bearer ${token}` } });
   return res.data;
 }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
-  const url = `${GATEWAY_BASE_URL}/${path}`;
+  const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   console.log(url);
   const token = await getIdcsToken(url);
 

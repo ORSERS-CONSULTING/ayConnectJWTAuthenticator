@@ -10,5 +10,6 @@ const loadConfig = require('./config/env');
   process.env.ETISALAT_USER = config.ETISALAT_USER;
   process.env.ETISALAT_PASSWORD = config.ETISALAT_PASSWORD;
   process.env.ETISALAT_SENDER = config.ETISALAT_SENDER;
+  process.env.GATEWAY_BASE_URL = config.GATEWAY_BASE_URL;
   require('./index'); // start your express app
 })();
