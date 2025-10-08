@@ -44,7 +44,7 @@ async function loadConfig() {
     IDCS_TENANT: await required("IDCS_TENANT", "IDCS_TENANT_OCID"),
     IDCS_CLIENT_ID: await required("IDCS_CLIENT_ID", "IDCS_CLIENT_ID_OCID"),
     IDCS_CLIENT_SECRET: await required("IDCS_CLIENT_SECRET", "IDCS_CLIENT_SECRET_OCID"),
-    IDCS_SCOPES: process.env.IDCS_SCOPES || "ayc.read ayc.write",
+    IDCS_SCOPES: process.env.IDCS_SCOPES,
     GATEWAY_BASE_URL: process.env.GATEWAY_BASE_URL,
 
     ETISALAT_USER: await required("ETISALAT_USER", "ETISALAT_USER_OCID"),
