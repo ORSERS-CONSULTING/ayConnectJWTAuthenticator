@@ -48,7 +48,7 @@ const rateLimit = require('express-rate-limit');
 
 const authRoutes = require('./routes/authRoutes');
 const ayRoutes   = require('./routes/ayconnectRoutes');
-
+const paymentRoutes = require('./routes/paymentRoutes');
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
@@ -58,6 +58,7 @@ app.use('/auth/', rateLimit({ windowMs: 15 * 60 * 1000, max: 20 }));
 
 app.use('/auth', authRoutes);
 app.use('/ayconnect', ayRoutes);
+app.use("/payment", paymentRoutes);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

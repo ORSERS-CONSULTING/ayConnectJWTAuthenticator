@@ -50,6 +50,7 @@ async function loadConfig() {
     ETISALAT_USER: await required("ETISALAT_USER", "ETISALAT_USER_OCID"),
     ETISALAT_PASSWORD: await required("ETISALAT_PASSWORD", "ETISALAT_PASSWORD_OCID"),
     ETISALAT_SENDER: await required("ETISALAT_SENDER", "ETISALAT_SENDER_OCID"),
+    STRIPE_PUBLISHABLE_KEY: await required("STRIPE_PUBLISHABLE_KEY"),
   };
 }
 
