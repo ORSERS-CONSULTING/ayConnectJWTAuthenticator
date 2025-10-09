@@ -160,20 +160,29 @@ async function initPayment(payPayload, ctx = {}) {
     },
   };
 
-  console.log("[initPayment] Request body:", body);
+  console.log("[initPayment] ->", {
+    ...body,
+    // safer log:
+    amount: body.amount,
+    currency: body.currency,
+    description: body.description,
+    context: { ...body.context, email: mask(body.context.email) },
+  });
 
-  const res = await callGatewayJson("POST", "pay", { data: body });
+  // Optional: support idempotency per request_id
+  const idempotency = body.context.request_id ? String(body.context.request_id) : undefined;
+  const headers = idempotency ? { 'Idempotency-Key': idempotency } : undefined;
+
+  const res = await callGatewayJson('POST', 'pay', { data: body, headers });
   const { status, data } = res;
 
   if (status < 200 || status >= 300) {
     throw new Error(
-      data?.error ||
-      data?.message ||
-      `Payment initialization failed (status ${status})`
+      data?.error || data?.message || `Payment initialization failed (status ${status})`
     );
   }
 
-  // unwrap { response_body: "<json string>" } if your ORDS gateway wraps it
+  // unwrap { response_body: "<json string>" }
   let parsed = data;
   if (typeof data?.response_body === "string") {
     try {
@@ -185,18 +194,23 @@ async function initPayment(payPayload, ctx = {}) {
   }
 
   const clientSecret = parsed.paymentIntent ?? parsed.client_secret ?? parsed.clientSecret;
-  const customerId = parsed.customer ?? parsed.customer_id ?? parsed.customerId;
-  const ephemeralKey = parsed.ephemeralKey ?? parsed.ephemeral_key;
+  const customerId   = parsed.customer      ?? parsed.customer_id   ?? parsed.customerId;
+  const ephemeralKey = parsed.ephemeralKey  ?? parsed.ephemeral_key;
+  const requestId    = parsed.requestId     ?? parsed.request_id    ?? body.context.request_id ?? null;
 
   if (!clientSecret || !customerId || !ephemeralKey) {
-    throw new Error(
-      `Malformed payment response. Keys: ${Object.keys(parsed || {}).join(", ")}`
-    );
+    throw new Error(`Malformed payment response. Keys: ${Object.keys(parsed || {}).join(", ")}`);
   }
 
-  console.log("[initPayment] Mapped:", { clientSecret, customerId, ephemeralKey });
+  console.log("[initPayment] <-", {
+    clientSecret: mask(clientSecret),
+    customerId,
+    ephemeralKey: mask(ephemeralKey),
+    requestId,
+  });
 
-  return { clientSecret, customerId, ephemeralKey };
+  return { clientSecret, customerId, ephemeralKey, requestId };
 }
+ 
 
 module.exports = { callGateway, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
