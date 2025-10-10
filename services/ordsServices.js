@@ -22,7 +22,8 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
   return axios.post(url, rawBodyBuffer, {
     headers: {
       "Content-Type": "application/json",     // keep JSON
-      "Stripe-Signature": stripeSignature,    // forward unchanged
+      "Stripe-Signature": stripeSignature,   // original
+      "X-Stripe-Signature": stripeSignature, // copy for gateways that strip the first
       Authorization: `Bearer ${token}`,       // satisfy API Gateway
     },
     transformRequest: [(d) => d],             // DO NOT touch raw body
