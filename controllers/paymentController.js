@@ -46,6 +46,9 @@ async function createPayment(req, res) {
 // }
 async function proxyStripeToOrds(req, res) {
   try {
+    console.log("[webhook] sig:", req.headers["stripe-signature"]);
+    console.log("[webhook] body is Buffer?", Buffer.isBuffer(req.body), "len:", req.body?.length);
+
     const stripeSig = req.headers["stripe-signature"];
     if (!stripeSig) return res.status(400).send("Missing Stripe-Signature");
 
