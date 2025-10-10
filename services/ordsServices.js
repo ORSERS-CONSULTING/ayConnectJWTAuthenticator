@@ -15,6 +15,25 @@ async function callGateway(method, path, { params, data } = {}) {
   return res.data;
 }
 
+async function callStripeWebhook() {
+  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
+  console.log(url)
+  const token = await getIdcsToken(url);  
+  const res = await axios.post(
+    url,              // ✅ first argument: URL
+    {},               // ✅ second: body (empty object — Stripe will send real payload later)
+    {                 // ✅ third: config
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 15000,
+    }
+  );
+
+  console.log('Webhook called:', res.status);
+  return res;
+}
+
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   console.log(url);
@@ -213,4 +232,4 @@ async function initPayment(payPayload, ctx = {}) {
 }
  
 
-module.exports = { callGateway, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
+module.exports = { callGateway, callStripeWebhook, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };

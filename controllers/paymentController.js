@@ -1,4 +1,4 @@
-const { initPayment } = require("../services/ordsServices");
+const { initPayment, callStripeWebhook } = require("../services/ordsServices");
 const axios = require('axios');
 
 async function createPayment(req, res) {
@@ -30,10 +30,19 @@ async function createPayment(req, res) {
   }
 }
 
-async function callStripeWebhook() {
-  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
-  const res = await axios.post(url);
-  console.log('Webhook called:', res.status);
+async function triggerStripeWebhook(req, res) {
+  try {
+    const result = await callStripeWebhook(); // directly call your service
+    return res.status(200).json({ ok: true, message: "Webhook called successfully" });
+  } catch (e) {
+    console.error("[triggerStripeWebhook] ERROR:", e);
+    const code = e.response?.status ?? 500;
+    return res.status(code).json({
+      ok: false,
+      message: e.message,
+      details: e.response?.data,
+    });
+  }
 }
 
-module.exports = { createPayment, callStripeWebhook };
+module.exports = { createPayment, triggerStripeWebhook };
