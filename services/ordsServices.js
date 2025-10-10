@@ -14,25 +14,42 @@ async function callGateway(method, path, { params, data } = {}) {
   const res = await axios({ url, method, params, data, headers: { Authorization: `Bearer ${token}` } });
   return res.data;
 }
-
-async function callStripeWebhook() {
+async function forwardToOrds(rawBodyBuffer, stripeSignature) {
   const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
-  console.log(url)
-  const token = await getIdcsToken(url);  
-  const res = await axios.post(
-    url,              // ✅ first argument: URL
-    {},               // ✅ second: body (empty object — Stripe will send real payload later)
-    {                 // ✅ third: config
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      timeout: 15000,
-    }
-  );
+  console.log(url);
+  const token = await getIdcsToken(url);
 
-  console.log('Webhook called:', res.status);
-  return res;
+  return axios.post(url, rawBodyBuffer, {
+    headers: {
+      "Content-Type": "application/json",     // keep JSON
+      "Stripe-Signature": stripeSignature,    // forward unchanged
+      Authorization: `Bearer ${token}`,       // satisfy API Gateway
+    },
+    transformRequest: [(d) => d],             // DO NOT touch raw body
+    maxBodyLength: Infinity,
+    timeout: 15000,
+    validateStatus: () => true,
+  });
 }
+
+// async function callStripeWebhook() {
+//   const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
+//   console.log(url)
+//   const token = await getIdcsToken(url);  
+//   const res = await axios.post(
+//     url,              // ✅ first argument: URL
+//     {},               // ✅ second: body (empty object — Stripe will send real payload later)
+//     {                 // ✅ third: config
+//       headers: {
+//         Authorization: `Bearer ${token}`,
+//       },
+//       timeout: 15000,
+//     }
+//   );
+
+//   console.log('Webhook called:', res.status);
+//   return res;
+// }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
@@ -232,4 +249,4 @@ async function initPayment(payPayload, ctx = {}) {
 }
  
 
-module.exports = { callGateway, callStripeWebhook, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
+module.exports = { callGateway, forwardToOrds, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
