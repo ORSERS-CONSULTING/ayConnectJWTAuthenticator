@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const express = require("express");
 const { authUser } = require("../middleware/authUser");
-const { createPayment } = require("../controllers/paymentController");
+const { createPayment, proxyStripeToOrds } = require("../controllers/paymentController");
 
 // POST /pay
 router.post("/pay", authUser, createPayment);
