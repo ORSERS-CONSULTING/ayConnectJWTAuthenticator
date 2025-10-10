@@ -29,5 +29,10 @@ async function createPayment(req, res) {
   }
 }
 
+async function callStripeWebhook() {
+  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
+  const res = await axios.post(url);
+  console.log('Webhook called:', res.status);
+}
 
-module.exports = { createPayment };
+module.exports = { createPayment, callStripeWebhook };
