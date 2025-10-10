@@ -1,4 +1,4 @@
-const { initPayment } = require("../services/ordsServices");
+const { initPayment, forwardToOrds } = require("../services/ordsServices");
 const axios = require('axios');
 
 async function createPayment(req, res) {
@@ -52,6 +52,7 @@ async function proxyStripeToOrds(req, res) {
     // req.body is a Buffer because of express.raw on the route
     const r = await forwardToOrds(req.body, stripeSig);
 
+    console.log("[proxyStripeToOrds] ORDS status:", r.status);
     // Pass through ORDS' response code/body
     return res.status(r.status).send(r.data ?? "OK");
   } catch (e) {
