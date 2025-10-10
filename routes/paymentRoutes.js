@@ -4,6 +4,6 @@ const { createPayment, callStripeWebhook } = require("../controllers/paymentCont
 
 // POST /pay
 router.post("/pay", authUser, createPayment);
-router.post("/webhook", callStripeWebhook );a
+router.post("/webhook", callStripeWebhook );
 
 module.exports = router;
