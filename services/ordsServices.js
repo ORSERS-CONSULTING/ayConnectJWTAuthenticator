@@ -15,16 +15,16 @@ async function callGateway(method, path, { params, data } = {}) {
   return res.data;
 }
 async function forwardToOrds(rawBodyBuffer, stripeSignature) {
-  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
+  const url = `https://yawrhzry16j0fw1-aygateway.adb.me-dubai-1.oraclecloudapps.com/ords/ayconnect/ayConnect/webhook`;
   console.log(url);
-  const token = await getIdcsToken(url);
+  // const token = await getIdcsToken(url);
 
   return axios.post(url, rawBodyBuffer, {
     headers: {
       "Content-Type": "application/json",     // keep JSON
       "Stripe-Signature": stripeSignature,   // original
       "X-Stripe-Signature": stripeSignature, // copy for gateways that strip the first
-      Authorization: `Bearer ${token}`,       // satisfy API Gateway
+      // Authorization: `Bearer ${token}`,       // satisfy API Gateway
     },
     transformRequest: [(d) => d],             // DO NOT touch raw body
     maxBodyLength: Infinity,
