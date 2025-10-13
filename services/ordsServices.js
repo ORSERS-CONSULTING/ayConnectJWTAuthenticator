@@ -74,7 +74,7 @@ async function getPaymentResult(requestId) {
     validateStatus: () => true,
     timeout: 15000,
   });
-
+  console.log("hello");
   if (res.status === 404) return { status: "PENDING_PAYMENT" };
   console.log(res.status);
   if (res.status < 200 || res.status >= 300) {
