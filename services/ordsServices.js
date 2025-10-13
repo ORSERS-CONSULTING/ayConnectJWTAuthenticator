@@ -31,7 +31,6 @@ function sleep(ms) {
 
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-  console.log(url);
   const token = await getIdcsToken(url);
   const res = await axios({
     url,
@@ -107,8 +106,7 @@ async function getPaymentResult(requestId) {
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-  console.log(url);
-  const token = await getIdcsToken(url);
+  console.log(url);  const token = await getIdcsToken(url);
 
   const headers = {
     Accept: "application/json",

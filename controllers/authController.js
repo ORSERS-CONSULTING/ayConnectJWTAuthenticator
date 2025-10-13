@@ -6,23 +6,7 @@ const {
 } = require('../services/ordsServices');
 const { sendSms } = require('../services/etisalatServices');
 
-/** Public: send OTP (mobile or email) */
-// async function sendOtp(req, res) {
-//   const { channel, target } = req.body || {};
-//   if (!channel || !target) return res.status(400).json({ message: 'channel & target required' });
 
-//   try {
-//     const data = channel === 'mobile'
-//       ? await sendMobileOtp(target)
-//       : await sendEmailOtp(target);
-
-//     // Return whatever ORDS returns (ideally you do NOT echo the OTP back!)
-//     return res.json(data);
-//   } catch (e) {
-//     const code = e.response?.status ?? 500;
-//     return res.status(code).json(e.response?.data ?? { message: e.message });
-//   }
-// }
 
 async function sendOtp(req, res) {
   const { channel, target } = req.body || {};
