@@ -63,20 +63,20 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
-  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult?id=${encodeURIComponent(requestId)}`;
-  const path = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
-  const token = await getIdcsToken(path);
+  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
+  const token = await getIdcsToken(url);
   console.log(token);
   const res = await axios({
     method: "GET",
     url,
-    params: { request_id: requestId }, // << query param version
+    params: { id: requestId }, // << query param version
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: () => true,
     timeout: 15000,
   });
 
   if (res.status === 404) return { status: "PENDING_PAYMENT" };
+  console.log(res.status);
   if (res.status < 200 || res.status >= 300) {
     const msg =
       typeof res.data === "string"
