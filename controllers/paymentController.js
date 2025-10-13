@@ -1,4 +1,4 @@
-const { initPayment, forwardToOrds } = require("../services/ordsServices");
+const { initPayment, forwardToOrds, getPaymentResult  } = require("../services/ordsServices");
 const axios = require('axios');
 
 async function createPayment(req, res) {
@@ -59,4 +59,15 @@ async function proxyStripeToOrds(req, res) {
   }
 }
 
-module.exports = { createPayment, proxyStripeToOrds };
+async function getPaymentResultController(req, res) {
+  try {
+    const id = req.params.id;
+    const out = await getPaymentResult(id);
+    return res.status(200).json(out);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json({ message: e.message, details: e.response?.data });
+  }
+}
+
+module.exports = { createPayment, proxyStripeToOrds, getPaymentResultController  };

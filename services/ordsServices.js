@@ -7,6 +7,25 @@ function mask(s) {
   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
 }
 
+function normalizePaymentState(obj = {}) {
+  const raw = String(
+    obj.status ??
+    obj.state ??
+    obj.payment_status ??
+    obj.order_status ??
+    obj.result ??
+    ""
+  ).toUpperCase();
+
+  if (["PAID", "SUCCESS", "SUCCEEDED"].includes(raw)) return "PAID";
+  if (["FAILED", "FAILURE", "ERROR", "CANCELED", "CANCELLED"].includes(raw)) return "FAILED";
+  return "PENDING";
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   console.log(url)
@@ -33,6 +52,33 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
   });
 }
 
+async function getPaymentResult(requestId) {
+  if (requestId == null) throw new Error("requestId is required");
+
+  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`; // <— adjust path if your ORDS differs
+  const token = await getIdcsToken(url);
+
+  const res = await axios({
+    method: "GET",
+    url,
+    params: { request_id: requestId }, // if your ORDS expects path param, swap for `${url}/${encodeURIComponent(requestId)}`
+    headers: { Authorization: `Bearer ${token}` },
+    validateStatus: () => true, // let us handle non-2xx
+    timeout: 15000,
+  });
+
+  if (res.status === 404) {
+    return { status: "PENDING" };
+  }
+  if (res.status < 200 || res.status >= 300) {
+    const msg = typeof res.data === "string" ? res.data : (res.data?.message || JSON.stringify(res.data));
+    throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
+  }
+
+  const data = res.data || {};
+  const status = normalizePaymentState(data);
+  return { status, ...data };
+}
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
@@ -68,6 +114,8 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
 
   return res; // keep full axios response (status, headers, data)
 }
+
+
 
 async function callGatewayJson(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
@@ -150,7 +198,6 @@ function ordsGetDocumentTypes() {
   return callGateway('GET', 'document-types');
 }
 
-
 function uploadDocuments(docPayload) {
   // ensure pure base64 (no data: prefix)
   if (typeof docPayload.file_base64 === 'string' && docPayload.file_base64.startsWith('data:')) {
@@ -160,7 +207,6 @@ function uploadDocuments(docPayload) {
   // TODO: confirm correct upstream path
   return callGatewayUpload('upload-documents', docPayload); // <-- set the RIGHT path
 }
-
 
 async function initPayment(payPayload, ctx = {}) {
   const body = {
@@ -228,5 +274,22 @@ async function initPayment(payPayload, ctx = {}) {
   return { clientSecret, customerId, ephemeralKey, requestId };
 }
  
+async function waitForPaid(
+  requestId,
+  { timeoutMs = 20000, intervalMs = 1000 } = {}
+) {
+  const until = Date.now() + timeoutMs;
+  let last = { status: "PENDING" };
 
-module.exports = { callGateway, forwardToOrds, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
+  while (Date.now() < until) {
+    const current = await getPaymentResult(requestId);
+    const s = String(current.status).toUpperCase();
+    if (s === "PAID" || s === "FAILED") return current;
+
+    last = { status: "PENDING", ...current };
+    await sleep(intervalMs);
+  }
+  return last;
+}
+
+module.exports = { callGateway, forwardToOrds, getPaymentResult, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
