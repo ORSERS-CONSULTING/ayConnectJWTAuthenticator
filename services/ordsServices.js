@@ -60,50 +60,38 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
     validateStatus: () => true,
   });
 }
-
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
-  const url = `${process.env.GATEWAY_BASE_URL}/requests/${encodeURIComponent(
-    String(requestId)
-  )}`;
+  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
   const token = await getIdcsToken(url);
 
   const res = await axios({
     method: "GET",
     url,
+    params: { request_id: requestId },   // << query param version
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: () => true,
     timeout: 15000,
   });
 
-  // If row not found yet, treat as pending
   if (res.status === 404) return { status: "PENDING_PAYMENT" };
-
   if (res.status < 200 || res.status >= 300) {
-    const msg =
-      typeof res.data === "string"
-        ? res.data
-        : res.data?.error || res.data?.message || JSON.stringify(res.data);
+    const msg = typeof res.data === "string"
+      ? res.data
+      : (res.data?.error || res.data?.message || JSON.stringify(res.data));
     throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
   }
 
   const data = res.data || {};
-  const normalized = normalizeToAppStatus(data.status);
-  console.log(`[getPaymentResult] requestId=${requestId} status=${data.status} normalized=${normalized}`);
-  // Strip any raw status-like fields so nothing can override your enum
-  const {
-    status: _s1,
-    state: _s2,
-    payment_status: _s3,
-    order_status: _s4,
-    result: _s5,
-    ...rest
-  } = data;
+  const norm = normalizeToAppStatus(data.status);
+  console.log(`[getPaymentResult] id=${requestId} raw=${data.status} norm=${norm}`);
 
-  // Put normalized LAST so it’s authoritative
-  return { ...rest, status: normalized };
+  // strip any aliases so nothing overwrites ours
+  const { status: _s1, state: _s2, payment_status: _s3, order_status: _s4, result: _s5, ...rest } = data;
+  return { ...rest, status: norm };
 }
+
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
