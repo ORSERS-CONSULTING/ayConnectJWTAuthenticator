@@ -63,13 +63,14 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
-  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
-  const token = await getIdcsToken(url);
-
+  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult?id=${encodeURIComponent(requestId)}`;
+  const path = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
+  const token = await getIdcsToken(path);
+  console.log(token);
   const res = await axios({
     method: "GET",
     url,
-    params: { request_id: requestId },   // << query param version
+    params: { request_id: requestId }, // << query param version
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: () => true,
     timeout: 15000,
@@ -77,21 +78,30 @@ async function getPaymentResult(requestId) {
 
   if (res.status === 404) return { status: "PENDING_PAYMENT" };
   if (res.status < 200 || res.status >= 300) {
-    const msg = typeof res.data === "string"
-      ? res.data
-      : (res.data?.error || res.data?.message || JSON.stringify(res.data));
+    const msg =
+      typeof res.data === "string"
+        ? res.data
+        : res.data?.error || res.data?.message || JSON.stringify(res.data);
     throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
   }
 
   const data = res.data || {};
   const norm = normalizeToAppStatus(data.status);
-  console.log(`[getPaymentResult] id=${requestId} raw=${data.status} norm=${norm}`);
+  console.log(
+    `[getPaymentResult] id=${requestId} raw=${data.status} norm=${norm}`
+  );
 
   // strip any aliases so nothing overwrites ours
-  const { status: _s1, state: _s2, payment_status: _s3, order_status: _s4, result: _s5, ...rest } = data;
+  const {
+    status: _s1,
+    state: _s2,
+    payment_status: _s3,
+    order_status: _s4,
+    result: _s5,
+    ...rest
+  } = data;
   return { ...rest, status: norm };
 }
-
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
