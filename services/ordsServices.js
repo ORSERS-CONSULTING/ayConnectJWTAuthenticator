@@ -90,7 +90,7 @@ async function getPaymentResult(requestId) {
 
   const data = res.data || {};
   const normalized = normalizeToAppStatus(data.status);
-
+  console.log(`[getPaymentResult] requestId=${requestId} status=${data.status} normalized=${normalized}`);
   // Strip any raw status-like fields so nothing can override your enum
   const {
     status: _s1,
