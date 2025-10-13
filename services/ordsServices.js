@@ -84,6 +84,7 @@ async function getPaymentResult(requestId) {
 
   const data = res.data || {};
   console.log("data:", data);
+  console.log("data:", data.status);
   const norm = normalizeToAppStatus(data.status);
   
 
