@@ -15,16 +15,16 @@ async function callGateway(method, path, { params, data } = {}) {
   return res.data;
 }
 async function forwardToOrds(rawBodyBuffer, stripeSignature) {
-  const url = `https://yawrhzry16j0fw1-aygateway.adb.me-dubai-1.oraclecloudapps.com/ords/ayconnect/ayConnect/webhook`;
-  console.log(url);
-  // const token = await getIdcsToken(url);
+  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
+
+  const token = await getIdcsToken(url);
 
   return axios.post(url, rawBodyBuffer, {
     headers: {
       "Content-Type": "application/json",     // keep JSON
       "Stripe_Signature": stripeSignature,   // original
       "X_Stripe_Signature": stripeSignature, // copy for gateways that strip the first
-      // Authorization: `Bearer ${token}`,       // satisfy API Gateway
+      Authorization: `Bearer ${token}`,       // satisfy API Gateway
     },
     transformRequest: [(d) => d],             // DO NOT touch raw body
     maxBodyLength: Infinity,
@@ -33,24 +33,6 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
   });
 }
 
-// async function callStripeWebhook() {
-//   const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
-//   console.log(url)
-//   const token = await getIdcsToken(url);  
-//   const res = await axios.post(
-//     url,              // ✅ first argument: URL
-//     {},               // ✅ second: body (empty object — Stripe will send real payload later)
-//     {                 // ✅ third: config
-//       headers: {
-//         Authorization: `Bearer ${token}`,
-//       },
-//       timeout: 15000,
-//     }
-//   );
-
-//   console.log('Webhook called:', res.status);
-//   return res;
-// }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
@@ -65,7 +47,6 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   };
 
   const b64Len = typeof data.file_base64 === 'string' ? data.file_base64.length : 0;
-  console.log('[UPLOAD ->]', 'POST', url, { keys: Object.keys(data), b64Len });
 
   const res = await axios({
     method: 'POST',
@@ -84,7 +65,6 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
     typeof res.data === 'string'
       ? (res.data.length ? `${res.data.slice(0, 120)}…` : '<empty>')
       : '<non-string>';
-  console.log('[UPLOAD <-]', res.status, 'body:', preview);
 
   return res; // keep full axios response (status, headers, data)
 }
@@ -197,14 +177,14 @@ async function initPayment(payPayload, ctx = {}) {
     },
   };
 
-  console.log("[initPayment] ->", {
-    ...body,
-    // safer log:
-    amount: body.amount,
-    currency: body.currency,
-    description: body.description,
-    context: { ...body.context, email: mask(body.context.email) },
-  });
+  // console.log("[initPayment] ->", {
+  //   ...body,
+  //   // safer log:
+  //   amount: body.amount,
+  //   currency: body.currency,
+  //   description: body.description,
+  //   context: { ...body.context, email: mask(body.context.email) },
+  // });
 
   // Optional: support idempotency per request_id
   const idempotency = body.context.request_id ? String(body.context.request_id) : undefined;
@@ -224,7 +204,6 @@ async function initPayment(payPayload, ctx = {}) {
   if (typeof data?.response_body === "string") {
     try {
       parsed = JSON.parse(data.response_body);
-      console.log("[initPayment] Unwrapped response_body");
     } catch {
       throw new Error("response_body was not valid JSON");
     }
@@ -239,12 +218,12 @@ async function initPayment(payPayload, ctx = {}) {
     throw new Error(`Malformed payment response. Keys: ${Object.keys(parsed || {}).join(", ")}`);
   }
 
-  console.log("[initPayment] <-", {
-    clientSecret: mask(clientSecret),
-    customerId,
-    ephemeralKey: mask(ephemeralKey),
-    requestId,
-  });
+  // console.log("[initPayment] <-", {
+  //   clientSecret: mask(clientSecret),
+  //   customerId,
+  //   ephemeralKey: mask(ephemeralKey),
+  //   requestId,
+  // });
 
   return { clientSecret, customerId, ephemeralKey, requestId };
 }

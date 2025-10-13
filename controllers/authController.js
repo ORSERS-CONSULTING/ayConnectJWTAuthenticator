@@ -119,20 +119,9 @@ async function login(req, res) {
       if (String(channel).toLowerCase() === 'email') email = target;
       if (String(channel).toLowerCase() === 'mobile') mobile_number = target;
     }
-    // enforce “exactly one of”:
-    // const hasEmail = !!email;
-    // const hasMobile = !!mobile_number;
-    // if (hasEmail === hasMobile) {
-    //   return res.status(400).json({ message: 'Provide exactly one of email or mobile_number' });
-    // }
-
+    
     const data = await ordsLogin({ email, mobile_number });
-    // Normalize fields from ORDS response
-    // const userId = Number(
-    //   data.out_user_id ?? data.OUT_USER_ID ?? data.user_id ?? data.USER_ID
-    // );
 
-    console.log(data)
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
@@ -174,7 +163,7 @@ async function register(req, res) {
     }
 
     const data = await registerUser({ email, mobile_number, full_name });
-    console.log(data)
+
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
@@ -215,7 +204,6 @@ async function loginClient(req, res) {
     }
     const data = await registerClient({ client_code });
 
-    console.log(data)
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
@@ -278,7 +266,6 @@ async function getClientCode(req, res) {
 
     const data = await resendClientCode({ email });
 
-    console.log(data)
     return res.json(data);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -296,7 +283,6 @@ async function registerExistingClientFromMainDB(rew, res) {
 
     const data = await registerExistingClient({ client_code });
 
-    console.log(data)
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
 

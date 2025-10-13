@@ -46,16 +46,11 @@ async function createPayment(req, res) {
 // }
 async function proxyStripeToOrds(req, res) {
   try {
-    console.log("[webhook] sig:", req.headers["stripe-signature"]);
-    console.log("[webhook] body is Buffer?", Buffer.isBuffer(req.body), "len:", req.body?.length);
-
     const stripeSig = req.headers["stripe-signature"];
     if (!stripeSig) return res.status(400).send("Missing Stripe-Signature");
 
     // req.body is a Buffer because of express.raw on the route
     const r = await forwardToOrds(req.body, stripeSig);
-
-    console.log("[proxyStripeToOrds] ORDS status:", r.status);
     // Pass through ORDS' response code/body
     return res.status(r.status).send(r.data ?? "OK");
   } catch (e) {
