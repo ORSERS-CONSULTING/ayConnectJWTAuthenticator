@@ -1,11 +1,28 @@
 const axios = require("axios");
 const { getIdcsToken } = require("./idcsServices");
-
 function peek(s, n = 200) {
   return s && s.length > n ? s.slice(0, n) + "…(truncated)" : s || "";
 }
 function mask(s) {
   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
+}
+
+// Canonicalize to your app's enum
+function normalizeToAppStatus(rawStatus) {
+  const s = String(rawStatus || "").toUpperCase();
+
+  if (s === "PAID" || s === "SUCCESS" || s === "SUCCEEDED") return "PAID";
+
+  // Treat anything non-terminal as pending payment
+  if (
+    s === "PENDING_PAYMENT" ||
+    s === "PENDING" ||
+    s === "PROCESSING" ||
+    s.startsWith("REQUIRES_") // Stripe: requires_payment_method, requires_action, etc.
+  )
+    return "PENDING_PAYMENT";
+
+  return "FAILED";
 }
 
 function sleep(ms) {
@@ -25,48 +42,28 @@ async function callGateway(method, path, { params, data } = {}) {
   });
   return res.data;
 }
-
 async function forwardToOrds(rawBodyBuffer, stripeSignature) {
   const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
+
   const token = await getIdcsToken(url);
 
   return axios.post(url, rawBodyBuffer, {
     headers: {
-      "Content-Type": "application/json",
-      Stripe_Signature: stripeSignature,
-      X_Stripe_Signature: stripeSignature,
-      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json", // keep JSON
+      Stripe_Signature: stripeSignature, // original
+      X_Stripe_Signature: stripeSignature, // copy for gateways that strip the first
+      Authorization: `Bearer ${token}`, // satisfy API Gateway
     },
-    transformRequest: [(d) => d],
+    transformRequest: [(d) => d], // DO NOT touch raw body
     maxBodyLength: Infinity,
     timeout: 15000,
     validateStatus: () => true,
   });
 }
 
-/* ====== CHANGES START ====== */
-// Canonicalize to your app's enum
-function normalizeToAppStatus(rawStatus) {
-  const s = String(rawStatus || "").toUpperCase();
-
-  if (s === "PAID" || s === "SUCCESS" || s === "SUCCEEDED") return "PAID";
-
-  // Treat anything non-terminal as pending payment
-  if (
-    s === "PENDING_PAYMENT" ||
-    s === "PENDING" ||
-    s === "PROCESSING" ||
-    s.startsWith("REQUIRES_") // Stripe: requires_payment_method, requires_action, etc.
-  )
-    return "PENDING_PAYMENT";
-
-  return "FAILED";
-}
-
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
-  // Reading from your DB-backed ORDS endpoint:
   const url = `${process.env.GATEWAY_BASE_URL}/requests/${encodeURIComponent(
     String(requestId)
   )}`;
@@ -108,25 +105,6 @@ async function getPaymentResult(requestId) {
   return { ...rest, status: normalized };
 }
 
-async function waitForPaid(
-  requestId,
-  { timeoutMs = 20000, intervalMs = 1000 } = {}
-) {
-  const until = Date.now() + timeoutMs;
-  let last = { status: "PENDING_PAYMENT" };
-
-  while (Date.now() < until) {
-    const current = await getPaymentResult(requestId);
-    const s = String(current.status).toUpperCase();
-    if (s === "PAID" || s === "FAILED") return current;
-
-    last = { ...current, status: "PENDING_PAYMENT" };
-    await sleep(intervalMs);
-  }
-  return last;
-}
-/* ====== CHANGES END ====== */
-
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   console.log(url);
@@ -149,11 +127,12 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
     headers,
     maxBodyLength: 50 * 1024 * 1024,
     maxContentLength: 50 * 1024 * 1024,
-    validateStatus: () => true,
-    responseType: "text",
-    transformResponse: [(x) => x],
+    validateStatus: () => true, // we handle all statuses
+    responseType: "text", // keep raw string (empty possible)
+    transformResponse: [(x) => x], // do not auto-parse JSON
   });
 
+  // res.data may be "" (empty string). Avoid Object.keys on a string.
   const preview =
     typeof res.data === "string"
       ? res.data.length
@@ -161,7 +140,7 @@ async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
         : "<empty>"
       : "<non-string>";
 
-  return res;
+  return res; // keep full axios response (status, headers, data)
 }
 
 async function callGatewayJson(method, path, { params, data } = {}) {
@@ -178,16 +157,17 @@ async function callGatewayJson(method, path, { params, data } = {}) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    validateStatus: () => true,
-    responseType: "text",
-    transformResponse: [(x) => x],
+    validateStatus: () => true, // we’ll handle non-2xx ourselves
+    responseType: "text", // keep raw (could be "", JSON, or JSON string)
+    transformResponse: [(x) => x], // do not auto-parse
   });
 
+  // Try to parse JSON if possible; otherwise keep as text
   let parsed;
   try {
     parsed = res.data ? JSON.parse(res.data) : {};
   } catch {
-    parsed = { __raw: res.data };
+    parsed = { __raw: res.data }; // non-JSON response
   }
 
   return {
@@ -218,6 +198,7 @@ function ordsLogin({ email, mobile_number }) {
   const params = {};
   if (email) params.email = email;
   if (mobile_number) params.mobile_number = mobile_number;
+  // only the present one will be sent as a query param
   return callGateway("POST", "login", { params });
 }
 function registerClient({ client_code }) {
@@ -235,12 +216,14 @@ function registerUser({ email, mobile_number, full_name }) {
   if (!email || !mobile_number || !full_name) {
     throw new Error("Please fill all the fileds");
   }
+
   return callGateway("POST", "register", { params });
 }
 function resendClientCode({ email }) {
   if (!email) {
     throw new Error("Please fill all the fileds");
   }
+
   return callGateway("POST", "resend-Walking-Code", { params: { email } });
 }
 function getClientEmail({ client_code }) {
@@ -261,13 +244,15 @@ function ordsGetProcedures() {
   return callGateway("GET", "getProcedures");
 }
 function ordsGetUserDocs(user_id) {
-  return callGateway("GET", "show-user-documents", { params: { user_id } });
+  return callGateway("GET", "show-user-documents", { params: { user_id } }); // adjust path/name to your ORDS
 }
 function ordsGetDocumentTypes() {
+  // no params needed; still goes through callGateway which adds the IDCS token
   return callGateway("GET", "document-types");
 }
 
 function uploadDocuments(docPayload) {
+  // ensure pure base64 (no data: prefix)
   if (
     typeof docPayload.file_base64 === "string" &&
     docPayload.file_base64.startsWith("data:")
@@ -278,7 +263,9 @@ function uploadDocuments(docPayload) {
         docPayload.file_base64.split(",")[1] || docPayload.file_base64,
     };
   }
-  return callGatewayUpload("upload-documents", docPayload);
+
+  // TODO: confirm correct upstream path
+  return callGatewayUpload("upload-documents", docPayload); // <-- set the RIGHT path
 }
 
 async function initPayment(payPayload, ctx = {}) {
@@ -297,6 +284,16 @@ async function initPayment(payPayload, ctx = {}) {
     },
   };
 
+  // console.log("[initPayment] ->", {
+  //   ...body,
+  //   // safer log:
+  //   amount: body.amount,
+  //   currency: body.currency,
+  //   description: body.description,
+  //   context: { ...body.context, email: mask(body.context.email) },
+  // });
+
+  // Optional: support idempotency per request_id
   const idempotency = body.context.request_id
     ? String(body.context.request_id)
     : undefined;
@@ -313,6 +310,7 @@ async function initPayment(payPayload, ctx = {}) {
     );
   }
 
+  // unwrap { response_body: "<json string>" }
   let parsed = data;
   if (typeof data?.response_body === "string") {
     try {
@@ -337,7 +335,32 @@ async function initPayment(payPayload, ctx = {}) {
     );
   }
 
+  // console.log("[initPayment] <-", {
+  //   clientSecret: mask(clientSecret),
+  //   customerId,
+  //   ephemeralKey: mask(ephemeralKey),
+  //   requestId,
+  // });
+
   return { clientSecret, customerId, ephemeralKey, requestId };
+}
+
+async function waitForPaid(
+  requestId,
+  { timeoutMs = 20000, intervalMs = 1000 } = {}
+) {
+  const until = Date.now() + timeoutMs;
+  let last = { status: "PENDING_PAYMENT" };
+
+  while (Date.now() < until) {
+    const current = await getPaymentResult(requestId);
+    const s = String(current.status).toUpperCase();
+    if (s === "PAID" || s === "FAILED") return current;
+
+    last = { ...current, status: "PENDING_PAYMENT" };
+    await sleep(intervalMs);
+  }
+  return last;
 }
 
 module.exports = {
