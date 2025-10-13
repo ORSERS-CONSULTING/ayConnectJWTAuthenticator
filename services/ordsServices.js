@@ -82,11 +82,28 @@ async function getPaymentResult(requestId) {
     throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
   }
 
-  const data = res.data || {};
-  console.log("data:", data);
-  console.log("data:", data.status);
-  const norm = normalizeToAppStatus(data.status);
-  
+  // ── unwrap the ORDS wrapper ──────────────────────────────────────────────
+  let data = res.data ?? {};
+  // if ORDS/axios handed you a string, parse it
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch {}
+  }
+  // if payload is in response_body (string), parse that JSON too
+  if (data && typeof data.response_body === "string") {
+    try {
+      data = JSON.parse(data.response_body);
+    } catch {}
+  } else if (data && typeof data.responseBody === "string") {
+    try {
+      data = JSON.parse(data.responseBody);
+    } catch {}
+  }
+  const raw = data?.status;
+  const norm = normalizeToAppStatus(raw);
+
+  console.log(`[getPaymentResult] id=${requestId} raw=${raw} norm=${norm}`);
 
   // strip any aliases so nothing overwrites ours
   const {
@@ -102,7 +119,8 @@ async function getPaymentResult(requestId) {
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-  console.log(url);  const token = await getIdcsToken(url);
+  console.log(url);
+  const token = await getIdcsToken(url);
 
   const headers = {
     Accept: "application/json",
