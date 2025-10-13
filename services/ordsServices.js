@@ -55,30 +55,45 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
-  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`; // <— adjust path if your ORDS differs
+  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
   const token = await getIdcsToken(url);
 
   const res = await axios({
     method: "GET",
     url,
-    params: { request_id: requestId }, // if your ORDS expects path param, swap for `${url}/${encodeURIComponent(requestId)}`
+    params: { request_id: requestId }, // or `${url}/${encodeURIComponent(requestId)}` if your ORDS expects a path param
     headers: { Authorization: `Bearer ${token}` },
-    validateStatus: () => true, // let us handle non-2xx
+    validateStatus: () => true,
     timeout: 15000,
   });
 
-  if (res.status === 404) {
-    return { status: "PENDING" };
-  }
+  if (res.status === 404) return { status: "PENDING" };
+
   if (res.status < 200 || res.status >= 300) {
-    const msg = typeof res.data === "string" ? res.data : (res.data?.message || JSON.stringify(res.data));
+    const msg =
+      typeof res.data === "string"
+        ? res.data
+        : res.data?.message || JSON.stringify(res.data);
     throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
   }
 
   const data = res.data || {};
   const status = normalizePaymentState(data);
-  return { status, ...data };
+
+  // Remove raw status-like fields so they can't collide
+  const {
+    status: _s1,
+    state: _s2,
+    payment_status: _s3,
+    order_status: _s4,
+    result: _s5,
+    ...rest
+  } = data;
+
+  // Put normalized status LAST so it is authoritative
+  return { ...rest, status };
 }
+
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
