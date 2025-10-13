@@ -59,26 +59,21 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
     validateStatus: () => true,
   });
 }
-
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
-  const url = `${process.env.GATEWAY_BASE_URL}/requests/${encodeURIComponent(
-    String(requestId)
-  )}`;
+  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
   const token = await getIdcsToken(url);
-
   const res = await axios({
-    method: "GET",
+    method: "POST",
     url,
+    params: { request_id: requestId }, // << query param version
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: () => true,
     timeout: 15000,
   });
-
-  // If row not found yet, treat as pending
   if (res.status === 404) return { status: "PENDING_PAYMENT" };
-
+  console.log(res.status);
   if (res.status < 200 || res.status >= 300) {
     const msg =
       typeof res.data === "string"
@@ -88,9 +83,12 @@ async function getPaymentResult(requestId) {
   }
 
   const data = res.data || {};
-  const normalized = normalizeToAppStatus(data.status);
+  const norm = normalizeToAppStatus(data.status);
+  console.log(
+    `[getPaymentResult] id=${requestId} raw=${data.status} norm=${norm}`
+  );
 
-  // Strip any raw status-like fields so nothing can override your enum
+  // strip any aliases so nothing overwrites ours
   const {
     status: _s1,
     state: _s2,
@@ -99,9 +97,7 @@ async function getPaymentResult(requestId) {
     result: _s5,
     ...rest
   } = data;
-
-  // Put normalized LAST so it’s authoritative
-  return { ...rest, status: normalized };
+  return { ...rest, status: norm };
 }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
