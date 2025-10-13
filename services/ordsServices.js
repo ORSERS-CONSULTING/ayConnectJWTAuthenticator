@@ -7,20 +7,6 @@ function mask(s) {
   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
 }
 
-function normalizePaymentState(obj = {}) {
-  const raw = String(
-    obj.status ??
-    obj.state ??
-    obj.payment_status ??
-    obj.order_status ??
-    obj.result ??
-    ""
-  ).toUpperCase();
-
-  if (["PAID", "SUCCESS", "SUCCEEDED"].includes(raw)) return "PAID";
-  if (["FAILED", "FAILURE", "ERROR", "CANCELED", "CANCELLED"].includes(raw)) return "FAILED";
-  return "PENDING";
-}
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -55,43 +41,32 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
-  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
+  const url = `${process.env.GATEWAY_BASE_URL}/requests/${encodeURIComponent(String(requestId))}`;
   const token = await getIdcsToken(url);
 
   const res = await axios({
     method: "GET",
     url,
-    params: { request_id: requestId }, // or `${url}/${encodeURIComponent(requestId)}` if your ORDS expects a path param
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: () => true,
     timeout: 15000,
   });
 
   if (res.status === 404) return { status: "PENDING" };
-
   if (res.status < 200 || res.status >= 300) {
-    const msg =
-      typeof res.data === "string"
-        ? res.data
-        : res.data?.message || JSON.stringify(res.data);
+    const msg = typeof res.data === "string" ? res.data : (res.data?.error || res.data?.message || JSON.stringify(res.data));
     throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
   }
 
   const data = res.data || {};
-  const status = normalizePaymentState(data);
+  const raw = String(data.status ?? "").toUpperCase();
+  const allowed = ["PAID", "FAILED", "PENDING"];
 
-  // Remove raw status-like fields so they can't collide
-  const {
-    status: _s1,
-    state: _s2,
-    payment_status: _s3,
-    order_status: _s4,
-    result: _s5,
-    ...rest
-  } = data;
+  // Clamp to enum if somehow unexpected
+  const status = allowed.includes(raw) ? raw : "PENDING";
 
-  // Put normalized status LAST so it is authoritative
-  return { ...rest, status };
+  const { status: _drop, ...rest } = data;
+  return { ...rest, status };  // authoritative, last
 }
 
 
