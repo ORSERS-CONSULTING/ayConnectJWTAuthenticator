@@ -83,10 +83,9 @@ async function getPaymentResult(requestId) {
   }
 
   const data = res.data || {};
+  console.log("data:", data);
   const norm = normalizeToAppStatus(data.status);
-  console.log(
-    `[getPaymentResult] id=${requestId} raw=${data.status} norm=${norm}`
-  );
+  
 
   // strip any aliases so nothing overwrites ours
   const {
