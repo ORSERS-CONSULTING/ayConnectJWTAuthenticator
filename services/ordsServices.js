@@ -85,22 +85,23 @@ async function getPaymentResult(requestId) {
   // ── unwrap the ORDS wrapper ──────────────────────────────────────────────
   let data = res.data ?? {};
   // if ORDS/axios handed you a string, parse it
-  if (typeof data === "string") {
-    try {
-      data = JSON.parse(data);
-    } catch {}
-  }
-  // if payload is in response_body (string), parse that JSON too
-  if (data && typeof data.response_body === "string") {
-    try {
-      data = JSON.parse(data.response_body);
-    } catch {}
-  } else if (data && typeof data.responseBody === "string") {
-    try {
-      data = JSON.parse(data.responseBody);
-    } catch {}
-  }
-  const raw = data?.status;
+  // if (typeof data === "string") {
+  //   try {
+  //     data = JSON.parse(data);
+  //   } catch {}
+  // }
+  // // if payload is in response_body (string), parse that JSON too
+  // if (data && typeof data.response_body === "string") {
+  //   try {
+  //     data = JSON.parse(data.response_body);
+  //   } catch {}
+  // } else if (data && typeof data.responseBody === "string") {
+  //   try {
+  //     data = JSON.parse(data.responseBody);
+  //   } catch {}
+  // }
+  const raw = data?.responseBody?.status;
+  
   const norm = normalizeToAppStatus(raw);
 
   console.log(`[getPaymentResult] id=${requestId} raw=${raw} norm=${norm}`);
