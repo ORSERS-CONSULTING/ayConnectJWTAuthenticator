@@ -12,5 +12,6 @@ const loadConfig = require('./config/env');
   process.env.ETISALAT_SENDER = config.ETISALAT_SENDER;
   process.env.GATEWAY_BASE_URL = config.GATEWAY_BASE_URL;
   process.env.STRIPE_PUBLISHABLE_KEY = config.STRIPE_PUBLISHABLE_KEY;
+  process.env.ACCESS_TOKEN_TTL = config.ACCESS_TOKEN_TTL || process.env.ACCESS_TOKEN_TTL;
   require('./index'); // start your express app
 })();

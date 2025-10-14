@@ -4,9 +4,13 @@ const jwt = require('jsonwebtoken');
 const ISS = 'ay-backend';
 const AUD = 'ay-app';
 
-function signAccessToken(payload, expiresIn = '30m') {
-  return jwt.sign(payload, process.env.JWT_SECRET, { issuer: ISS, audience: AUD, expiresIn });
+const DEFAULT_TTL = process.env.ACCESS_TOKEN_TTL || '5m';
+function signAccessToken(payload, expiresIn = DEFAULT_TTL) {
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    issuer: 'ay-backend', audience: 'ay-app', expiresIn
+  });
 }
+
 
 function verifyAccessToken(token) {
   return jwt.verify(token, process.env.JWT_SECRET, { issuer: ISS, audience: AUD });
