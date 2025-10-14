@@ -53,21 +53,21 @@ async function verifyOtp(req, res) {
 
   try {
     const data = channel === 'mobile'
-      ? await verifyMobileOtp(target, otp)              // sends { mobile_number, otp_code }
-      : await verifyEmailOtp(target, otp);             // sends { email, otp_code }
+      ? await verifyMobileOtp(target, otp)
+      : await verifyEmailOtp(target, otp);
 
-    // Normalize status from ORDS
-    const status = String(
-      data.verification_status ?? data.VERIFICATION_STATUS ?? data.status ?? ''
-    ).toUpperCase();
+    const raw = (data.verification_status ?? data.VERIFICATION_STATUS ?? data.status ?? '').trim();
+    const status = raw.toUpperCase();
 
-    const verified = /(VERIFIED|SUCCESS|VALID|MATCH)/.test(status);
+    const OK = new Set(['VERIFIED', 'SUCCESS', 'VALID', 'MATCH']);
+    const verified = OK.has(status);
 
     if (!verified) {
+      // 401 for invalid/expired/etc.
       return res.status(401).json({ verified: false, status });
     }
 
-    // ✅ Only verification result — NO app tokens here
+    // success
     return res.json({ verified: true, status });
   } catch (e) {
     const code = e.response?.status ?? 500;
