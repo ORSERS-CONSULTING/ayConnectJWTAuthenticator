@@ -76,7 +76,6 @@ async function getPaymentResultController(req, res) {
   try {
     const id = req.params.id;
     const out = await getPaymentResult(id);
-    console.log("[paymentController] normalized response:", out);
 
     return res.status(200).json(out);
   } catch (e) {

@@ -109,9 +109,7 @@ async function getPaymentResult(requestId) {
   const raw = payload?.status;
   const norm = normalizeToAppStatus(raw);
 
-  // helpful debug (remove later)
-  console.log(`[getPaymentResult] id=${requestId} raw=${raw} norm=${norm}`);
-
+  
   // drop any conflicting status-like fields, return normalized LAST
   const {
     status: _s1,
@@ -127,7 +125,6 @@ async function getPaymentResult(requestId) {
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-  console.log(url);
   const token = await getIdcsToken(url);
 
   const headers = {
@@ -304,16 +301,6 @@ async function initPayment(payPayload, ctx = {}) {
     },
   };
 
-  // console.log("[initPayment] ->", {
-  //   ...body,
-  //   // safer log:
-  //   amount: body.amount,
-  //   currency: body.currency,
-  //   description: body.description,
-  //   context: { ...body.context, email: mask(body.context.email) },
-  // });
-
-  // Optional: support idempotency per request_id
   const idempotency = body.context.request_id
     ? String(body.context.request_id)
     : undefined;
@@ -354,13 +341,6 @@ async function initPayment(payPayload, ctx = {}) {
       )}`
     );
   }
-
-  // console.log("[initPayment] <-", {
-  //   clientSecret: mask(clientSecret),
-  //   customerId,
-  //   ephemeralKey: mask(ephemeralKey),
-  //   requestId,
-  // });
 
   return { clientSecret, customerId, ephemeralKey, requestId };
 }
