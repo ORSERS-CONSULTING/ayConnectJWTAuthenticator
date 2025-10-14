@@ -62,18 +62,21 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
 
+  // If your ORDS uses POST + ?request_id=..., keep this URL.
+  // If you later switch to a path param style, change to /requests/:id.
   const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
   const token = await getIdcsToken(url);
+
   const res = await axios({
     method: "POST",
     url,
-    params: { request_id: requestId }, // << query param version
+    params: { request_id: requestId }, // <-- matches your current ORDS route
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: () => true,
     timeout: 15000,
   });
+
   if (res.status === 404) return { status: "PENDING_PAYMENT" };
-  console.log(res.status);
   if (res.status < 200 || res.status >= 300) {
     const msg =
       typeof res.data === "string"
@@ -82,31 +85,34 @@ async function getPaymentResult(requestId) {
     throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
   }
 
-  // ── unwrap the ORDS wrapper ──────────────────────────────────────────────
-  let data = res.data ?? {};
-  // if ORDS/axios handed you a string, parse it
-  // if (typeof data === "string") {
-  //   try {
-  //     data = JSON.parse(data);
-  //   } catch {}
-  // }
-  // // if payload is in response_body (string), parse that JSON too
-  // if (data && typeof data.response_body === "string") {
-  //   try {
-  //     data = JSON.parse(data.response_body);
-  //   } catch {}
-  // } else if (data && typeof data.responseBody === "string") {
-  //   try {
-  //     data = JSON.parse(data.responseBody);
-  //   } catch {}
-  // }
-  const raw = data?.responseBody?.status;
-  
+  // -------- Unwrap any ORDS shape (object | string | {response_body: string}) --------
+  let payload = res.data ?? {};
+
+  // case A: raw string body
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch {}
+  }
+
+  // case B: wrapper with response_body/responseBody
+  if (payload && typeof payload.response_body === "string") {
+    try {
+      payload = JSON.parse(payload.response_body);
+    } catch {}
+  } else if (payload && typeof payload.responseBody === "string") {
+    try {
+      payload = JSON.parse(payload.responseBody);
+    } catch {}
+  }
+
+  const raw = payload?.status;
   const norm = normalizeToAppStatus(raw);
 
+  // helpful debug (remove later)
   console.log(`[getPaymentResult] id=${requestId} raw=${raw} norm=${norm}`);
 
-  // strip any aliases so nothing overwrites ours
+  // drop any conflicting status-like fields, return normalized LAST
   const {
     status: _s1,
     state: _s2,
@@ -114,7 +120,8 @@ async function getPaymentResult(requestId) {
     order_status: _s4,
     result: _s5,
     ...rest
-  } = data;
+  } = payload || {};
+
   return { ...rest, status: norm };
 }
 
