@@ -1,4 +1,5 @@
 // lib/jwtKeyring.js
+require('dotenv').config();    
 const jwt = require('jsonwebtoken');
 const { getSecretBundleWithMeta } = require('../config/vault');
 const DEFAULT_REFRESH_MS = 30_000;
