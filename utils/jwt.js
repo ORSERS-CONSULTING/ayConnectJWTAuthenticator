@@ -3,9 +3,10 @@ const jwtLib = require('jsonwebtoken');
 
 const ISS = 'ay-backend';
 const AUD = 'ay-app';
-const DEFAULT_TTL = process.env.ACCESS_TOKEN_TTL || '5m';
+const DEFAULT_TTL = process.env.ACCESS_TOKEN_TTL || '30m';
 
-async function signAccessToken(payload, expiresIn = DEFAULT_TTL) {
+function signAccessToken(payload, expiresIn = DEFAULT_TTL) {
+  // Prefer keyring (its .sign is synchronous)
   if (global && global.jwtKeyring && typeof global.jwtKeyring.sign === 'function') {
     return global.jwtKeyring.sign(payload, { expiresIn, issuer: ISS, audience: AUD });
   }
@@ -14,7 +15,7 @@ async function signAccessToken(payload, expiresIn = DEFAULT_TTL) {
   return jwtLib.sign(payload, secret, { issuer: ISS, audience: AUD, expiresIn });
 }
 
-async function verifyAccessToken(token) {
+function verifyAccessToken(token) {
   if (global && global.jwtKeyring && typeof global.jwtKeyring.verify === 'function') {
     return global.jwtKeyring.verify(token, { issuer: ISS, audience: AUD });
   }
