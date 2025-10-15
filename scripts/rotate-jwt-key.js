@@ -10,12 +10,12 @@ function makeNewKeyJson() {
 }
 
 async function run() {
-  const secretOcId = process.env.JWT_SECRET_OCID;
+  const secretOcId = process.env.JWT_SECRET;
   if (!secretOcId) {
     console.error('Missing env JWT_SECRET_OCID');
     process.exit(2);
   }
-
+ 
   console.log('Fetching current to learn version...');
   const { plaintext: curPlain, versionNumber: curVer } = await getSecretBundleWithMeta(secretOcId);
   console.log('Current version:', curVer);
