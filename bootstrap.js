@@ -1,7 +1,7 @@
 // bootstrap.js
 require('dotenv').config();
 const loadConfig = require('./config/env');
-const jwtKeyring = require('./lib/jwtKeyring');
+const jwtKeyring = require('./utils/jwtKeyring');
 
 (async () => {
   // load configuration (reads Vault or env as your loadConfig does)
