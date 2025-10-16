@@ -1,5 +1,5 @@
-const axios = require('axios');
-const { getIdcsToken } = require('./idcsServices');
+const axios = require("axios");
+const { getIdcsToken } = require("./idcsServices");
 function peek(s, n = 200) {
   return s && s.length > n ? s.slice(0, n) + "…(truncated)" : s || "";
 }
@@ -7,47 +7,155 @@ function mask(s) {
   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
 }
 
+// Canonicalize to your app's enum
+function normalizeToAppStatus(rawStatus) {
+  const s = String(rawStatus || "").toUpperCase();
+
+  if (s === "PAID" || s === "SUCCESS" || s === "SUCCEEDED") return "PAID";
+
+  // Treat anything non-terminal as pending payment
+  if (
+    s === "PENDING_PAYMENT" ||
+    s === "PENDING" ||
+    s === "PROCESSING" ||
+    s.startsWith("REQUIRES_") // Stripe: requires_payment_method, requires_action, etc.
+  )
+    return "PENDING_PAYMENT";
+
+  return "FAILED";
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-  console.log(url)
   const token = await getIdcsToken(url);
-  const res = await axios({ url, method, params, data, headers: { Authorization: `Bearer ${token}` } });
+  const res = await axios({
+    url,
+    method,
+    params,
+    data,
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return res.data;
+}
+async function forwardToOrds(rawBodyBuffer, stripeSignature) {
+  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
+
+  const token = await getIdcsToken(url);
+
+  return axios.post(url, rawBodyBuffer, {
+    headers: {
+      "Content-Type": "application/json", // keep JSON
+      Stripe_Signature: stripeSignature, // original
+      X_Stripe_Signature: stripeSignature, // copy for gateways that strip the first
+      Authorization: `Bearer ${token}`, // satisfy API Gateway
+    },
+    transformRequest: [(d) => d], // DO NOT touch raw body
+    maxBodyLength: Infinity,
+    timeout: 15000,
+    validateStatus: () => true,
+  });
+}
+async function getPaymentResult(requestId) {
+  if (requestId == null) throw new Error("requestId is required");
+
+  // If your ORDS uses POST + ?request_id=..., keep this URL.
+  // If you later switch to a path param style, change to /requests/:id.
+  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
+  const token = await getIdcsToken(url);
+
+  const res = await axios({
+    method: "POST",
+    url,
+    params: { request_id: requestId }, // <-- matches your current ORDS route
+    headers: { Authorization: `Bearer ${token}` },
+    validateStatus: () => true,
+    timeout: 15000,
+  });
+
+  if (res.status === 404) return { status: "PENDING_PAYMENT" };
+  if (res.status < 200 || res.status >= 300) {
+    const msg =
+      typeof res.data === "string"
+        ? res.data
+        : res.data?.error || res.data?.message || JSON.stringify(res.data);
+    throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
+  }
+
+  // -------- Unwrap any ORDS shape (object | string | {response_body: string}) --------
+  let payload = res.data ?? {};
+
+  // case A: raw string body
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch {}
+  }
+
+  // case B: wrapper with response_body/responseBody
+  if (payload && typeof payload.response_body === "string") {
+    try {
+      payload = JSON.parse(payload.response_body);
+    } catch {}
+  } else if (payload && typeof payload.responseBody === "string") {
+    try {
+      payload = JSON.parse(payload.responseBody);
+    } catch {}
+  }
+
+  const raw = payload?.status;
+  const norm = normalizeToAppStatus(raw);
+
+  
+  // drop any conflicting status-like fields, return normalized LAST
+  const {
+    status: _s1,
+    state: _s2,
+    payment_status: _s3,
+    order_status: _s4,
+    result: _s5,
+    ...rest
+  } = payload || {};
+
+  return { ...rest, status: norm };
 }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-  console.log(url);
   const token = await getIdcsToken(url);
 
   const headers = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
+    Accept: "application/json",
+    "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
     ...extraHeaders,
   };
 
-  const b64Len = typeof data.file_base64 === 'string' ? data.file_base64.length : 0;
-  console.log('[UPLOAD ->]', 'POST', url, { keys: Object.keys(data), b64Len });
+  const b64Len =
+    typeof data.file_base64 === "string" ? data.file_base64.length : 0;
 
   const res = await axios({
-    method: 'POST',
+    method: "POST",
     url,
     data,
     headers,
     maxBodyLength: 50 * 1024 * 1024,
     maxContentLength: 50 * 1024 * 1024,
-    validateStatus: () => true,           // we handle all statuses
-    responseType: 'text',                 // keep raw string (empty possible)
-    transformResponse: [(x) => x],        // do not auto-parse JSON
+    validateStatus: () => true, // we handle all statuses
+    responseType: "text", // keep raw string (empty possible)
+    transformResponse: [(x) => x], // do not auto-parse JSON
   });
 
   // res.data may be "" (empty string). Avoid Object.keys on a string.
   const preview =
-    typeof res.data === 'string'
-      ? (res.data.length ? `${res.data.slice(0, 120)}…` : '<empty>')
-      : '<non-string>';
-  console.log('[UPLOAD <-]', res.status, 'body:', preview);
+    typeof res.data === "string"
+      ? res.data.length
+        ? `${res.data.slice(0, 120)}…`
+        : "<empty>"
+      : "<non-string>";
 
   return res; // keep full axios response (status, headers, data)
 }
@@ -57,7 +165,7 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   const token = await getIdcsToken(url);
 
   const res = await axios({
-    method: 'POST',
+    method: "POST",
     url,
     params,
     data,
@@ -66,9 +174,9 @@ async function callGatewayJson(method, path, { params, data } = {}) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    validateStatus: () => true,     // we’ll handle non-2xx ourselves
-    responseType: "text",           // keep raw (could be "", JSON, or JSON string)
-    transformResponse: [(x) => x],  // do not auto-parse
+    validateStatus: () => true, // we’ll handle non-2xx ourselves
+    responseType: "text", // keep raw (could be "", JSON, or JSON string)
+    transformResponse: [(x) => x], // do not auto-parse
   });
 
   // Try to parse JSON if possible; otherwise keep as text
@@ -79,77 +187,110 @@ async function callGatewayJson(method, path, { params, data } = {}) {
     parsed = { __raw: res.data }; // non-JSON response
   }
 
-  return { status: res.status, headers: res.headers, data: parsed, raw: res.data };
+  return {
+    status: res.status,
+    headers: res.headers,
+    data: parsed,
+    raw: res.data,
+  };
 }
 
-function sendMobileOtp(mobile_number) { return callGateway('POST', 'send-mobile-otp', { params: { mobile_number } }); }
-function verifyMobileOtp(mobile, otp) { return callGateway('POST', 'verify-mobile-otp', { params: { mobile_number: mobile, otp_code: otp } }); }
-function sendEmailOtp(email) { return callGateway('POST', 'send-email-otp', { params: { email } }); }
-function verifyEmailOtp(email, otp) { return callGateway('POST', 'verify-email-otp', { params: { email, otp_code: otp } }); }
+function sendMobileOtp(mobile_number) {
+  return callGateway("POST", "send-mobile-otp", { params: { mobile_number } });
+}
+function verifyMobileOtp(mobile, otp) {
+  return callGateway("POST", "verify-mobile-otp", {
+    params: { mobile_number: mobile, otp_code: otp },
+  });
+}
+function sendEmailOtp(email) {
+  return callGateway("POST", "send-email-otp", { params: { email } });
+}
+function verifyEmailOtp(email, otp) {
+  return callGateway("POST", "verify-email-otp", {
+    params: { email, otp_code: otp },
+  });
+}
 function ordsLogin({ email, mobile_number }) {
   const params = {};
   if (email) params.email = email;
   if (mobile_number) params.mobile_number = mobile_number;
   // only the present one will be sent as a query param
-  return callGateway('POST', 'login', { params });
+  return callGateway("POST", "login", { params });
 }
-function registerClient({ client_code }) { return callGateway('POST', 'register-client', { params: { client_code } }) }
-function checkClientCode({ client_code }) { return callGateway('POST', 'check-client-code', { params: { client_code } }) }
-function registerExistingClient({ client_code }) { return callGateway('POST', 'register-existing-client', { paramS: { client_code } }) }
+function registerClient({ client_code }) {
+  return callGateway("POST", "register-client", { params: { client_code } });
+}
+function checkClientCode({ client_code }) {
+  return callGateway("POST", "check-client-code", { params: { client_code } });
+}
+function registerExistingClient({ client_code }) {
+  return callGateway("POST", "register-existing-client", {
+    paramS: { client_code },
+  });
+}
 function registerUser({ email, mobile_number, full_name }) {
   if (!email || !mobile_number || !full_name) {
-    throw new Error('Please fill all the fileds');
+    throw new Error("Please fill all the fileds");
   }
 
-  return callGateway('POST', 'register', { params });
+  return callGateway("POST", "register", { params });
 }
 function resendClientCode({ email }) {
   if (!email) {
-    throw new Error('Please fill all the fileds');
+    throw new Error("Please fill all the fileds");
   }
 
-  return callGateway('POST', 'resend-Walking-Code', { params: { email } })
+  return callGateway("POST", "resend-Walking-Code", { params: { email } });
 }
 function getClientEmail({ client_code }) {
   if (!client_code) {
-    throw new Error('client_code is required');
+    throw new Error("client_code is required");
   }
-  return callGateway('POST', 'getExistedClientEmail', { params: { client_code } });
+  return callGateway("POST", "getExistedClientEmail", {
+    params: { client_code },
+  });
 }
 function ordsGetServices() {
-  return callGateway('GET', 'getServices')
+  return callGateway("GET", "getServices");
 }
 function ordsGetDepartments() {
-  return callGateway('GET', 'getDepartments')
+  return callGateway("GET", "getDepartments");
 }
 function ordsGetProcedures() {
-  return callGateway('GET', 'getProcedures')
+  return callGateway("GET", "getProcedures");
 }
 function ordsGetUserDocs(user_id) {
-  return callGateway('GET', 'show-user-documents', { params: { user_id } }); // adjust path/name to your ORDS
+  return callGateway("GET", "show-user-documents", { params: { user_id } }); // adjust path/name to your ORDS
 }
 function ordsGetDocumentTypes() {
   // no params needed; still goes through callGateway which adds the IDCS token
-  return callGateway('GET', 'document-types');
+  return callGateway("GET", "document-types");
 }
-
 
 function uploadDocuments(docPayload) {
   // ensure pure base64 (no data: prefix)
-  if (typeof docPayload.file_base64 === 'string' && docPayload.file_base64.startsWith('data:')) {
-    docPayload = { ...docPayload, file_base64: docPayload.file_base64.split(',')[1] || docPayload.file_base64 };
+  if (
+    typeof docPayload.file_base64 === "string" &&
+    docPayload.file_base64.startsWith("data:")
+  ) {
+    docPayload = {
+      ...docPayload,
+      file_base64:
+        docPayload.file_base64.split(",")[1] || docPayload.file_base64,
+    };
   }
 
   // TODO: confirm correct upstream path
-  return callGatewayUpload('upload-documents', docPayload); // <-- set the RIGHT path
+  return callGatewayUpload("upload-documents", docPayload); // <-- set the RIGHT path
 }
-
 
 async function initPayment(payPayload, ctx = {}) {
   const body = {
     amount: Number(payPayload.amount),
     currency: payPayload.currency,
-    description: payPayload.description ?? `Service ${payPayload.serviceCode ?? ''}`,
+    description:
+      payPayload.description ?? `Service ${payPayload.serviceCode ?? ""}`,
     context: {
       user_id: ctx.user_id ?? ctx.userId ?? 0,
       service_id: ctx.service_id ?? ctx.serviceId ?? 0,
@@ -160,25 +301,19 @@ async function initPayment(payPayload, ctx = {}) {
     },
   };
 
-  console.log("[initPayment] ->", {
-    ...body,
-    // safer log:
-    amount: body.amount,
-    currency: body.currency,
-    description: body.description,
-    context: { ...body.context, email: mask(body.context.email) },
-  });
+  const idempotency = body.context.request_id
+    ? String(body.context.request_id)
+    : undefined;
+  const headers = idempotency ? { "Idempotency-Key": idempotency } : undefined;
 
-  // Optional: support idempotency per request_id
-  const idempotency = body.context.request_id ? String(body.context.request_id) : undefined;
-  const headers = idempotency ? { 'Idempotency-Key': idempotency } : undefined;
-
-  const res = await callGatewayJson('POST', 'pay', { data: body, headers });
+  const res = await callGatewayJson("POST", "pay", { data: body, headers });
   const { status, data } = res;
 
   if (status < 200 || status >= 300) {
     throw new Error(
-      data?.error || data?.message || `Payment initialization failed (status ${status})`
+      data?.error ||
+        data?.message ||
+        `Payment initialization failed (status ${status})`
     );
   }
 
@@ -187,30 +322,67 @@ async function initPayment(payPayload, ctx = {}) {
   if (typeof data?.response_body === "string") {
     try {
       parsed = JSON.parse(data.response_body);
-      console.log("[initPayment] Unwrapped response_body");
     } catch {
       throw new Error("response_body was not valid JSON");
     }
   }
 
-  const clientSecret = parsed.paymentIntent ?? parsed.client_secret ?? parsed.clientSecret;
-  const customerId   = parsed.customer      ?? parsed.customer_id   ?? parsed.customerId;
-  const ephemeralKey = parsed.ephemeralKey  ?? parsed.ephemeral_key;
-  const requestId    = parsed.requestId     ?? parsed.request_id    ?? body.context.request_id ?? null;
+  const clientSecret =
+    parsed.paymentIntent ?? parsed.client_secret ?? parsed.clientSecret;
+  const customerId = parsed.customer ?? parsed.customer_id ?? parsed.customerId;
+  const ephemeralKey = parsed.ephemeralKey ?? parsed.ephemeral_key;
+  const requestId =
+    parsed.requestId ?? parsed.request_id ?? body.context.request_id ?? null;
 
   if (!clientSecret || !customerId || !ephemeralKey) {
-    throw new Error(`Malformed payment response. Keys: ${Object.keys(parsed || {}).join(", ")}`);
+    throw new Error(
+      `Malformed payment response. Keys: ${Object.keys(parsed || {}).join(
+        ", "
+      )}`
+    );
   }
-
-  console.log("[initPayment] <-", {
-    clientSecret: mask(clientSecret),
-    customerId,
-    ephemeralKey: mask(ephemeralKey),
-    requestId,
-  });
 
   return { clientSecret, customerId, ephemeralKey, requestId };
 }
- 
 
-module.exports = { callGateway, initPayment, resendClientCode, getClientEmail, sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, registerClient, checkClientCode, registerUser, registerExistingClient, ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments };
+async function waitForPaid(
+  requestId,
+  { timeoutMs = 20000, intervalMs = 1000 } = {}
+) {
+  const until = Date.now() + timeoutMs;
+  let last = { status: "PENDING_PAYMENT" };
+
+  while (Date.now() < until) {
+    const current = await getPaymentResult(requestId);
+    const s = String(current.status).toUpperCase();
+    if (s === "PAID" || s === "FAILED") return current;
+
+    last = { ...current, status: "PENDING_PAYMENT" };
+    await sleep(intervalMs);
+  }
+  return last;
+}
+
+module.exports = {
+  callGateway,
+  forwardToOrds,
+  getPaymentResult,
+  initPayment,
+  resendClientCode,
+  getClientEmail,
+  sendMobileOtp,
+  verifyMobileOtp,
+  sendEmailOtp,
+  verifyEmailOtp,
+  ordsLogin,
+  registerClient,
+  checkClientCode,
+  registerUser,
+  registerExistingClient,
+  ordsGetServices,
+  ordsGetUserDocs,
+  ordsGetDocumentTypes,
+  uploadDocuments,
+  ordsGetProcedures,
+  ordsGetDepartments,
+};

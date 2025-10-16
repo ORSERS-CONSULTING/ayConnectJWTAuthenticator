@@ -91,10 +91,7 @@ async function uploadUserDocuments(req, res) {
 
     const approxBytes = Math.ceil((body.file_base64.replace(/=+$/, '').length * 3) / 4);
 
-    console.log('[/uploadUserDocuments] payload:', {
-      ...body,
-      file_base64: `[hidden ${approxBytes} bytes]`,
-    });
+    
 
     const resp = await uploadDocuments(body);
 
@@ -124,10 +121,6 @@ async function uploadUserDocuments(req, res) {
 
     const uploaded = is2xx && (uploadedExplicit || true); // accept empty 2xx as success
     const resolvedId = parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
-
-    console.log('[/uploadUserDocuments] upstream status:', resp.status);
-    console.log('[/uploadUserDocuments] upstream parsed:', parsed ?? '<no-json>');
-    console.log('[/uploadUserDocuments] upstream location:', location ?? '<none>');
 
     if (!uploaded) {
       return res.status(resp.status || 200).json({

@@ -1,10 +1,17 @@
-const { initPayment } = require("../services/ordsServices");
+const {
+  initPayment,
+  forwardToOrds,
+  getPaymentResult,
+} = require("../services/ordsServices");
+const axios = require("axios");
 
 async function createPayment(req, res) {
   try {
     const b = req.body || {};
     if (b.amount == null || !b.currency) {
-      return res.status(400).json({ message: "amount and currency are required" });
+      return res
+        .status(400)
+        .json({ message: "amount and currency are required" });
     }
 
     const ctx = {
@@ -17,7 +24,12 @@ async function createPayment(req, res) {
     };
 
     const data = await initPayment(
-      { amount: b.amount, currency: b.currency, description: b.description, serviceCode: b.service_code },
+      {
+        amount: b.amount,
+        currency: b.currency,
+        description: b.description,
+        serviceCode: b.service_code,
+      },
       ctx
     );
 
@@ -25,14 +37,57 @@ async function createPayment(req, res) {
   } catch (e) {
     console.error("[createPayment] ERROR:", e);
     const code = e.response?.status ?? 500;
-    return res.status(code).json({ message: e.message, details: e.response?.data });
+    return res
+      .status(code)
+      .json({ message: e.message, details: e.response?.data });
   }
 }
 
-async function callStripeWebhook() {
-  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
-  const res = await axios.post(url);
-  console.log('Webhook called:', res.status);
+// async function triggerStripeWebhook(req, res) {
+//   try {
+//     const result = await callStripeWebhook(); // directly call your service
+//     return res.status(200).json({ ok: true, message: "Webhook called successfully" });
+//   } catch (e) {
+//     console.error("[triggerStripeWebhook] ERROR:", e);
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json({
+//       ok: false,
+//       message: e.message,
+//       details: e.response?.data,
+//     });
+//   }
+// }
+async function proxyStripeToOrds(req, res) {
+  try {
+    const stripeSig = req.headers["stripe-signature"];
+    if (!stripeSig) return res.status(400).send("Missing Stripe-Signature");
+
+    // req.body is a Buffer because of express.raw on the route
+    const r = await forwardToOrds(req.body, stripeSig);
+    // Pass through ORDS' response code/body
+    return res.status(r.status).send(r.data ?? "OK");
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).send(e.response?.data || e.message);
+  }
 }
 
-module.exports = { createPayment, callStripeWebhook };
+async function getPaymentResultController(req, res) {
+  try {
+    const id = req.params.id;
+    const out = await getPaymentResult(id);
+
+    return res.status(200).json(out);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res
+      .status(code)
+      .json({ message: e.message, details: e.response?.data });
+  }
+}
+
+module.exports = {
+  createPayment,
+  proxyStripeToOrds,
+  getPaymentResultController,
+};

@@ -6,23 +6,7 @@ const {
 } = require('../services/ordsServices');
 const { sendSms } = require('../services/etisalatServices');
 
-/** Public: send OTP (mobile or email) */
-// async function sendOtp(req, res) {
-//   const { channel, target } = req.body || {};
-//   if (!channel || !target) return res.status(400).json({ message: 'channel & target required' });
 
-//   try {
-//     const data = channel === 'mobile'
-//       ? await sendMobileOtp(target)
-//       : await sendEmailOtp(target);
-
-//     // Return whatever ORDS returns (ideally you do NOT echo the OTP back!)
-//     return res.json(data);
-//   } catch (e) {
-//     const code = e.response?.status ?? 500;
-//     return res.status(code).json(e.response?.data ?? { message: e.message });
-//   }
-// }
 
 async function sendOtp(req, res) {
   const { channel, target } = req.body || {};
@@ -69,21 +53,21 @@ async function verifyOtp(req, res) {
 
   try {
     const data = channel === 'mobile'
-      ? await verifyMobileOtp(target, otp)              // sends { mobile_number, otp_code }
-      : await verifyEmailOtp(target, otp);             // sends { email, otp_code }
+      ? await verifyMobileOtp(target, otp)
+      : await verifyEmailOtp(target, otp);
 
-    // Normalize status from ORDS
-    const status = String(
-      data.verification_status ?? data.VERIFICATION_STATUS ?? data.status ?? ''
-    ).toUpperCase();
+    const raw = (data.verification_status ?? data.VERIFICATION_STATUS ?? data.status ?? '').trim();
+    const status = raw.toUpperCase();
 
-    const verified = /(VERIFIED|SUCCESS|VALID|MATCH)/.test(status);
+    const OK = new Set(['VERIFIED', 'SUCCESS', 'VALID', 'MATCH']);
+    const verified = OK.has(status);
 
     if (!verified) {
+      // 401 for invalid/expired/etc.
       return res.status(401).json({ verified: false, status });
     }
 
-    // ✅ Only verification result — NO app tokens here
+    // success
     return res.json({ verified: true, status });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -119,20 +103,9 @@ async function login(req, res) {
       if (String(channel).toLowerCase() === 'email') email = target;
       if (String(channel).toLowerCase() === 'mobile') mobile_number = target;
     }
-    // enforce “exactly one of”:
-    // const hasEmail = !!email;
-    // const hasMobile = !!mobile_number;
-    // if (hasEmail === hasMobile) {
-    //   return res.status(400).json({ message: 'Provide exactly one of email or mobile_number' });
-    // }
-
+    
     const data = await ordsLogin({ email, mobile_number });
-    // Normalize fields from ORDS response
-    // const userId = Number(
-    //   data.out_user_id ?? data.OUT_USER_ID ?? data.user_id ?? data.USER_ID
-    // );
 
-    console.log(data)
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
@@ -174,7 +147,7 @@ async function register(req, res) {
     }
 
     const data = await registerUser({ email, mobile_number, full_name });
-    console.log(data)
+
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
@@ -215,7 +188,6 @@ async function loginClient(req, res) {
     }
     const data = await registerClient({ client_code });
 
-    console.log(data)
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
@@ -278,7 +250,6 @@ async function getClientCode(req, res) {
 
     const data = await resendClientCode({ email });
 
-    console.log(data)
     return res.json(data);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -296,7 +267,6 @@ async function registerExistingClientFromMainDB(rew, res) {
 
     const data = await registerExistingClient({ client_code });
 
-    console.log(data)
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
 
