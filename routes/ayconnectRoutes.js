@@ -11,6 +11,6 @@ router.get('/getProcedures', authUser, ctrl.getProcedures);
 router.get('/getDepartments', authUser, ctrl.getDepartments);
 router.post('/uploadUserDocuments', authUser, ctrl.uploadUserDocuments);
 router.get("/user/Avatar", ctrl.getUserAvatar);
-router.post("/user/Avatar", upload.single("avatar"), ctrl.uploadUserAvatar);
+router.put("/user/Avatar", upload.single("avatar"), ctrl.uploadUserAvatar);
 
 module.exports = router;

@@ -28,27 +28,29 @@ function normalizeToAppStatus(rawStatus) {
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
-
-async function callGatewayBinary(path, rawBuffer, contentType, { params } = {}) {
+async function callGatewayBinary(method, path, rawBuffer, contentType, { params } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
 
   return axios({
-    method: "POST",
+    method, // "PUT"
     url,
-    params,                          // { user_id, content_type }
-    data: rawBuffer,                 // <-- goes to :body in ORDS
+    params,           // { user_id, content_type }
+    data: rawBuffer,  // -> :body
     headers: {
       Authorization: `Bearer ${token}`,
-      "Content-Type": contentType,   // e.g. image/png
+      "Content-Type": contentType,
     },
-    maxBodyLength: 50 * 1024 * 1024,
-    maxContentLength: 50 * 1024 * 1024,
     validateStatus: () => true,
     responseType: "text",
     transformResponse: [(x) => x],
+    maxBodyLength: 50 * 1024 * 1024,
+    maxContentLength: 50 * 1024 * 1024,
   });
 }
+
+
+
 
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
@@ -385,15 +387,8 @@ async function initPayment(payPayload, ctx = {}) {
 // }
 
 async function ordsUploadUserAvatar(user_id, fileBuffer, mimeType) {
-  if (!user_id) throw new Error("user_id is required");
-  if (!Buffer.isBuffer(fileBuffer)) throw new Error("fileBuffer must be a Buffer");
-  if (!/^image\//i.test(String(mimeType || ""))) throw new Error("mimeType must be image/*");
-
-  // Use your new ORDS route name here
   const PATH = "uploadAvatar";
-
-  // Your PL/SQL reads :content_type param, so pass it explicitly
-  return callGatewayBinary(PATH, fileBuffer, mimeType, {
+  return callGatewayBinary("PUT", PATH, fileBuffer, mimeType, {
     params: { user_id, content_type: mimeType },
   });
 }

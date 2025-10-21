@@ -179,8 +179,7 @@ async function getUserAvatar(req, res) {
   }
 }
 
-// POST /ayconnect/user/avatar  (auth + multer.single('avatar') should run before)
-async function uploadUserAvatar(req, res) {
+ async function uploadUserAvatar(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const user_id = String(req.query?.user_id || fromToken);
