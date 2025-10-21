@@ -10,7 +10,7 @@ router.get('/document-types', authUser, ctrl.getDocumentTypes);
 router.get('/getProcedures', authUser, ctrl.getProcedures);
 router.get('/getDepartments', authUser, ctrl.getDepartments);
 router.post('/uploadUserDocuments', authUser, ctrl.uploadUserDocuments);
-router.get("/user/profile", ctrl.getUserProfile);
-router.post("/user/profile", upload.single("avatar"), ctrl.upsertUserProfile);
+router.get("/user/profile",authUser, ctrl.getUserProfile);
+router.post("/user/profile",authUser, upload.single("avatar"), ctrl.upsertUserProfile);
 
 module.exports = router;
