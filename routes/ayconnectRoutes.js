@@ -1,4 +1,6 @@
 const router = require('express').Router();
+const multer = require('multer');
+const upload = multer({ limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB cap
 const { authUser } = require('../middleware/authUser');
 const ctrl = require('../controllers/ayconnectController');
 
