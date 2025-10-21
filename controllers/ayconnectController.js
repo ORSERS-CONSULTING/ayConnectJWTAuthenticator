@@ -179,50 +179,63 @@ async function getUserAvatar(req, res) {
   }
 }
 
- async function uploadUserAvatar(req, res) {
+
+
+async function uploadUserAvatar(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const fromToken = String(req.user?.id || req.user?.sub || '');
     const user_id = String(req.query?.user_id || fromToken);
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!user_id) return res.status(401).json({ message: 'No user in token' });
 
-    // Accept multipart file or JSON base64
     const b = req.body || {};
-    const file_buffer = req.file?.buffer || null;
-    const mime_type = req.file?.mimetype || b.mime_type || null;
 
-    let bufferToSend = file_buffer;
-    if (!bufferToSend && typeof b.file_base64 === "string") {
-      const base64 = b.file_base64.includes(",")
-        ? b.file_base64.split(",")[1]
-        : b.file_base64;
-      bufferToSend = Buffer.from(base64, "base64");
+    // 1) multipart
+    let file_buffer = req.file?.buffer || null;
+    let mime_type = req.file?.mimetype || null;
+
+    // 2) raw binary (from express.raw)
+    if (!file_buffer && req.is('image/*')) {
+      // express.raw gives Buffer in req.body
+      file_buffer = Buffer.isBuffer(req.body) ? req.body : null;
+      mime_type = req.headers['content-type'] || mime_type;
     }
 
-    if (!bufferToSend || !mime_type) {
+    // 3) JSON base64
+    if (!file_buffer && typeof b.file_base64 === 'string') {
+      const base64 = b.file_base64.includes(',')
+        ? b.file_base64.split(',')[1]
+        : b.file_base64;
+      file_buffer = Buffer.from(base64, 'base64');
+      mime_type = b.mime_type || mime_type;
+    }
+
+    if (!file_buffer || !mime_type) {
       return res.status(400).json({
-        message: "Provide avatar via multipart field 'avatar' or JSON {file_base64, mime_type}",
+        message:
+          "Provide avatar via RAW (Content-Type: image/*), multipart field 'avatar', or JSON {file_base64, mime_type}",
       });
     }
-    if (!/^image\//i.test(mime_type)) {
-      return res.status(415).json({ message: "mime_type must be image/*" });
+    if (!/^image\//i.test(String(mime_type))) {
+      return res.status(415).json({ message: 'mime_type must be image/*' });
     }
-    if (bufferToSend.length > 20 * 1024 * 1024) {
-      return res.status(413).json({ message: "Max 20MB allowed" });
+    if (file_buffer.length > 20 * 1024 * 1024) {
+      return res.status(413).json({ message: 'Max 20MB allowed' });
     }
 
-    const upstream = await ordsUploadUserAvatar(user_id, bufferToSend, mime_type);
+    const upstream = await ordsUploadUserAvatar(user_id, file_buffer, mime_type);
     const ok = upstream.status >= 200 && upstream.status < 300;
 
     let out = upstream.data;
-    try { out = typeof out === "string" && out ? JSON.parse(out) : out; } catch {}
+    try { out = typeof out === 'string' && out ? JSON.parse(out) : out; } catch {}
     return res.status(ok ? 200 : upstream.status).json(
-      out ?? { message: ok ? "Avatar uploaded successfully" : "Upload failed" }
+      out ?? { message: ok ? 'Avatar uploaded successfully' : 'Upload failed' }
     );
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+
 
 module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, };
 
