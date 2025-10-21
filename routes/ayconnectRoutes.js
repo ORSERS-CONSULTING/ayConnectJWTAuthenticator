@@ -14,7 +14,7 @@ router.get('/document-types', authUser, ctrl.getDocumentTypes);
 router.get('/getProcedures', authUser, ctrl.getProcedures);
 router.get('/getDepartments', authUser, ctrl.getDepartments);
 router.post('/uploadUserDocuments', authUser, ctrl.uploadUserDocuments);
-router.get("/user/Avatar",authUser, ctrl.getUserAvatar);
+router.get("/user/avatar",authUser, ctrl.getUserAvatar);
 router.put('/user/avatar',
     authUser,
     rawImages,                 // handles raw binary uploads
