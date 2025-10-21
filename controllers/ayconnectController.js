@@ -1,6 +1,6 @@
 // In the next step we’ll wire these to API Gateway/ORDS via services/ords.service.js
 
-const { ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments } = require('../services/ordsServices');
+const { ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserProfile, ordsUpsertUserProfile } = require('../services/ordsServices');
 
 async function getServices(_req, res) {
   try {
@@ -91,7 +91,7 @@ async function uploadUserDocuments(req, res) {
 
     const approxBytes = Math.ceil((body.file_base64.replace(/=+$/, '').length * 3) / 4);
 
-    
+
 
     const resp = await uploadDocuments(body);
 
@@ -149,6 +149,62 @@ async function uploadUserDocuments(req, res) {
   }
 }
 
+async function getUserProfile(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
 
-module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments };
+    const data = await ordsGetUserProfile(user_id);
+    return res.json(data);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+async function upsertUserProfile(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+
+    // Gather possible JSON updates
+    const b = req.body || {};
+    const json = {};
+    ["full_name", "mobile_number", "email", "emirates_id"].forEach((k) => {
+      if (b[k] != null) json[k] = b[k];
+    });
+    const jsonPayload = Object.keys(json).length ? json : undefined;
+
+    // Accept base64 avatar via JSON OR buffer via multipart
+    const file_base64 = b.file_base64; // may be undefined
+    const mime_type = b.mime_type || req.file?.mimetype; // may be undefined
+    const file_buffer = req.file?.buffer; // may be undefined
+
+    if (!jsonPayload && !file_base64 && !file_buffer) {
+      return res.status(400).json({
+        message: "Provide JSON fields or avatar (file_base64/multipart 'avatar')",
+      });
+    }
+
+    const upstream = await ordsUpsertUserProfile({
+      user_id,
+      json: jsonPayload,
+      file_base64,
+      file_buffer,
+      mime_type,
+    });
+
+    const ok = upstream.status >= 200 && upstream.status < 300;
+    let out = upstream.data;
+    try { out = typeof out === "string" && out ? JSON.parse(out) : out; } catch { }
+    return res.status(ok ? 200 : upstream.status).json(out ?? { message: ok ? "Updated" : "Failed" });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserProfile, upsertUserProfile, };
 

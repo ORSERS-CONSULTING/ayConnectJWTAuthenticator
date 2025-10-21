@@ -363,11 +363,86 @@ async function waitForPaid(
   return last;
 }
 
+function ordsGetUserProfile(user_id) {
+  if (!user_id) throw new Error("user_id is required");
+  return callGateway("GET", "getUserDetail", { params: { user_id } });
+}
+
+async function ordsUpdateUserProfile(user_id, fields = {}) {
+  if (!user_id) throw new Error("user_id is required");
+
+  return callGatewayJson("POST", "updateUser", {
+    params: { user_id },
+    data: fields,
+  });
+}
+
+// ---- POST binary/image branch (Content-Type: image/*) ----
+async function callGatewayBinary(path, rawBuffer, contentType, { params } = {}) {
+  const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
+  const token = await getIdcsToken(url);
+
+  const res = await axios({
+    method: "POST",
+    url,
+    params,
+    data: rawBuffer,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": contentType, // e.g., image/jpeg, image/png
+    },
+    maxBodyLength: 50 * 1024 * 1024,
+    maxContentLength: 50 * 1024 * 1024,
+    validateStatus: () => true,
+    responseType: "text",
+    transformResponse: [(x) => x],
+  });
+
+  return res;
+}
+
+async function ordsUploadUserAvatar(user_id, fileBuffer, mimeType) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!Buffer.isBuffer(fileBuffer)) throw new Error("fileBuffer must be a Buffer");
+  if (!/^image\//i.test(String(mimeType || ""))) {
+    throw new Error("mimeType must be image/*");
+  }
+  const PATH = "updateUserProfile"; // <-- same ORDS endpoint; it will branch by content-type
+  return callGatewayBinary(PATH, fileBuffer, mimeType, { params: { user_id } });
+}
+
+// ---- Single convenience entry that chooses JSON vs image ----
+async function ordsUpsertUserProfile({ user_id, json, file_base64, file_buffer, mime_type }) {
+  if (!user_id) throw new Error("user_id is required");
+
+  // JSON case
+  if (json && typeof json === "object" && Object.keys(json).length) {
+    return ordsUpdateUserProfile(user_id, json);
+  }
+
+  // Avatar case (Buffer or base64 + mime)
+  let buf = file_buffer ?? null;
+  let mime = mime_type ?? null;
+
+  if (!buf && typeof file_base64 === "string") {
+    const [, b64] = file_base64.includes(",") ? file_base64.split(",") : [null, file_base64];
+    buf = Buffer.from(b64, "base64");
+  }
+  if (!mime) throw new Error("mime_type is required for avatar upload");
+  if (!buf) throw new Error("file_buffer or file_base64 is required for avatar upload");
+
+  return ordsUploadUserAvatar(user_id, buf, mime);
+}
+
 module.exports = {
   callGateway,
   forwardToOrds,
   getPaymentResult,
   initPayment,
+  ordsGetUserProfile,
+  ordsUpdateUserProfile,
+  ordsUploadUserAvatar,
+  ordsUpsertUserProfile,
   resendClientCode,
   getClientEmail,
   sendMobileOtp,
