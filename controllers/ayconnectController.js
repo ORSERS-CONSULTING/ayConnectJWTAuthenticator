@@ -1,6 +1,6 @@
 // In the next step we’ll wire these to API Gateway/ORDS via services/ords.service.js
 
-const { ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserProfile, ordsUpsertUserProfile } = require('../services/ordsServices');
+const { ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, } = require('../services/ordsServices');
 
 async function getServices(_req, res) {
   try {
@@ -149,62 +149,81 @@ async function uploadUserDocuments(req, res) {
   }
 }
 
-async function getUserProfile(req, res) {
+// --- GET avatar (stream image) ---
+async function getUserAvatar(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const user_id = String(req.query?.user_id || fromToken);
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!user_id) return res.status(401).send("No user");
 
-    const data = await ordsGetUserProfile(user_id);
-    return res.json(data);
-  } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
-  }
-}
+    const upstream = await ordsGetUserAvatar(user_id);
 
-async function upsertUserProfile(req, res) {
-  try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
-
-    // Gather possible JSON updates
-    const b = req.body || {};
-    const json = {};
-    ["full_name", "mobile_number", "email", "emirates_id"].forEach((k) => {
-      if (b[k] != null) json[k] = b[k];
-    });
-    const jsonPayload = Object.keys(json).length ? json : undefined;
-
-    // Accept base64 avatar via JSON OR buffer via multipart
-    const file_base64 = b.file_base64; // may be undefined
-    const mime_type = b.mime_type || req.file?.mimetype; // may be undefined
-    const file_buffer = req.file?.buffer; // may be undefined
-
-    if (!jsonPayload && !file_base64 && !file_buffer) {
-      return res.status(400).json({
-        message: "Provide JSON fields or avatar (file_base64/multipart 'avatar')",
-      });
+    if (upstream.status >= 400) {
+      // ORDS might return JSON error; just proxy status
+      return res.status(upstream.status).json({ message: "Avatar not found" });
     }
 
-    const upstream = await ordsUpsertUserProfile({
-      user_id,
-      json: jsonPayload,
-      file_base64,
-      file_buffer,
-      mime_type,
-    });
+    // Forward headers (content-type/length if available)
+    const ct = upstream.headers["content-type"] || "image/jpeg";
+    res.setHeader("Content-Type", ct);
+    if (upstream.headers["content-length"]) {
+      res.setHeader("Content-Length", upstream.headers["content-length"]);
+    }
+    res.setHeader("Cache-Control", "public, max-age=86400");
 
+    // Stream the image
+    upstream.data.pipe(res);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json({ message: e.message });
+  }
+}
+
+// POST /ayconnect/user/avatar  (auth + multer.single('avatar') should run before)
+async function uploadUserAvatar(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+
+    // Accept multipart file or JSON base64
+    const b = req.body || {};
+    const file_buffer = req.file?.buffer || null;
+    const mime_type = req.file?.mimetype || b.mime_type || null;
+
+    let bufferToSend = file_buffer;
+    if (!bufferToSend && typeof b.file_base64 === "string") {
+      const base64 = b.file_base64.includes(",")
+        ? b.file_base64.split(",")[1]
+        : b.file_base64;
+      bufferToSend = Buffer.from(base64, "base64");
+    }
+
+    if (!bufferToSend || !mime_type) {
+      return res.status(400).json({
+        message: "Provide avatar via multipart field 'avatar' or JSON {file_base64, mime_type}",
+      });
+    }
+    if (!/^image\//i.test(mime_type)) {
+      return res.status(415).json({ message: "mime_type must be image/*" });
+    }
+    if (bufferToSend.length > 20 * 1024 * 1024) {
+      return res.status(413).json({ message: "Max 20MB allowed" });
+    }
+
+    const upstream = await ordsUploadUserAvatar(user_id, bufferToSend, mime_type);
     const ok = upstream.status >= 200 && upstream.status < 300;
+
     let out = upstream.data;
-    try { out = typeof out === "string" && out ? JSON.parse(out) : out; } catch { }
-    return res.status(ok ? 200 : upstream.status).json(out ?? { message: ok ? "Updated" : "Failed" });
+    try { out = typeof out === "string" && out ? JSON.parse(out) : out; } catch {}
+    return res.status(ok ? 200 : upstream.status).json(
+      out ?? { message: ok ? "Avatar uploaded successfully" : "Upload failed" }
+    );
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
 
-module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserProfile, upsertUserProfile, };
+module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, };
 

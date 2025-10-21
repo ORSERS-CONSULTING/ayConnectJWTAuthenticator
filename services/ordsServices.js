@@ -1,11 +1,11 @@
 const axios = require("axios");
 const { getIdcsToken } = require("./idcsServices");
-function peek(s, n = 200) {
-  return s && s.length > n ? s.slice(0, n) + "…(truncated)" : s || "";
-}
-function mask(s) {
-  return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
-}
+// function peek(s, n = 200) {
+//   return s && s.length > n ? s.slice(0, n) + "…(truncated)" : s || "";
+// }
+// function mask(s) {
+//   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
+// }
 
 // Canonicalize to your app's enum
 function normalizeToAppStatus(rawStatus) {
@@ -27,6 +27,27 @@ function normalizeToAppStatus(rawStatus) {
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+async function callGatewayBinary(path, rawBuffer, contentType, { params } = {}) {
+  const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
+  const token = await getIdcsToken(url);
+
+  return axios({
+    method: "POST",
+    url,
+    params,                          // { user_id, content_type }
+    data: rawBuffer,                 // <-- goes to :body in ORDS
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": contentType,   // e.g. image/png
+    },
+    maxBodyLength: 50 * 1024 * 1024,
+    maxContentLength: 50 * 1024 * 1024,
+    validateStatus: () => true,
+    responseType: "text",
+    transformResponse: [(x) => x],
+  });
 }
 
 async function callGateway(method, path, { params, data } = {}) {
@@ -345,104 +366,62 @@ async function initPayment(payPayload, ctx = {}) {
   return { clientSecret, customerId, ephemeralKey, requestId };
 }
 
-async function waitForPaid(
-  requestId,
-  { timeoutMs = 20000, intervalMs = 1000 } = {}
-) {
-  const until = Date.now() + timeoutMs;
-  let last = { status: "PENDING_PAYMENT" };
+// async function waitForPaid(
+//   requestId,
+//   { timeoutMs = 20000, intervalMs = 1000 } = {}
+// ) {
+//   const until = Date.now() + timeoutMs;
+//   let last = { status: "PENDING_PAYMENT" };
 
-  while (Date.now() < until) {
-    const current = await getPaymentResult(requestId);
-    const s = String(current.status).toUpperCase();
-    if (s === "PAID" || s === "FAILED") return current;
+//   while (Date.now() < until) {
+//     const current = await getPaymentResult(requestId);
+//     const s = String(current.status).toUpperCase();
+//     if (s === "PAID" || s === "FAILED") return current;
 
-    last = { ...current, status: "PENDING_PAYMENT" };
-    await sleep(intervalMs);
-  }
-  return last;
-}
-
-function ordsGetUserProfile(user_id) {
-  if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "getUserDetail", { params: { user_id } });
-}
-
-async function ordsUpdateUserProfile(user_id, fields = {}) {
-  if (!user_id) throw new Error("user_id is required");
-
-  return callGatewayJson("POST", "updateUser", {
-    params: { user_id },
-    data: fields,
-  });
-}
-
-// ---- POST binary/image branch (Content-Type: image/*) ----
-async function callGatewayBinary(path, rawBuffer, contentType, { params } = {}) {
-  const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-  const token = await getIdcsToken(url);
-
-  const res = await axios({
-    method: "POST",
-    url,
-    params,
-    data: rawBuffer,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": contentType, // e.g., image/jpeg, image/png
-    },
-    maxBodyLength: 50 * 1024 * 1024,
-    maxContentLength: 50 * 1024 * 1024,
-    validateStatus: () => true,
-    responseType: "text",
-    transformResponse: [(x) => x],
-  });
-
-  return res;
-}
+//     last = { ...current, status: "PENDING_PAYMENT" };
+//     await sleep(intervalMs);
+//   }
+//   return last;
+// }
 
 async function ordsUploadUserAvatar(user_id, fileBuffer, mimeType) {
   if (!user_id) throw new Error("user_id is required");
   if (!Buffer.isBuffer(fileBuffer)) throw new Error("fileBuffer must be a Buffer");
-  if (!/^image\//i.test(String(mimeType || ""))) {
-    throw new Error("mimeType must be image/*");
-  }
-  const PATH = "updateUserProfile"; // <-- same ORDS endpoint; it will branch by content-type
-  return callGatewayBinary(PATH, fileBuffer, mimeType, { params: { user_id } });
+  if (!/^image\//i.test(String(mimeType || ""))) throw new Error("mimeType must be image/*");
+
+  // Use your new ORDS route name here
+  const PATH = "uploadAvatar";
+
+  // Your PL/SQL reads :content_type param, so pass it explicitly
+  return callGatewayBinary(PATH, fileBuffer, mimeType, {
+    params: { user_id, content_type: mimeType },
+  });
 }
 
-// ---- Single convenience entry that chooses JSON vs image ----
-async function ordsUpsertUserProfile({ user_id, json, file_base64, file_buffer, mime_type }) {
+async function ordsGetUserAvatar(user_id) {
   if (!user_id) throw new Error("user_id is required");
+  // <-- set to your ORDS GET that selects content_type, content (BLOB)
+  const PATH = "getUserImage"; // e.g. the ORDS template for your SELECT handler
+  const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
+  const token = await getIdcsToken(url);
 
-  // JSON case
-  if (json && typeof json === "object" && Object.keys(json).length) {
-    return ordsUpdateUserProfile(user_id, json);
-  }
-
-  // Avatar case (Buffer or base64 + mime)
-  let buf = file_buffer ?? null;
-  let mime = mime_type ?? null;
-
-  if (!buf && typeof file_base64 === "string") {
-    const [, b64] = file_base64.includes(",") ? file_base64.split(",") : [null, file_base64];
-    buf = Buffer.from(b64, "base64");
-  }
-  if (!mime) throw new Error("mime_type is required for avatar upload");
-  if (!buf) throw new Error("file_buffer or file_base64 is required for avatar upload");
-
-  return ordsUploadUserAvatar(user_id, buf, mime);
+  return axios({
+    method: "GET",
+    url,
+    params: { user_id },         // matches :user_id
+    headers: { Authorization: `Bearer ${token}` },
+    responseType: "stream",      // or "arraybuffer" if you prefer
+    validateStatus: () => true,
+  });
 }
 
 module.exports = {
   callGateway,
   forwardToOrds,
+  ordsGetUserAvatar,
+  ordsUploadUserAvatar,
   getPaymentResult,
   initPayment,
-  ordsGetUserProfile,
-  ordsUpdateUserProfile,
-  ordsUploadUserAvatar,
-  ordsUpsertUserProfile,
   resendClientCode,
   getClientEmail,
   sendMobileOtp,
