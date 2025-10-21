@@ -410,11 +410,35 @@ async function ordsGetUserAvatar(user_id) {
   });
 }
 
+function ordsGetUserDetails(user_id) {
+  if (!user_id) throw new Error("user_id is required");
+  return callGateway("GET", "getUserDetails", { params: { user_id } });
+}
+
+async function ordsUpdateUserDetails(user_id, fields = {}) {
+  if (!user_id) throw new Error("user_id is required");
+
+  const payload = {};
+  ["full_name", "mobile_number", "email", "emirates_id"].forEach(k => {
+    if (fields[k] != null) payload[k] = fields[k];
+  });
+
+  // ORDS route is POST
+  return callGatewayJson("POST", "updateUserDetails", {
+    params: { user_id },   // or { userid } if your gateway renamed it
+    data: payload,
+  });
+}
+
+
+
 module.exports = {
   callGateway,
   forwardToOrds,
   ordsGetUserAvatar,
   ordsUploadUserAvatar,
+  ordsGetUserDetails,
+  ordsUpdateUserDetails,
   getPaymentResult,
   initPayment,
   resendClientCode,

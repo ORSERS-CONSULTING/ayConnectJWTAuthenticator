@@ -21,6 +21,7 @@ router.put('/user/avatar',
     upload.single('avatar'),   // handles multipart form-data (field "avatar")
     ctrl.uploadUserAvatar
 );
-
+router.get("/user/details", authUser, ctrl.getUserDetails);
+router.post("/user/details", authUser, express.json(), ctrl.updateUserDetails);
 
 module.exports = router;

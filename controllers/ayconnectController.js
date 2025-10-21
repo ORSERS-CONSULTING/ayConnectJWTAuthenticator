@@ -1,6 +1,6 @@
 // In the next step we’ll wire these to API Gateway/ORDS via services/ords.service.js
 
-const { ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, } = require('../services/ordsServices');
+const { ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, ordsGetUserDetails, ordsUpdateUserDetails, } = require('../services/ordsServices');
 
 async function getServices(_req, res) {
   try {
@@ -236,6 +236,55 @@ async function uploadUserAvatar(req, res) {
   }
 }
 
+async function getUserDetails(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
 
-module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, };
+    const data = await ordsGetUserDetails(user_id);
+    // ordsGetUserDetails already returns parsed JSON via callGateway
+    return res.status(200).json(data);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+/**
+ * POST /ayconnect/user/details?user_id=...
+ * Accepts JSON: { full_name, mobile_number, email, emirates_id }
+ */
+async function updateUserDetails(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+
+    const body = req.body || {};
+    const allowed = ["full_name", "mobile_number", "email", "emirates_id"];
+    const payload = {};
+    allowed.forEach((k) => {
+      if (body[k] != null) payload[k] = body[k];
+    });
+
+    if (!Object.keys(payload).length) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+
+    const upstream = await ordsUpdateUserDetails(user_id, payload);
+    const ok = upstream.status >= 200 && upstream.status < 300;
+
+    // `callGatewayJson` tried to parse JSON; fall back to a default message
+    return res
+      .status(ok ? 200 : upstream.status)
+      .json(upstream.data ?? { message: ok ? "User details updated successfully" : "Update failed" });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+
+module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, getUserDetails, updateUserDetails, };
 
