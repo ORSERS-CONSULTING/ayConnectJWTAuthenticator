@@ -412,7 +412,7 @@ async function ordsGetUserAvatar(user_id) {
 
 function ordsGetUserDetails(user_id) {
   if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "getUserDetails", { params: { user_id } });
+  return callGateway("GET", "getUserDetail", { params: { user_id } });
 }
 
 async function ordsUpdateUserDetails(user_id, fields = {}) {
@@ -424,7 +424,7 @@ async function ordsUpdateUserDetails(user_id, fields = {}) {
   });
 
   // ORDS route is POST
-  return callGatewayJson("POST", "updateUserDetails", {
+  return callGatewayJson("POST", "updateUser", {
     params: { user_id },   // or { userid } if your gateway renamed it
     data: payload,
   });
