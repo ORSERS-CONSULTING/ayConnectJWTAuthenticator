@@ -25,4 +25,8 @@ router.get("/user/details", authUser, ctrl.getUserDetails);
 router.post("/user/details", authUser, express.json(), ctrl.updateUserDetails);
 router.get('/beneficiaries', authUser, ctrl.getBeneficiaries);
 router.post('/beneficiaries', authUser,  ctrl.createBeneficiary);
+router.get('/runs/active', authUser, ctrl.getActiveRuns);
+router.get('/procedure-instances/current-step', authUser, ctrl.getCurrentStep);
+router.post('/procedures', authUser, express.json(), ctrl.ensureRun);
+
 module.exports = router;

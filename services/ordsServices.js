@@ -448,10 +448,40 @@ function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
   return callGateway("POST", "beneficiaries", { params });
 }
 
+function ordsGetActiveRuns(user_id) {
+  if (!user_id) throw new Error("user_id is required");
+  return callGateway("GET", "procedures", { params: { user_id } });
+}
+
+// Current step for a specific procedure instance
+function ordsGetCurrentStep(procInstanceId) {
+  if (!procInstanceId) throw new Error("procInstanceId is required");
+  // ORDS expects ?id=...
+  return callGateway("GET", "procedure-instances/current-step", {
+    params: { id: Number(procInstanceId) },
+  });
+}
+
+function ordsEnsureRun({ user_id, procedure_id, service_id, order_ref, beneficiary_id }) {
+  if (!user_id) throw new Error("user_id is required");
+
+  const params = { user_id: Number(user_id) };
+  if (procedure_id != null) params.procedure_id = Number(procedure_id);
+  if (service_id != null) params.service_id = Number(service_id);
+  if (beneficiary_id != null) params.beneficiary_id = Number(beneficiary_id);
+  if (order_ref) params.order_ref = String(order_ref);
+
+  // ORDS handler is PL/SQL with IN params via URI
+  return callGateway("POST", "procedures", { params });
+}
+
 
 module.exports = {
   callGateway,
   forwardToOrds,
+  ordsGetActiveRuns,
+  ordsEnsureRun,
+  ordsGetCurrentStep,
   ordsGetUserAvatar,
   ordsGetBeneficiaries,
   ordsCreateBeneficiary,

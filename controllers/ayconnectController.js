@@ -1,6 +1,6 @@
 // In the next step we’ll wire these to API Gateway/ORDS via services/ords.service.js
 
-const { ordsGetServices, ordsGetUserDocs, ordsGetBeneficiaries, ordsCreateBeneficiary, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, ordsGetUserDetails, ordsUpdateUserDetails, } = require('../services/ordsServices');
+const { ordsGetServices, ordsGetUserDocs, ordsEnsureRun, ordsGetActiveRuns, ordsGetCurrentStep, ordsGetBeneficiaries, ordsCreateBeneficiary, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, ordsGetUserDetails, ordsUpdateUserDetails, } = require('../services/ordsServices');
 
 async function getServices(_req, res) {
   try {
@@ -348,6 +348,113 @@ async function createBeneficiary(req, res) {
   }
 }
 
+async function getCurrentStep(req, res) {
+  try {
+    // accept either ?id=... or ?proc_instance_id=...
+    const procInstanceId =
+      req.query?.id || req.query?.proc_instance_id || req.query?.procInstanceId;
 
-module.exports = { getServices, getUserDocs, createBeneficiary, getBeneficiaries, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, getUserDetails, updateUserDetails, };
+    if (!procInstanceId) {
+      return res.status(400).json({ message: "id (proc_instance_id) is required" });
+    }
+
+    const data = await ordsGetCurrentStep(procInstanceId);
+
+    // ORDS returns { items: [ row ] }
+    const row = Array.isArray(data) ? data[0] : (data.items?.[0] ?? data);
+    if (!row) return res.status(404).json({ message: "No current step (maybe all done)" });
+
+    return res.status(200).json({
+      instance_svc_id: row.instance_svc_id ?? row.id ?? null,
+      proc_instance_id: row.proc_instance_id ?? Number(procInstanceId),
+      service_id: row.service_id ?? null,
+      order_index: row.order_index ?? null,
+      status: row.status ?? null,
+      docs_status: row.docs_status ?? null,
+      fee_amount: row.fee_amount ?? null,
+      paid_amount: row.paid_amount ?? null,
+      updated_at: row.updated_at ?? null,
+      is_completed: row.is_completed ?? null,
+    });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+// GET /ayconnect/runs/active?user_id=...
+async function getActiveRuns(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+
+    const data = await ordsGetActiveRuns(user_id);
+    const items = Array.isArray(data) ? data : (data.items ?? data);
+
+    // optional normalize: ensure numeric progress 0..100
+    const normalized = (items || []).map(x => ({
+      run_type: x.run_type,                // "PROCEDURE" or "SERVICE"
+      proc_instance_id: x.id ?? x.proc_instance_id ?? null,
+      procedure_id: x.procedure_id ?? null,
+      service_id: x.service_id ?? null,
+      started_at: x.started_at ?? null,
+      updated_at: x.updated_at ?? null,
+      progress: Number(x.progress ?? 0),   // 0..100
+      status: x.status ?? null,
+      label: x.label ?? x.name ?? null,
+    }));
+
+    return res.status(200).json({ items: normalized });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+async function ensureRun(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const b = req.body || req.query || {};
+
+    const user_id        = b.user_id ?? fromToken;
+    const procedure_id   = b.procedure_id ?? null;
+    const service_id     = b.service_id ?? null;
+    const order_ref      = b.order_ref ?? null;
+    const beneficiary_id = b.beneficiary_id ?? null;
+
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+
+    // Validation consistent with your PL/SQL
+    if (procedure_id == null) {
+      // standalone: need service_id OR order_ref
+      if (!service_id && !order_ref) {
+        return res.status(400).json({ message: "service_id or order_ref is required for a standalone service" });
+      }
+    } else {
+      // procedure: need first-step reference
+      if (!service_id && !order_ref) {
+        return res.status(400).json({ message: "service_id or order_ref is required for a procedure's first step" });
+      }
+    }
+
+    const data = await ordsEnsureRun({ user_id, procedure_id, service_id, order_ref, beneficiary_id });
+    // ORDS PL/SQL OUTs: out_proc_instance_id, out_instance_svc_id, status_code, response_message
+    const status = Number(data.status_code ?? 200);
+
+    const out = {
+      run_type: data.out_proc_instance_id ? "PROCEDURE" : "SERVICE",
+      proc_instance_id: data.out_proc_instance_id ?? null,
+      instance_svc_id:  data.out_instance_svc_id  ?? null,
+      message:          data.response_message     ?? null,
+    };
+
+    return res.status(status).json(out);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+module.exports = { getServices, ensureRun, getUserDocs, getActiveRuns, getCurrentStep, createBeneficiary, getBeneficiaries, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, getUserDetails, updateUserDetails, };
 
