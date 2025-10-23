@@ -438,16 +438,16 @@ function ordsGetBeneficiaries(user_id) {
 
 function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
   if (!user_id) throw new Error("user_id is required");
-  if (!type) throw new Error("type is required"); // SELF | DEPENDENT
+  if (!type) throw new Error("type is required");
 
-  // ORDS POST expects params in the URI (per your handler setup)
   const params = { user_id, type };
-  if (full_name != null) params.full_name = full_name;
-  if (relationship != null) params.relationship = relationship;
+  if (full_name) params.full_name = full_name;
+  if (relationship) params.relationship = relationship;
 
-  // keep status + parsed data
-  return callGatewayJson("POST", "beneficiaries", { params });
+  // use callGateway, not callGatewayJson
+  return callGateway("POST", "beneficiaries", { params });
 }
+
 
 module.exports = {
   callGateway,
