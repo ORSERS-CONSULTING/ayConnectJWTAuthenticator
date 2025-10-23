@@ -226,7 +226,7 @@ async function uploadUserAvatar(req, res) {
     const ok = upstream.status >= 200 && upstream.status < 300;
 
     let out = upstream.data;
-    try { out = typeof out === 'string' && out ? JSON.parse(out) : out; } catch {}
+    try { out = typeof out === 'string' && out ? JSON.parse(out) : out; } catch { }
     return res.status(ok ? 200 : upstream.status).json(
       out ?? { message: ok ? 'Avatar uploaded successfully' : 'Upload failed' }
     );
@@ -370,6 +370,8 @@ async function getCurrentStep(req, res) {
       service_id: row.service_id ?? null,
       order_index: row.order_index ?? null,
       status: row.status ?? null,
+      beneficiary_id: row.beneficiary_id ?? null,
+      beneficiary_name: row.beneficiary_name ?? null,
       docs_status: row.docs_status ?? null,
       fee_amount: row.fee_amount ?? null,
       paid_amount: row.paid_amount ?? null,
@@ -402,6 +404,8 @@ async function getActiveRuns(req, res) {
       updated_at: x.updated_at ?? null,
       progress: Number(x.progress ?? 0),   // 0..100
       status: x.status ?? null,
+      beneficiary_id: x.beneficiary_id ?? null,
+      beneficiary_name: x.beneficiary_name ?? null,
       label: x.label ?? x.name ?? null,
     }));
 
@@ -417,10 +421,10 @@ async function ensureRun(req, res) {
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const b = req.body || req.query || {};
 
-    const user_id        = b.user_id ?? fromToken;
-    const procedure_id   = b.procedure_id ?? null;
-    const service_id     = b.service_id ?? null;
-    const order_ref      = b.order_ref ?? null;
+    const user_id = b.user_id ?? fromToken;
+    const procedure_id = b.procedure_id ?? null;
+    const service_id = b.service_id ?? null;
+    const order_ref = b.order_ref ?? null;
     const beneficiary_id = b.beneficiary_id ?? null;
 
     if (!user_id) return res.status(401).json({ message: "No user in token" });
@@ -445,8 +449,8 @@ async function ensureRun(req, res) {
     const out = {
       run_type: data.out_proc_instance_id ? "PROCEDURE" : "SERVICE",
       proc_instance_id: data.out_proc_instance_id ?? null,
-      instance_svc_id:  data.out_instance_svc_id  ?? null,
-      message:          data.response_message     ?? null,
+      instance_svc_id: data.out_instance_svc_id ?? null,
+      message: data.response_message ?? null,
     };
 
     return res.status(status).json(out);
