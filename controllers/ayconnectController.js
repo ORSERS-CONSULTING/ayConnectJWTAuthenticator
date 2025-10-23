@@ -1,6 +1,6 @@
 // In the next step we’ll wire these to API Gateway/ORDS via services/ords.service.js
 
-const { ordsGetServices, ordsGetUserDocs, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, ordsGetUserDetails, ordsUpdateUserDetails, } = require('../services/ordsServices');
+const { ordsGetServices, ordsGetUserDocs, ordsGetBeneficiaries, ordsCreateBeneficiary, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, ordsGetUserDetails, ordsUpdateUserDetails, } = require('../services/ordsServices');
 
 async function getServices(_req, res) {
   try {
@@ -285,6 +285,69 @@ async function updateUserDetails(req, res) {
   }
 }
 
+async function getBeneficiaries(req, res) {
+  try {
+    // prefer the authenticated user; fall back to explicit query param for admin/testing
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
 
-module.exports = { getServices, getUserDocs, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, getUserDetails, updateUserDetails, };
+    const data = await ordsGetBeneficiaries(user_id);
+    // ORDS may return {items:[...]} or a raw array
+    const items = Array.isArray(data) ? data : (data.items ?? data);
+
+    // Optional: sort SELF first, like your SQL does
+    const sorted =
+      Array.isArray(items)
+        ? [...items].sort((a, b) => (a.type === "SELF" ? -1 : 1))
+        : items;
+
+    return res.status(200).json({ items: sorted });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+async function createBeneficiary(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.body || req.query || {}; // support JSON body or query
+    const user_id = String(q.user_id || fromToken);
+    const type = String(q.type || "").toUpperCase();
+    const full_name = q.full_name ?? null;
+    const relationship = q.relationship ?? null;
+
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!type) return res.status(400).json({ message: "type is required" });
+    if (type === "DEPENDENT" && !full_name) {
+      return res.status(400).json({ message: "full_name is required for DEPENDENT" });
+    }
+
+    const upstream = await ordsCreateBeneficiary({ user_id, type, full_name, relationship });
+
+    // upstream = { status, headers, data, raw }
+    const status = upstream.status || 200;
+    const data = upstream.data ?? {};
+
+    // Normalize a friendly shape for the app
+    // Your ORDS OUTs: out_beneficiary_id, out_type, out_full_name, out_relationship, response_message
+    const out = {
+      beneficiary_id: data.out_beneficiary_id ?? data.beneficiary_id ?? null,
+      type: data.out_type ?? type,
+      full_name: data.out_full_name ?? full_name ?? null,
+      relationship: data.out_relationship ?? relationship ?? null,
+      message: data.response_message ?? data.message ?? null,
+      upstream: data, // keep everything for debugging if you like
+    };
+
+    return res.status(status).json(out);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+
+module.exports = { getServices, getUserDocs, createBeneficiary, getBeneficiaries, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, getUserDetails, updateUserDetails, };
 

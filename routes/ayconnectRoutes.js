@@ -23,5 +23,6 @@ router.put('/user/avatar',
 );
 router.get("/user/details", authUser, ctrl.getUserDetails);
 router.post("/user/details", authUser, express.json(), ctrl.updateUserDetails);
-
+router.get('/beneficiaries', ctrl.getBeneficiaries);
+router.post('/beneficiaries',  ctrl.createBeneficiary);
 module.exports = router;
