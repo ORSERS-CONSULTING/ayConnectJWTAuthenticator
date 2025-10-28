@@ -389,30 +389,56 @@ async function getActiveRuns(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const user_id = String(req.query?.user_id || fromToken);
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
+
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
+
+    console.log("[active-runs] user_id=", user_id);
 
     const data = await ordsGetActiveRuns(user_id);
-    const items = Array.isArray(data) ? data : (data.items ?? data);
 
-    // optional normalize: ensure numeric progress 0..100
-    const normalized = (items || []).map(x => ({
-      run_type: x.run_type,                // "PROCEDURE" or "SERVICE"
-      proc_instance_id: x.id ?? x.proc_instance_id ?? null,
+    // ORDS may return { items: [...] } or an array
+    const items = Array.isArray(data) ? data : (data?.items ?? []);
+    console.log("[active-runs] raw items length from ORDS:", items.length);
+
+    // Map to a clean, consistent shape that matches the mobile type expectations:
+    // - ensure top-level `id`
+    // - pass through `service_id`/`procedure_id`
+    // - prefer `progress_pct` if present
+    const normalized = items.map((x) => ({
+      run_type: x.run_type, // "PROCEDURE" | "SERVICE"
+      id: x.id ?? x.proc_instance_id ?? null,           // <— ensure id
       procedure_id: x.procedure_id ?? null,
       service_id: x.service_id ?? null,
+      status: x.status ?? null,
       started_at: x.started_at ?? null,
       updated_at: x.updated_at ?? null,
-      progress: Number(x.progress ?? 0),   // 0..100
-      status: x.status ?? null,
+      progress: Number(
+        x.progress_pct ?? x.progress ?? 0
+      ), // 0..100 (procedure rows may have it)
       beneficiary_id: x.beneficiary_id ?? null,
       beneficiary_name: x.beneficiary_name ?? null,
       label: x.label ?? x.name ?? null,
     }));
 
+    // quick visibility log (first few)
+    console.log(
+      "[active-runs] normalized sample:",
+      normalized.slice(0, 3).map((r) => ({
+        run_type: r.run_type,
+        id: r.id,
+        service_id: r.service_id,
+        status: r.status,
+      }))
+    );
+
     return res.status(200).json({ items: normalized });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e?.response?.status ?? 500;
+    const body = e?.response?.data ?? { message: e.message };
+    console.error("[active-runs] ERROR", code, body);
+    return res.status(code).json(body);
   }
 }
 
