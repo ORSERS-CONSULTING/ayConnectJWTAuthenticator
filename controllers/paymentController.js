@@ -15,13 +15,13 @@ async function createPayment(req, res) {
       return res.status(400).json({ message: "amount and currency are required" });
     }
 
-    // ✅ Pass step_order too
+   
     const ctx = {
       userId: req.user?.id || req.user?.sub || null,
       serviceId: b.service_id,
       procedureId: b.procedure_id,
       requestId: b.request_id,
-      stepOrder: b.step_order,              // ✅ added
+      stepOrder: b.step_order,              
       email: b.email,
       name: b.name,
     };
