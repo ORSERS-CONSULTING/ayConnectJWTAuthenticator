@@ -5,20 +5,23 @@ const {
 } = require("../services/ordsServices");
 const axios = require("axios");
 
+/**
+ * Create a payment intent and forward to ORDS backend.
+ */
 async function createPayment(req, res) {
   try {
     const b = req.body || {};
     if (b.amount == null || !b.currency) {
-      return res
-        .status(400)
-        .json({ message: "amount and currency are required" });
+      return res.status(400).json({ message: "amount and currency are required" });
     }
 
+    // ✅ Pass step_order too
     const ctx = {
       userId: req.user?.id || req.user?.sub || null,
       serviceId: b.service_id,
       procedureId: b.procedure_id,
       requestId: b.request_id,
+      stepOrder: b.step_order,              // ✅ added
       email: b.email,
       name: b.name,
     };
@@ -43,28 +46,12 @@ async function createPayment(req, res) {
   }
 }
 
-// async function triggerStripeWebhook(req, res) {
-//   try {
-//     const result = await callStripeWebhook(); // directly call your service
-//     return res.status(200).json({ ok: true, message: "Webhook called successfully" });
-//   } catch (e) {
-//     console.error("[triggerStripeWebhook] ERROR:", e);
-//     const code = e.response?.status ?? 500;
-//     return res.status(code).json({
-//       ok: false,
-//       message: e.message,
-//       details: e.response?.data,
-//     });
-//   }
-// }
 async function proxyStripeToOrds(req, res) {
   try {
     const stripeSig = req.headers["stripe-signature"];
     if (!stripeSig) return res.status(400).send("Missing Stripe-Signature");
 
-    // req.body is a Buffer because of express.raw on the route
     const r = await forwardToOrds(req.body, stripeSig);
-    // Pass through ORDS' response code/body
     return res.status(r.status).send(r.data ?? "OK");
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -76,7 +63,6 @@ async function getPaymentResultController(req, res) {
   try {
     const id = req.params.id;
     const out = await getPaymentResult(id);
-
     return res.status(200).json(out);
   } catch (e) {
     const code = e.response?.status ?? 500;

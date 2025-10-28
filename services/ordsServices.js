@@ -307,18 +307,20 @@ function uploadDocuments(docPayload) {
   // TODO: confirm correct upstream path
   return callGatewayUpload("upload-documents", docPayload); // <-- set the RIGHT path
 }
-
 async function initPayment(payPayload, ctx = {}) {
   const body = {
     amount: Number(payPayload.amount),
     currency: payPayload.currency,
     description:
       payPayload.description ?? `Service ${payPayload.serviceCode ?? ""}`,
+
+    // ✅ Align JSON shape 1:1 with ORDS parser paths
     context: {
       user_id: ctx.user_id ?? ctx.userId ?? 0,
       service_id: ctx.service_id ?? ctx.serviceId ?? 0,
       procedure_id: ctx.procedure_id ?? ctx.procedureId ?? null,
       request_id: ctx.request_id ?? ctx.requestId ?? null,
+      step_order: ctx.step_order ?? ctx.stepOrder ?? null,  // ✅ added
       email: ctx.email ?? "test.user@example.com",
       name: ctx.name ?? "Test User",
     },
@@ -327,6 +329,7 @@ async function initPayment(payPayload, ctx = {}) {
   const idempotency = body.context.request_id
     ? String(body.context.request_id)
     : undefined;
+
   const headers = idempotency ? { "Idempotency-Key": idempotency } : undefined;
 
   const res = await callGatewayJson("POST", "pay", { data: body, headers });
@@ -340,7 +343,7 @@ async function initPayment(payPayload, ctx = {}) {
     );
   }
 
-  // unwrap { response_body: "<json string>" }
+  // unwrap ORDS response {response_body: "<json string>"}
   let parsed = data;
   if (typeof data?.response_body === "string") {
     try {
@@ -359,14 +362,13 @@ async function initPayment(payPayload, ctx = {}) {
 
   if (!clientSecret || !customerId || !ephemeralKey) {
     throw new Error(
-      `Malformed payment response. Keys: ${Object.keys(parsed || {}).join(
-        ", "
-      )}`
+      `Malformed payment response. Keys: ${Object.keys(parsed || {}).join(", ")}`
     );
   }
 
   return { clientSecret, customerId, ephemeralKey, requestId };
 }
+
 
 // async function waitForPaid(
 //   requestId,
