@@ -414,7 +414,7 @@ async function ordsGetUserAvatar(user_id) {
 
 function ordsGetUserDetails(user_id) {
   if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "getUserDetails", { params: { user_id } });
+  return callGateway("GET", "getUserDetail", { params: { user_id } });
 }
 
 async function ordsUpdateUserDetails(user_id, fields = {}) {
@@ -426,18 +426,67 @@ async function ordsUpdateUserDetails(user_id, fields = {}) {
   });
 
   // ORDS route is POST
-  return callGatewayJson("POST", "updateUserDetails", {
+  return callGatewayJson("POST", "updateUser", {
     params: { user_id },   // or { userid } if your gateway renamed it
     data: payload,
   });
 }
 
+function ordsGetBeneficiaries(user_id) {
+  if (!user_id) throw new Error("user_id is required");
+  // ORDS: GET /beneficiaries?user_id=...
+  return callGateway("GET", "beneficiaries", { params: { user_id } });
+}
+
+function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!type) throw new Error("type is required");
+
+  const params = { user_id, type };
+  if (full_name) params.full_name = full_name;
+  if (relationship) params.relationship = relationship;
+
+  // use callGateway, not callGatewayJson
+  return callGateway("POST", "beneficiaries", { params });
+}
+
+function ordsGetActiveRuns(user_id) {
+  if (!user_id) throw new Error("user_id is required");
+  return callGateway("GET", "procedures", { params: { user_id } });
+}
+
+// Current step for a specific procedure instance
+function ordsGetCurrentStep(procInstanceId) {
+  if (!procInstanceId) throw new Error("procInstanceId is required");
+  // ORDS expects ?id=...
+  return callGateway("GET", "procedure-instances/current-step", {
+    params: { id: Number(procInstanceId) },
+  });
+}
+
+function ordsEnsureRun({ user_id, procedure_id, service_id, order_ref, beneficiary_id }) {
+  if (!user_id) throw new Error("user_id is required");
+
+  const params = { user_id: Number(user_id) };
+  if (procedure_id != null) params.procedure_id = Number(procedure_id);
+  if (service_id != null) params.service_id = Number(service_id);
+  if (beneficiary_id != null) params.beneficiary_id = Number(beneficiary_id);
+  if (order_ref) params.order_ref = String(order_ref);
+
+  // ORDS handler is PL/SQL with IN params via URI
+  return callGateway("POST", "procedures", { params });
+}
 
 
 module.exports = {
   callGateway,
   forwardToOrds,
+  ordsGetActiveRuns,
+  ordsEnsureRun,
+  ordsGetCurrentStep,
   ordsGetUserAvatar,
+  ordsGetBeneficiaries,
+  ordsCreateBeneficiary,
   ordsUploadUserAvatar,
   ordsGetUserDetails,
   ordsUpdateUserDetails,
