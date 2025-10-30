@@ -82,6 +82,7 @@ async function uploadUserDocuments(req, res) {
 
     const missing = ['user_id', 'document_id', 'file_name', 'file_type', 'file_base64'].filter(k => !body[k]);
     if (missing.length) {
+      console.warn('[uploadUserDocuments] Missing fields:', missing);
       return res.status(400).json({ message: `Missing fields: ${missing.join(', ')}` });
     }
 
@@ -91,9 +92,22 @@ async function uploadUserDocuments(req, res) {
 
     const approxBytes = Math.ceil((body.file_base64.replace(/=+$/, '').length * 3) / 4);
 
-
+    console.info('[uploadUserDocuments] Upload started', {
+      user_id: body.user_id,
+      document_id: body.document_id,
+      file_name: body.file_name,
+      file_type: body.file_type,
+      approx_size_kb: Math.round(approxBytes / 1024),
+      env: process.env.NODE_ENV,
+    });
 
     const resp = await uploadDocuments(body);
+
+    console.info('[uploadUserDocuments] Upload response meta', {
+      status: resp?.status,
+      headers: Object.keys(resp?.headers || {}),
+    });
+
 
     const is2xx = resp.status >= 200 && resp.status < 300;
     const raw = resp.data; // string (possibly empty) because responseType:'text'
@@ -121,8 +135,17 @@ async function uploadUserDocuments(req, res) {
 
     const uploaded = is2xx && (uploadedExplicit || true); // accept empty 2xx as success
     const resolvedId = parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
-
+    console.info('[uploadUserDocuments] Upload result summary', {
+      success: uploaded,
+      resolvedId,
+      upstreamStatus: resp.status,
+    });
     if (!uploaded) {
+      console.error('[uploadUserDocuments] Upstream did not confirm upload', {
+        status: resp.status,
+        headers: resp.headers,
+        bodyPreview: typeof raw === 'string' ? raw.slice(0, 300) : raw,
+      });
       return res.status(resp.status || 200).json({
         uploaded: false,
         message: 'Upstream did not confirm upload',
@@ -144,7 +167,12 @@ async function uploadUserDocuments(req, res) {
     });
   } catch (e) {
     const code = e.response?.status ?? 500;
-    console.error('[/uploadUserDocuments] ERROR:', e.response?.data ?? e.message);
+    console.error('[/uploadUserDocuments] ERROR', {
+      status: e.response?.status,
+      data: e.response?.data,
+      message: e.message,
+      stack: e.stack,
+    });
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
