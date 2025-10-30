@@ -42,7 +42,7 @@ app.use(generalLimiter);
 // Stronger limiter for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20
+  max: 30
 });
 app.use('/auth', authLimiter);
 
