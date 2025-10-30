@@ -257,7 +257,7 @@ function registerUser({ email, mobile_number, full_name }) {
     throw new Error("Please fill all the fileds");
   }
 
-  return callGateway("POST", "register", { params });
+  return callGateway("POST", "register", { params: {email, mobile_number, full_name} });
 }
 function resendClientCode({ email }) {
   if (!email) {
