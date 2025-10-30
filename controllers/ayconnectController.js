@@ -447,7 +447,7 @@ async function getActiveRuns(req, res) {
       ), // 0..100 (procedure rows may have it)
       beneficiary_id: x.beneficiary_id ?? null,
       beneficiary_name: x.beneficiary_name ?? null,
-      label: x.label ?? x.name ?? null,
+      label: x.display_name ?? x.name ?? null,
     }));
 
     // quick visibility log (first few)
