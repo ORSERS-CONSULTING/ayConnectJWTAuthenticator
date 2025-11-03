@@ -249,7 +249,7 @@ function checkClientCode({ client_code }) {
 }
 function registerExistingClient({ client_code }) {
   return callGateway("POST", "register-existing-client", {
-    paramS: { client_code },
+    params: { client_code },
   });
 }
 function registerUser({ email, mobile_number, full_name }) {
@@ -284,7 +284,7 @@ function ordsGetProcedures() {
   return callGateway("GET", "getProcedures");
 }
 function ordsGetUserDocs(user_id) {
-  return callGateway("GET", "show-user-documents", { params: { user_id } }); // adjust path/name to your ORDS
+return callGateway("GET", "show-user-documents", { params: { user_id: Number(user_id) } });
 }
 function ordsGetDocumentTypes() {
   // no params needed; still goes through callGateway which adds the IDCS token
@@ -391,7 +391,7 @@ async function initPayment(payPayload, ctx = {}) {
 async function ordsUploadUserAvatar(user_id, fileBuffer, mimeType) {
   const PATH = "uploadAvatar";
   return callGatewayBinary("PUT", PATH, fileBuffer, mimeType, {
-    params: { user_id, content_type: mimeType },
+    params: {  user_id: Number(user_id), content_type: mimeType },
   });
 }
 
@@ -405,7 +405,7 @@ async function ordsGetUserAvatar(user_id) {
   return axios({
     method: "GET",
     url,
-    params: { user_id },         // matches :user_id
+    params: {  user_id: Number(user_id) },         // matches :user_id
     headers: { Authorization: `Bearer ${token}` },
     responseType: "stream",      // or "arraybuffer" if you prefer
     validateStatus: () => true,
@@ -414,7 +414,7 @@ async function ordsGetUserAvatar(user_id) {
 
 function ordsGetUserDetails(user_id) {
   if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "getUserDetail", { params: { user_id } });
+  return callGateway("GET", "getUserDetail", { params: {  user_id: Number(user_id) } });
 }
 
 async function ordsUpdateUserDetails(user_id, fields = {}) {
@@ -427,7 +427,7 @@ async function ordsUpdateUserDetails(user_id, fields = {}) {
 
   // ORDS route is POST
   return callGatewayJson("POST", "updateUser", {
-    params: { user_id },   // or { userid } if your gateway renamed it
+    params: {  user_id: Number(user_id) },   // or { userid } if your gateway renamed it
     data: payload,
   });
 }
@@ -435,7 +435,7 @@ async function ordsUpdateUserDetails(user_id, fields = {}) {
 function ordsGetBeneficiaries(user_id) {
   if (!user_id) throw new Error("user_id is required");
   // ORDS: GET /beneficiaries?user_id=...
-  return callGateway("GET", "beneficiaries", { params: { user_id } });
+  return callGateway("GET", "beneficiaries", { params: {  user_id: Number(user_id) } });
 }
 
 function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
@@ -452,7 +452,7 @@ function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
 
 function ordsGetActiveRuns(user_id) {
   if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "procedures", { params: { user_id } });
+  return callGateway("GET", "procedures", { params: {  user_id: Number(user_id) } });
 }
 
 // Current step for a specific procedure instance
