@@ -34,20 +34,26 @@ app.use(cors());
 
 // Rate limiting
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 1000,                 // increase from 100 to 1000
+  message: 'Too many requests – please try again later'
 });
 app.use(generalLimiter);
 
-// Stronger limiter for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30
+  max: 50,                  // increase from 30 to 100 (for login etc)
+  message: 'Too many login attempts – please wait'
 });
 app.use('/auth', authLimiter);
 
 // Routes after middleware
 app.use('/auth', authRoutes);
+const heavyUseLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,  // 5 minutes
+  max: 500
+});
+app.use('/ayconnect', heavyUseLimiter);
 app.use('/ayconnect', ayRoutes);
 
 // Health and debug
