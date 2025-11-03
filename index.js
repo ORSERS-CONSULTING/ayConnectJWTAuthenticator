@@ -42,7 +42,7 @@ app.use(generalLimiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,                  // increase from 30 to 100 (for login etc)
+  max: 100,                  // increase from 30 to 100 (for login etc)
   message: 'Too many login attempts – please wait'
 });
 app.use('/auth', authLimiter);
