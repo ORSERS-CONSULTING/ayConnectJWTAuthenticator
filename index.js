@@ -9,8 +9,8 @@ const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
-// If behind proxy/API Gateway, trust the first proxy hop so X-Forwarded-For is used safely.
-app.set('trust proxy', 1);
+// If behind proxy/API Gateway, trust all proxy hops so X-Forwarded-For works correctly
+app.set('trust proxy', true);
 
 // === Office IP logic ===
 const OFFICE_IP = '94.206.200.125';
@@ -21,9 +21,21 @@ function getClientIp(req) {
   const ip = (xff ? xff.split(',')[0].trim() : req.ip) || '';
   return ip.replace('::ffff:', '');
 }
+
 function isOffice(req) {
   return getClientIp(req) === OFFICE_IP;
 }
+
+// Debug log (optional – for testing IP detection)
+app.use((req, res, next) => {
+  const client = getClientIp(req);
+  console.log('[RATE DEBUG]', {
+    seenIp: client,
+    forwardedFor: req.headers['x-forwarded-for'],
+    isOffice: isOffice(req),
+  });
+  next();
+});
 
 // === Payment route first (with its own parsers) ===
 app.use('/payment', express.urlencoded({ extended: true, limit: '25mb' }), paymentRoutes);
@@ -37,7 +49,7 @@ app.use(cors());
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000,
-  skip: (req) => isOffice(req), // office IP = unlimited
+  skip: (req) => isOffice(req),
   message: 'Too many requests – please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -45,9 +57,9 @@ const generalLimiter = rateLimit({
 app.use(generalLimiter);
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 20,
-  skip: (req) => isOffice(req), // office IP = unlimited
+  skip: (req) => isOffice(req),
   message: 'Too many login attempts – please wait',
   standardHeaders: true,
   legacyHeaders: false,
@@ -55,9 +67,9 @@ const authLimiter = rateLimit({
 app.use('/auth', authLimiter);
 
 const heavyUseLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
+  windowMs: 5 * 60 * 1000,
   max: 500,
-  skip: (req) => isOffice(req), // office IP = unlimited
+  skip: (req) => isOffice(req),
   message: 'Too many requests to AYCONNECT – please try again later',
   standardHeaders: true,
   legacyHeaders: false,
@@ -83,4 +95,4 @@ app.get('/debug/ip', (req, res) => {
 
 // === Start Server ===
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`JWT service running on port ${PORT}`));
+app.listen(PORT, () => console.log(`✅ JWT service running on port ${PORT}`));
