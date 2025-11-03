@@ -10,7 +10,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const app = express();
 
 // If behind proxy/API Gateway, trust all proxy hops so X-Forwarded-For works correctly
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 // === Office IP logic ===
 const OFFICE_IP = '94.206.200.125';
