@@ -28,12 +28,9 @@ function isOffice(req) {
 
 // Debug log (optional – for testing IP detection)
 app.use((req, res, next) => {
-  const client = getClientIp(req);
-  console.log('[RATE DEBUG]', {
-    seenIp: client,
-    forwardedFor: req.headers['x-forwarded-for'],
-    isOffice: isOffice(req),
-  });
+  if (!isOffice(req)) {
+    console.log('[RATE DEBUG - Non-office IP]', getClientIp(req));
+  }
   next();
 });
 
