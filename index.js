@@ -51,7 +51,7 @@ app.use('/auth', authLimiter);
 app.use('/auth', authRoutes);
 const heavyUseLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,  // 5 minutes
-  max: 500
+  max: 5000
 });
 app.use('/ayconnect', heavyUseLimiter);
 app.use('/ayconnect', ayRoutes);
