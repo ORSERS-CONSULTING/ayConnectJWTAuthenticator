@@ -219,18 +219,18 @@ async function callGatewayJson(method, path, { params, data } = {}) {
 }
 
 function sendMobileOtp(mobile_number) {
-  return callGateway("POST", "send-mobile-otp", { params: { mobile_number } });
+  return callGateway("POST", "sendMobileOtp", { params: { mobile_number } });
 }
 function verifyMobileOtp(mobile, otp) {
-  return callGateway("POST", "verify-mobile-otp", {
+  return callGateway("POST", "verifyMobileOtp", {
     params: { mobile_number: mobile, otp_code: otp },
   });
 }
 function sendEmailOtp(email) {
-  return callGateway("POST", "send-email-otp", { params: { email } });
+  return callGateway("POST", "sendEmailOtp", { params: { email } });
 }
 function verifyEmailOtp(email, otp) {
-  return callGateway("POST", "verify-email-otp", {
+  return callGateway("POST", "verifyEmailOtp", {
     params: { email, otp_code: otp },
   });
 }
@@ -242,13 +242,13 @@ function ordsLogin({ email, mobile_number }) {
   return callGateway("POST", "login", { params });
 }
 function registerClient({ client_code }) {
-  return callGateway("POST", "register-client", { params: { client_code } });
+  return callGateway("POST", "registerClient", { params: { client_code } });
 }
 function checkClientCode({ client_code }) {
-  return callGateway("POST", "check-client-code", { params: { client_code } });
+  return callGateway("POST", "checkClientCode", { params: { client_code } });
 }
 function registerExistingClient({ client_code }) {
-  return callGateway("POST", "register-existing-client", {
+  return callGateway("POST", "registerExistingClient", {
     params: { client_code },
   });
 }
@@ -264,7 +264,7 @@ function resendClientCode({ email }) {
     throw new Error("Please fill all the fileds");
   }
 
-  return callGateway("POST", "resend-Walking-Code", { params: { email } });
+  return callGateway("POST", "resendWalkingCode", { params: { email } });
 }
 function getClientEmail({ client_code }) {
   if (!client_code) {
@@ -284,11 +284,11 @@ function ordsGetProcedures() {
   return callGateway("GET", "getProcedures");
 }
 function ordsGetUserDocs(user_id) {
-return callGateway("GET", "show-user-documents", { params: { user_id: Number(user_id) } });
+return callGateway("GET", "showUserDocuments", { params: { user_id: Number(user_id) } });
 }
 function ordsGetDocumentTypes() {
   // no params needed; still goes through callGateway which adds the IDCS token
-  return callGateway("GET", "document-types");
+  return callGateway("GET", "documentTypes");
 }
 
 function uploadDocuments(docPayload) {
@@ -305,7 +305,7 @@ function uploadDocuments(docPayload) {
   }
 
   // TODO: confirm correct upstream path
-  return callGatewayUpload("upload-documents", docPayload); // <-- set the RIGHT path
+  return callGatewayUpload("uploadDocuments", docPayload); // <-- set the RIGHT path
 }
 async function initPayment(payPayload, ctx = {}) {
   const body = {
@@ -459,7 +459,7 @@ function ordsGetActiveRuns(user_id) {
 function ordsGetCurrentStep(procInstanceId) {
   if (!procInstanceId) throw new Error("procInstanceId is required");
   // ORDS expects ?id=...
-  return callGateway("GET", "procedure-instances/current-step", {
+  return callGateway("GET", "procedureInstancesCurrentStep", {
     params: { id: Number(procInstanceId) },
   });
 }
