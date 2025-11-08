@@ -68,7 +68,6 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
   const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
 
   const token = await getIdcsToken(url);
-  console.log("hello", stripeSignature);
   return axios.post(url, rawBodyBuffer, {
     headers: {
       "Content-Type": "application/json", // keep JSON
