@@ -89,6 +89,8 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
     headers: {
       "Content-Type": "application/json",
       "Stripe-Signature": stripeSignature || "",
+      "Stripe_Signature": stripeSignature || "",
+      "X_Stripe_Signature": stripeSignature || "",
       Authorization: `Bearer ${token}`,
     },
     transformRequest: [(d) => d],
