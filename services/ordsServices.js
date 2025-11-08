@@ -68,41 +68,19 @@ async function forwardToOrds(rawBodyBuffer, stripeSignature) {
   const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
 
   const token = await getIdcsToken(url);
-    // 👇 TEMP: show what Stripe actually sent (won't mutate bytes)
-  try {
-    const evt = JSON.parse(rawBodyBuffer.toString("utf8"));
-    const pi = evt?.data?.object || {};
-    console.log(
-      "[PI] event=%s pi=%s status=%s amt=%s recvd=%s cur=%s req=%s live=%s",
-      evt?.type,
-      pi?.id,
-      pi?.status,
-      pi?.amount,
-      pi?.amount_received,
-      (pi?.currency || "").toUpperCase(),
-      pi?.metadata?.request_id,
-      evt?.livemode === true
-    );
-  } catch (_) {}
-
-  const resp = await axios.post(url, rawBodyBuffer, {
+  console.log("hello", stripeSignature);
+  return axios.post(url, rawBodyBuffer, {
     headers: {
-      "Content-Type": "application/json",
-      "Stripe-Signature": stripeSignature || "",
-      "Stripe_Signature": stripeSignature || "",
-      "X_Stripe_Signature": stripeSignature || "",
-      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json", // keep JSON
+      Stripe_Signature: stripeSignature, // original
+      X_Stripe_Signature: stripeSignature, // copy for gateways that strip the first
+      Authorization: `Bearer ${token}`, // satisfy API Gateway
     },
-    transformRequest: [(d) => d],
-    responseType: "text",
+    transformRequest: [(d) => d], // DO NOT touch raw body
     maxBodyLength: Infinity,
     timeout: 15000,
     validateStatus: () => true,
   });
-
-  // 👇 TEMP: show what ORDS replied after parsing/updating
-  console.log("[PI] ORDS webhook reply", resp.status, String(resp.data || "").slice(0, 400));
-  return resp;
 }
 async function getPaymentResult(requestId) {
   if (requestId == null) throw new Error("requestId is required");
