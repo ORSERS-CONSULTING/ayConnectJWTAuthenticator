@@ -499,7 +499,7 @@ function ordsInitiateService(service_id, user_id) {
   if (!service_id || !user_id)
     throw new Error("service_id and user_id are required");
 
-  return callGateway("POST", "ayc/initiateService", {
+  return callGateway("POST", "initiateService", {
     params: { p_service_id: Number(service_id), p_user_id: Number(user_id) },
   });
 }
