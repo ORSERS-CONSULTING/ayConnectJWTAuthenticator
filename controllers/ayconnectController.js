@@ -591,7 +591,6 @@ async function initiateService(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const b = req.body || req.query || {};
-
     const user_id = b.user_id ?? fromToken;
     const service_id = b.service_id ?? null;
 
