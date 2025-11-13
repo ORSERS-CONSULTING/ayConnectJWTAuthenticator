@@ -28,15 +28,21 @@ function normalizeToAppStatus(rawStatus) {
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
-async function callGatewayBinary(method, path, rawBuffer, contentType, { params } = {}) {
+async function callGatewayBinary(
+  method,
+  path,
+  rawBuffer,
+  contentType,
+  { params } = {}
+) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
 
   return axios({
     method, // "PUT"
     url,
-    params,           // { user_id, content_type }
-    data: rawBuffer,  // -> :body
+    params, // { user_id, content_type }
+    data: rawBuffer, // -> :body
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": contentType,
@@ -48,9 +54,6 @@ async function callGatewayBinary(method, path, rawBuffer, contentType, { params 
     maxContentLength: 50 * 1024 * 1024,
   });
 }
-
-
-
 
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
@@ -131,7 +134,6 @@ async function getPaymentResult(requestId) {
   const raw = payload?.status;
   const norm = normalizeToAppStatus(raw);
 
-  
   // drop any conflicting status-like fields, return normalized LAST
   const {
     status: _s1,
@@ -216,7 +218,7 @@ async function callGatewayJson(method, path, { params, data } = {}) {
     raw: res.data,
   };
 }
- 
+
 function sendMobileOtp(mobile_number) {
   return callGateway("POST", "sendMobileOtp", { params: { mobile_number } });
 }
@@ -256,7 +258,9 @@ function registerUser({ email, mobile_number, full_name }) {
     throw new Error("Please fill all the fileds");
   }
 
-  return callGateway("POST", "register", { params: {email, mobile_number, full_name} });
+  return callGateway("POST", "register", {
+    params: { email, mobile_number, full_name },
+  });
 }
 function resendClientCode({ email }) {
   if (!email) {
@@ -283,7 +287,9 @@ function ordsGetProcedures() {
   return callGateway("GET", "getProcedures");
 }
 function ordsGetUserDocs(user_id) {
-return callGateway("GET", "showUserDocuments", { params: { user_id: Number(user_id) } });
+  return callGateway("GET", "showUserDocuments", {
+    params: { user_id: Number(user_id) },
+  });
 }
 function ordsGetDocumentTypes() {
   // no params needed; still goes through callGateway which adds the IDCS token
@@ -319,7 +325,7 @@ async function initPayment(payPayload, ctx = {}) {
       service_id: ctx.service_id ?? ctx.serviceId ?? 0,
       procedure_id: ctx.procedure_id ?? ctx.procedureId ?? null,
       request_id: ctx.request_id ?? ctx.requestId ?? null,
-      step_order: ctx.step_order ?? ctx.stepOrder ?? null,  // ✅ added
+      step_order: ctx.step_order ?? ctx.stepOrder ?? null, // ✅ added
       email: ctx.email ?? "test.user@example.com",
       name: ctx.name ?? "Test User",
     },
@@ -361,13 +367,14 @@ async function initPayment(payPayload, ctx = {}) {
 
   if (!clientSecret || !customerId || !ephemeralKey) {
     throw new Error(
-      `Malformed payment response. Keys: ${Object.keys(parsed || {}).join(", ")}`
+      `Malformed payment response. Keys: ${Object.keys(parsed || {}).join(
+        ", "
+      )}`
     );
   }
 
   return { clientSecret, customerId, ephemeralKey, requestId };
 }
-
 
 // async function waitForPaid(
 //   requestId,
@@ -390,7 +397,7 @@ async function initPayment(payPayload, ctx = {}) {
 async function ordsUploadUserAvatar(user_id, fileBuffer, mimeType) {
   const PATH = "uploadAvatar";
   return callGatewayBinary("PUT", PATH, fileBuffer, mimeType, {
-    params: {  user_id: Number(user_id), content_type: mimeType },
+    params: { user_id: Number(user_id), content_type: mimeType },
   });
 }
 
@@ -404,29 +411,31 @@ async function ordsGetUserAvatar(user_id) {
   return axios({
     method: "GET",
     url,
-    params: {  user_id: Number(user_id) },         // matches :user_id
+    params: { user_id: Number(user_id) }, // matches :user_id
     headers: { Authorization: `Bearer ${token}` },
-    responseType: "stream",      // or "arraybuffer" if you prefer
+    responseType: "stream", // or "arraybuffer" if you prefer
     validateStatus: () => true,
   });
 }
 
 function ordsGetUserDetails(user_id) {
   if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "getUserDetail", { params: {  user_id: Number(user_id) } });
+  return callGateway("GET", "getUserDetail", {
+    params: { user_id: Number(user_id) },
+  });
 }
 
 async function ordsUpdateUserDetails(user_id, fields = {}) {
   if (!user_id) throw new Error("user_id is required");
 
   const payload = {};
-  ["full_name", "mobile_number", "email", "emirates_id"].forEach(k => {
+  ["full_name", "mobile_number", "email", "emirates_id"].forEach((k) => {
     if (fields[k] != null) payload[k] = fields[k];
   });
 
   // ORDS route is POST
   return callGatewayJson("POST", "updateUser", {
-    params: {  user_id: Number(user_id) },   // or { userid } if your gateway renamed it
+    params: { user_id: Number(user_id) }, // or { userid } if your gateway renamed it
     data: payload,
   });
 }
@@ -434,7 +443,9 @@ async function ordsUpdateUserDetails(user_id, fields = {}) {
 function ordsGetBeneficiaries(user_id) {
   if (!user_id) throw new Error("user_id is required");
   // ORDS: GET /beneficiaries?user_id=...
-  return callGateway("GET", "beneficiaries", { params: {  user_id: Number(user_id) } });
+  return callGateway("GET", "beneficiaries", {
+    params: { user_id: Number(user_id) },
+  });
 }
 
 function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
@@ -451,7 +462,9 @@ function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
 
 function ordsGetActiveRuns(user_id) {
   if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "procedures", { params: {  user_id: Number(user_id) } });
+  return callGateway("GET", "procedures", {
+    params: { user_id: Number(user_id) },
+  });
 }
 
 // Current step for a specific procedure instance
@@ -463,7 +476,13 @@ function ordsGetCurrentStep(procInstanceId) {
   });
 }
 
-function ordsEnsureRun({ user_id, procedure_id, service_id, order_ref, beneficiary_id }) {
+function ordsEnsureRun({
+  user_id,
+  procedure_id,
+  service_id,
+  order_ref,
+  beneficiary_id,
+}) {
   if (!user_id) throw new Error("user_id is required");
 
   const params = { user_id: Number(user_id) };
@@ -476,55 +495,13 @@ function ordsEnsureRun({ user_id, procedure_id, service_id, order_ref, beneficia
   return callGateway("POST", "procedures", { params });
 }
 
-async function ordsInitiateService(service_id, user_id) {
-  if (!service_id || !user_id) {
+function ordsInitiateService(service_id, user_id) {
+  if (!service_id || !user_id)
     throw new Error("service_id and user_id are required");
-  }
 
-  const urlPath = "ayc/initiateService"; // your ORDS module path
-  const params = {
-    p_service_id: Number(service_id),
-    p_user_id: Number(user_id),
-  };
-
-  const tokenUrl = `${process.env.GATEWAY_BASE_URL}/${urlPath}`;
-  const token = await getIdcsToken(tokenUrl);
-
-  // ⚙️ Call ORDS endpoint via API Gateway with authorization
-  const axios = require("axios");
-  const res = await axios({
-    method: "POST",
-    url: `${tokenUrl}`,
-    params,
-    headers: { Authorization: `Bearer ${token}` },
-    validateStatus: () => true,
-    responseType: "text",
-    transformResponse: [(x) => x],
+  return callGateway("POST", "ayc/initiateService", {
+    params: { p_service_id: Number(service_id), p_user_id: Number(user_id) },
   });
-
-  if (res.status < 200 || res.status >= 300) {
-    throw new Error(
-      `initiateService failed (${res.status}): ${res.data || "Unknown error"}`
-    );
-  }
-
-  // 🧩 Handle wrapped response (ORDS: { response_body: "{...}" })
-  let data;
-  try {
-    data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
-  } catch {
-    data = { response_body: res.data };
-  }
-
-  if (typeof data.response_body === "string") {
-    try {
-      data = JSON.parse(data.response_body);
-    } catch {
-      console.warn("⚠️ Could not parse response_body JSON");
-    }
-  }
-
-  return data; // e.g. { success: true, request_id: 577402 }
 }
 
 module.exports = {
@@ -558,6 +535,5 @@ module.exports = {
   uploadDocuments,
   ordsGetProcedures,
   ordsGetDepartments,
-    ordsInitiateService,
-
+  ordsInitiateService,
 };
