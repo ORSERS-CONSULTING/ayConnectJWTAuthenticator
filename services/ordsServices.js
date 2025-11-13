@@ -494,15 +494,23 @@ function ordsEnsureRun({
   // ORDS handler is PL/SQL with IN params via URI
   return callGateway("POST", "procedures", { params });
 }
+function ordsInitiateService(service_id, user_id, beneficiary_id, procedure_id = null) {
+  if (!service_id || !user_id || !beneficiary_id)
+    throw new Error("service_id, user_id, and beneficiary_id are required");
 
-function ordsInitiateService(service_id, user_id) {
-  if (!service_id || !user_id)
-    throw new Error("service_id and user_id are required");
+  const params = {
+    p_service_id: Number(service_id),
+    p_user_id: Number(user_id),
+    p_beneficiary_id: Number(beneficiary_id),
+  };
 
-  return callGateway("POST", "initiateService", {
-    params: { p_service_id: Number(service_id), p_user_id: Number(user_id) },
-  });
+  // Optional procedure_id
+  if (procedure_id) params.p_procedure_id = Number(procedure_id);
+
+  return callGateway("POST", "initiateService", { params });
 }
+
+
 
 module.exports = {
   callGateway,

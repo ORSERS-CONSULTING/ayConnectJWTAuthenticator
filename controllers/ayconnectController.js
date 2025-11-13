@@ -295,13 +295,11 @@ async function uploadUserAvatar(req, res) {
     try {
       out = typeof out === "string" && out ? JSON.parse(out) : out;
     } catch {}
-    return res
-      .status(ok ? 200 : upstream.status)
-      .json(
-        out ?? {
-          message: ok ? "Avatar uploaded successfully" : "Upload failed",
-        }
-      );
+    return res.status(ok ? 200 : upstream.status).json(
+      out ?? {
+        message: ok ? "Avatar uploaded successfully" : "Upload failed",
+      }
+    );
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
@@ -348,13 +346,11 @@ async function updateUserDetails(req, res) {
     const ok = upstream.status >= 200 && upstream.status < 300;
 
     // `callGatewayJson` tried to parse JSON; fall back to a default message
-    return res
-      .status(ok ? 200 : upstream.status)
-      .json(
-        upstream.data ?? {
-          message: ok ? "User details updated successfully" : "Update failed",
-        }
-      );
+    return res.status(ok ? 200 : upstream.status).json(
+      upstream.data ?? {
+        message: ok ? "User details updated successfully" : "Update failed",
+      }
+    );
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
@@ -544,22 +540,18 @@ async function ensureRun(req, res) {
     if (procedure_id == null) {
       // standalone: need service_id OR order_ref
       if (!service_id && !order_ref) {
-        return res
-          .status(400)
-          .json({
-            message:
-              "service_id or order_ref is required for a standalone service",
-          });
+        return res.status(400).json({
+          message:
+            "service_id or order_ref is required for a standalone service",
+        });
       }
     } else {
       // procedure: need first-step reference
       if (!service_id && !order_ref) {
-        return res
-          .status(400)
-          .json({
-            message:
-              "service_id or order_ref is required for a procedure's first step",
-          });
+        return res.status(400).json({
+          message:
+            "service_id or order_ref is required for a procedure's first step",
+        });
       }
     }
 
@@ -591,20 +583,36 @@ async function initiateService(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const b = req.body || req.query || {};
+
     const user_id = b.user_id ?? fromToken;
     const service_id = b.service_id ?? null;
+    const beneficiary_id = b.beneficiary_id ?? null;
+    const procedure_id = b.procedure_id ?? null;
 
     if (!user_id) return res.status(401).json({ message: "No user in token" });
     if (!service_id)
       return res.status(400).json({ message: "service_id is required" });
+    if (!beneficiary_id)
+      return res.status(400).json({ message: "beneficiary_id is required" });
 
-    console.log("[initiateService] Starting →", { user_id, service_id });
+    console.log("[initiateService] Starting →", {
+      user_id,
+      service_id,
+      beneficiary_id,
+      procedure_id,
+    });
 
-    const data = await ordsInitiateService(service_id, user_id);
+    // 🔹 Call ORDS backend with all required params
+    const data = await ordsInitiateService(
+      service_id,
+      user_id,
+      beneficiary_id,
+      procedure_id
+    );
 
     console.log("[initiateService] Upstream data:", data);
 
-    // Normalize wrapped responses (ORDS style)
+    // 🔹 Normalize wrapped ORDS response
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
@@ -616,27 +624,31 @@ async function initiateService(req, res) {
       }
     }
 
-    // Expected: { success: true, request_id: 577402 }
-    const success = parsed?.success === true;
-    const requestId = parsed?.request_id ?? null;
-
-    if (success) {
+    if (parsed?.success === true) {
       return res.status(200).json({
         success: true,
-        request_id: requestId,
+        request_id: parsed.request_id,
+        service_id: parsed.service_id,
+        procedure_id: parsed.procedure_id,
+        beneficiary_id: parsed.beneficiary_id,
         message: "Service initiated successfully",
       });
-    } else {
-      return res.status(500).json({
-        success: false,
-        message: parsed?.message || "Failed to initiate service",
-        upstream: parsed,
-      });
     }
+
+    return res.status(500).json({
+      success: false,
+      message: parsed?.error || parsed?.message || "Failed to initiate service",
+      upstream: parsed,
+    });
   } catch (e) {
     console.error("[initiateService] ERROR", e.message);
     const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    return res.status(code).json(
+      e.response?.data ?? {
+        success: false,
+        message: e.message,
+      }
+    );
   }
 }
 
