@@ -510,6 +510,18 @@ function ordsInitiateService(service_id, user_id, beneficiary_id, procedure_id =
   return callGateway("POST", "initiateService", { params });
 }
 
+function ordsGetServiceStatus(user_id, service_id) {
+  if (!user_id || !service_id)
+    throw new Error("user_id and service_id are required");
+
+  const params = {
+    p_user_id: Number(user_id),
+    p_service_id: Number(service_id),
+  };
+
+  // ORDS endpoint: getServiceStatus?p_user_id=...&p_service_id=...
+  return callGateway("GET", "getServiceStatus", { params });
+}
 
 
 module.exports = {
@@ -544,4 +556,5 @@ module.exports = {
   ordsGetProcedures,
   ordsGetDepartments,
   ordsInitiateService,
+  ordsGetServiceStatus
 };

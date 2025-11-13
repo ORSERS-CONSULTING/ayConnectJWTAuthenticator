@@ -30,5 +30,6 @@ router.get("/runs/active", authUser, ctrl.getActiveRuns);
 router.get("/procedure-instances/current-step", authUser, ctrl.getCurrentStep);
 router.post("/procedures", authUser, express.json(), ctrl.ensureRun);
 router.post("/initiateService", authUser, express.json(), ctrl.initiateService);
+router.get("/getServiceStatus", authUser, ctrl.getServiceStatus);
 
 module.exports = router;

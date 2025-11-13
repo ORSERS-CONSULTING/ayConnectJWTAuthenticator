@@ -17,6 +17,7 @@ const {
   ordsGetUserDetails,
   ordsUpdateUserDetails,
   ordsInitiateService,
+  ordsGetServiceStatus
 } = require("../services/ordsServices");
 
 async function getServices(_req, res) {
@@ -651,6 +652,55 @@ async function initiateService(req, res) {
     );
   }
 }
+// GET /ayconnect/getServiceStatus
+async function getServiceStatus(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.query || req.body || {};
+
+    const user_id = q.user_id ?? fromToken;
+    const service_id = q.service_id ?? null;
+
+    if (!user_id)
+      return res.status(401).json({ message: "No user in token" });
+    if (!service_id)
+      return res.status(400).json({ message: "service_id is required" });
+
+    console.log("[getServiceStatus] Starting →", { user_id, service_id });
+
+    const data = await ordsGetServiceStatus(user_id, service_id);
+
+    // Normalize ORDS-style response
+    let parsed = data;
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {
+        console.warn("[getServiceStatus] Could not parse response_body JSON");
+      }
+    }
+
+    if (parsed?.error) {
+      return res.status(404).json({
+        success: false,
+        message: parsed.error,
+        status: "NOT_FOUND",
+      });
+    }
+
+    // Expected shape: { user_id, service_id, status }
+    return res.status(200).json({
+      success: true,
+      user_id: parsed.user_id ?? user_id,
+      service_id: parsed.service_id ?? service_id,
+      status: parsed.status ?? null,
+    });
+  } catch (e) {
+    console.error("[getServiceStatus] ERROR", e.message);
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
 
 module.exports = {
   getServices,
@@ -669,4 +719,5 @@ module.exports = {
   getUserDetails,
   updateUserDetails,
   initiateService,
+  getServiceStatus
 };
