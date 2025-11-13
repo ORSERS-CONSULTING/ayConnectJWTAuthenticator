@@ -1,6 +1,23 @@
 // In the next step we’ll wire these to API Gateway/ORDS via services/ords.service.js
 
-const { ordsGetServices, ordsGetUserDocs, ordsEnsureRun, ordsGetActiveRuns, ordsGetCurrentStep, ordsGetBeneficiaries, ordsCreateBeneficiary, ordsGetDocumentTypes, uploadDocuments, ordsGetProcedures, ordsGetDepartments, ordsGetUserAvatar, ordsUploadUserAvatar, ordsGetUserDetails, ordsUpdateUserDetails, } = require('../services/ordsServices');
+const {
+  ordsGetServices,
+  ordsGetUserDocs,
+  ordsEnsureRun,
+  ordsGetActiveRuns,
+  ordsGetCurrentStep,
+  ordsGetBeneficiaries,
+  ordsCreateBeneficiary,
+  ordsGetDocumentTypes,
+  uploadDocuments,
+  ordsGetProcedures,
+  ordsGetDepartments,
+  ordsGetUserAvatar,
+  ordsUploadUserAvatar,
+  ordsGetUserDetails,
+  ordsUpdateUserDetails,
+  ordsInitiateService,
+} = require("../services/ordsServices");
 
 async function getServices(_req, res) {
   try {
@@ -12,12 +29,11 @@ async function getServices(_req, res) {
   }
 }
 
-
 async function getDocumentTypes(_req, res) {
   try {
     const data = await ordsGetDocumentTypes();
     // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
-    const items = Array.isArray(data) ? data : (data.items ?? data);
+    const items = Array.isArray(data) ? data : data.items ?? data;
     return res.json({ items });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -29,7 +45,7 @@ async function getProcedures(_req, res) {
   try {
     const data = await ordsGetProcedures();
     // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
-    const items = Array.isArray(data) ? data : (data.items ?? data);
+    const items = Array.isArray(data) ? data : data.items ?? data;
     return res.json({ items });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -41,7 +57,7 @@ async function getDepartments(_req, res) {
   try {
     const data = await ordsGetDepartments();
     // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
-    const items = Array.isArray(data) ? data : (data.items ?? data);
+    const items = Array.isArray(data) ? data : data.items ?? data;
     return res.json({ items });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -49,11 +65,10 @@ async function getDepartments(_req, res) {
   }
 }
 
-
 async function getUserDocs(req, res) {
   try {
-    const userId = String(req.user?.id || req.user?.sub || '');
-    if (!userId) return res.status(401).json({ message: 'No user in token' });
+    const userId = String(req.user?.id || req.user?.sub || "");
+    if (!userId) return res.status(401).json({ message: "No user in token" });
 
     const data = await ordsGetUserDocs(userId);
     return res.json(data);
@@ -65,7 +80,7 @@ async function getUserDocs(req, res) {
 
 async function uploadUserDocuments(req, res) {
   try {
-    const userFromToken = String(req.user?.id || req.user?.sub || '');
+    const userFromToken = String(req.user?.id || req.user?.sub || "");
     const b = req.body || {};
 
     const body = {
@@ -80,19 +95,32 @@ async function uploadUserDocuments(req, res) {
       expiry_date: b.expiry_date,
     };
 
-    const missing = ['user_id', 'document_id', 'file_name', 'file_type', 'file_base64'].filter(k => !body[k]);
+    const missing = [
+      "user_id",
+      "document_id",
+      "file_name",
+      "file_type",
+      "file_base64",
+    ].filter((k) => !body[k]);
     if (missing.length) {
-      console.warn('[uploadUserDocuments] Missing fields:', missing);
-      return res.status(400).json({ message: `Missing fields: ${missing.join(', ')}` });
+      console.warn("[uploadUserDocuments] Missing fields:", missing);
+      return res
+        .status(400)
+        .json({ message: `Missing fields: ${missing.join(", ")}` });
     }
 
-    if (typeof body.file_base64 === 'string' && body.file_base64.startsWith('data:')) {
-      body.file_base64 = body.file_base64.split(',')[1] || body.file_base64;
+    if (
+      typeof body.file_base64 === "string" &&
+      body.file_base64.startsWith("data:")
+    ) {
+      body.file_base64 = body.file_base64.split(",")[1] || body.file_base64;
     }
 
-    const approxBytes = Math.ceil((body.file_base64.replace(/=+$/, '').length * 3) / 4);
+    const approxBytes = Math.ceil(
+      (body.file_base64.replace(/=+$/, "").length * 3) / 4
+    );
 
-    console.info('[uploadUserDocuments] Upload started', {
+    console.info("[uploadUserDocuments] Upload started", {
       user_id: body.user_id,
       document_id: body.document_id,
       file_name: body.file_name,
@@ -103,25 +131,28 @@ async function uploadUserDocuments(req, res) {
 
     const resp = await uploadDocuments(body);
 
-    console.info('[uploadUserDocuments] Upload response meta', {
+    console.info("[uploadUserDocuments] Upload response meta", {
       status: resp?.status,
       headers: Object.keys(resp?.headers || {}),
     });
-
 
     const is2xx = resp.status >= 200 && resp.status < 300;
     const raw = resp.data; // string (possibly empty) because responseType:'text'
     let parsed = null;
 
     // Try to parse JSON if present
-    if (typeof raw === 'string' && raw.trim().length) {
-      try { parsed = JSON.parse(raw); } catch { /* not JSON */ }
+    if (typeof raw === "string" && raw.trim().length) {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        /* not JSON */
+      }
     }
 
     // Try to extract ID from Location header if ORDS sent one
     const location = resp.headers?.location || resp.headers?.Location;
     let idFromLocation = null;
-    if (typeof location === 'string') {
+    if (typeof location === "string") {
       const m = location.match(/\/(\d+)(?:\?.*)?$/);
       if (m) idFromLocation = Number(m[1]);
     }
@@ -129,32 +160,37 @@ async function uploadUserDocuments(req, res) {
     // Success policy: any 2xx = success, but prefer explicit flags/ids if present
     const uploadedExplicit =
       parsed?.uploaded === true ||
-      typeof parsed?.id === 'number' ||
-      typeof parsed?.document_id === 'number' ||
-      typeof idFromLocation === 'number';
+      typeof parsed?.id === "number" ||
+      typeof parsed?.document_id === "number" ||
+      typeof idFromLocation === "number";
 
     const uploaded = is2xx && (uploadedExplicit || true); // accept empty 2xx as success
-    const resolvedId = parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
-    console.info('[uploadUserDocuments] Upload result summary', {
+    const resolvedId =
+      parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
+    console.info("[uploadUserDocuments] Upload result summary", {
       success: uploaded,
       resolvedId,
       upstreamStatus: resp.status,
     });
     if (!uploaded) {
-      console.error('[uploadUserDocuments] Upstream did not confirm upload', {
+      console.error("[uploadUserDocuments] Upstream did not confirm upload", {
         status: resp.status,
         headers: resp.headers,
-        bodyPreview: typeof raw === 'string' ? raw.slice(0, 300) : raw,
+        bodyPreview: typeof raw === "string" ? raw.slice(0, 300) : raw,
       });
       return res.status(resp.status || 200).json({
         uploaded: false,
-        message: 'Upstream did not confirm upload',
-        upstream: { status: resp.status, headers: resp.headers, body: raw ?? '' },
+        message: "Upstream did not confirm upload",
+        upstream: {
+          status: resp.status,
+          headers: resp.headers,
+          body: raw ?? "",
+        },
       });
     }
 
     // 201 if created-ish, else 200
-    const outStatus = resp.status === 201 ? 201 : (is2xx ? 201 : 200);
+    const outStatus = resp.status === 201 ? 201 : is2xx ? 201 : 200;
 
     return res.status(outStatus).json({
       uploaded: true,
@@ -162,12 +198,12 @@ async function uploadUserDocuments(req, res) {
       upstream: {
         status: resp.status,
         headers: resp.headers,
-        body: parsed ?? raw ?? '',
+        body: parsed ?? raw ?? "",
       },
     });
   } catch (e) {
     const code = e.response?.status ?? 500;
-    console.error('[/uploadUserDocuments] ERROR', {
+    console.error("[/uploadUserDocuments] ERROR", {
       status: e.response?.status,
       data: e.response?.data,
       message: e.message,
@@ -207,13 +243,11 @@ async function getUserAvatar(req, res) {
   }
 }
 
-
-
 async function uploadUserAvatar(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || '');
+    const fromToken = String(req.user?.id || req.user?.sub || "");
     const user_id = String(req.query?.user_id || fromToken);
-    if (!user_id) return res.status(401).json({ message: 'No user in token' });
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
 
     const b = req.body || {};
 
@@ -222,18 +256,18 @@ async function uploadUserAvatar(req, res) {
     let mime_type = req.file?.mimetype || null;
 
     // 2) raw binary (from express.raw)
-    if (!file_buffer && req.is('image/*')) {
+    if (!file_buffer && req.is("image/*")) {
       // express.raw gives Buffer in req.body
       file_buffer = Buffer.isBuffer(req.body) ? req.body : null;
-      mime_type = req.headers['content-type'] || mime_type;
+      mime_type = req.headers["content-type"] || mime_type;
     }
 
     // 3) JSON base64
-    if (!file_buffer && typeof b.file_base64 === 'string') {
-      const base64 = b.file_base64.includes(',')
-        ? b.file_base64.split(',')[1]
+    if (!file_buffer && typeof b.file_base64 === "string") {
+      const base64 = b.file_base64.includes(",")
+        ? b.file_base64.split(",")[1]
         : b.file_base64;
-      file_buffer = Buffer.from(base64, 'base64');
+      file_buffer = Buffer.from(base64, "base64");
       mime_type = b.mime_type || mime_type;
     }
 
@@ -244,20 +278,30 @@ async function uploadUserAvatar(req, res) {
       });
     }
     if (!/^image\//i.test(String(mime_type))) {
-      return res.status(415).json({ message: 'mime_type must be image/*' });
+      return res.status(415).json({ message: "mime_type must be image/*" });
     }
     if (file_buffer.length > 20 * 1024 * 1024) {
-      return res.status(413).json({ message: 'Max 20MB allowed' });
+      return res.status(413).json({ message: "Max 20MB allowed" });
     }
 
-    const upstream = await ordsUploadUserAvatar(user_id, file_buffer, mime_type);
+    const upstream = await ordsUploadUserAvatar(
+      user_id,
+      file_buffer,
+      mime_type
+    );
     const ok = upstream.status >= 200 && upstream.status < 300;
 
     let out = upstream.data;
-    try { out = typeof out === 'string' && out ? JSON.parse(out) : out; } catch { }
-    return res.status(ok ? 200 : upstream.status).json(
-      out ?? { message: ok ? 'Avatar uploaded successfully' : 'Upload failed' }
-    );
+    try {
+      out = typeof out === "string" && out ? JSON.parse(out) : out;
+    } catch {}
+    return res
+      .status(ok ? 200 : upstream.status)
+      .json(
+        out ?? {
+          message: ok ? "Avatar uploaded successfully" : "Upload failed",
+        }
+      );
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
@@ -306,7 +350,11 @@ async function updateUserDetails(req, res) {
     // `callGatewayJson` tried to parse JSON; fall back to a default message
     return res
       .status(ok ? 200 : upstream.status)
-      .json(upstream.data ?? { message: ok ? "User details updated successfully" : "Update failed" });
+      .json(
+        upstream.data ?? {
+          message: ok ? "User details updated successfully" : "Update failed",
+        }
+      );
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
@@ -322,13 +370,12 @@ async function getBeneficiaries(req, res) {
 
     const data = await ordsGetBeneficiaries(user_id);
     // ORDS may return {items:[...]} or a raw array
-    const items = Array.isArray(data) ? data : (data.items ?? data);
+    const items = Array.isArray(data) ? data : data.items ?? data;
 
     // Optional: sort SELF first, like your SQL does
-    const sorted =
-      Array.isArray(items)
-        ? [...items].sort((a, b) => (a.type === "SELF" ? -1 : 1))
-        : items;
+    const sorted = Array.isArray(items)
+      ? [...items].sort((a, b) => (a.type === "SELF" ? -1 : 1))
+      : items;
 
     return res.status(200).json({ items: sorted });
   } catch (e) {
@@ -349,10 +396,17 @@ async function createBeneficiary(req, res) {
     if (!user_id) return res.status(401).json({ message: "No user in token" });
     if (!type) return res.status(400).json({ message: "type is required" });
     if (type === "DEPENDENT" && !full_name) {
-      return res.status(400).json({ message: "full_name is required for DEPENDENT" });
+      return res
+        .status(400)
+        .json({ message: "full_name is required for DEPENDENT" });
     }
 
-    const upstream = await ordsCreateBeneficiary({ user_id, type, full_name, relationship });
+    const upstream = await ordsCreateBeneficiary({
+      user_id,
+      type,
+      full_name,
+      relationship,
+    });
 
     // upstream = { status, headers, data, raw }
     const status = upstream.status || 200;
@@ -383,14 +437,19 @@ async function getCurrentStep(req, res) {
       req.query?.id || req.query?.proc_instance_id || req.query?.procInstanceId;
 
     if (!procInstanceId) {
-      return res.status(400).json({ message: "id (proc_instance_id) is required" });
+      return res
+        .status(400)
+        .json({ message: "id (proc_instance_id) is required" });
     }
 
     const data = await ordsGetCurrentStep(procInstanceId);
 
     // ORDS returns { items: [ row ] }
-    const row = Array.isArray(data) ? data[0] : (data.items?.[0] ?? data);
-    if (!row) return res.status(404).json({ message: "No current step (maybe all done)" });
+    const row = Array.isArray(data) ? data[0] : data.items?.[0] ?? data;
+    if (!row)
+      return res
+        .status(404)
+        .json({ message: "No current step (maybe all done)" });
 
     return res.status(200).json({
       instance_svc_id: row.instance_svc_id ?? row.id ?? null,
@@ -427,7 +486,7 @@ async function getActiveRuns(req, res) {
     const data = await ordsGetActiveRuns(user_id);
 
     // ORDS may return { items: [...] } or an array
-    const items = Array.isArray(data) ? data : (data?.items ?? []);
+    const items = Array.isArray(data) ? data : data?.items ?? [];
     console.log("[active-runs] raw items length from ORDS:", items.length);
 
     // Map to a clean, consistent shape that matches the mobile type expectations:
@@ -436,15 +495,13 @@ async function getActiveRuns(req, res) {
     // - prefer `progress_pct` if present
     const normalized = items.map((x) => ({
       run_type: x.run_type, // "PROCEDURE" | "SERVICE"
-      id: x.id ?? x.proc_instance_id ?? null,           // <— ensure id
+      id: x.id ?? x.proc_instance_id ?? null, // <— ensure id
       procedure_id: x.procedure_id ?? null,
       service_id: x.service_id ?? null,
       status: x.status ?? null,
       started_at: x.started_at ?? null,
       updated_at: x.updated_at ?? null,
-      progress: Number(
-        x.progress_pct ?? x.progress ?? 0
-      ), // 0..100 (procedure rows may have it)
+      progress: Number(x.progress_pct ?? x.progress ?? 0), // 0..100 (procedure rows may have it)
       beneficiary_id: x.beneficiary_id ?? null,
       beneficiary_name: x.beneficiary_name ?? null,
       label: x.display_name ?? x.name ?? null,
@@ -487,16 +544,32 @@ async function ensureRun(req, res) {
     if (procedure_id == null) {
       // standalone: need service_id OR order_ref
       if (!service_id && !order_ref) {
-        return res.status(400).json({ message: "service_id or order_ref is required for a standalone service" });
+        return res
+          .status(400)
+          .json({
+            message:
+              "service_id or order_ref is required for a standalone service",
+          });
       }
     } else {
       // procedure: need first-step reference
       if (!service_id && !order_ref) {
-        return res.status(400).json({ message: "service_id or order_ref is required for a procedure's first step" });
+        return res
+          .status(400)
+          .json({
+            message:
+              "service_id or order_ref is required for a procedure's first step",
+          });
       }
     }
 
-    const data = await ordsEnsureRun({ user_id, procedure_id, service_id, order_ref, beneficiary_id });
+    const data = await ordsEnsureRun({
+      user_id,
+      procedure_id,
+      service_id,
+      order_ref,
+      beneficiary_id,
+    });
     // ORDS PL/SQL OUTs: out_proc_instance_id, out_instance_svc_id, status_code, response_message
     const status = Number(data.status_code ?? 200);
 
@@ -513,6 +586,76 @@ async function ensureRun(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+// POST /ayconnect/initiateService
+async function initiateService(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const b = req.body || req.query || {};
 
-module.exports = { getServices, ensureRun, getUserDocs, getActiveRuns, getCurrentStep, createBeneficiary, getBeneficiaries, getDocumentTypes, uploadUserDocuments, getProcedures, getDepartments, getUserAvatar, uploadUserAvatar, getUserDetails, updateUserDetails, };
+    const user_id = b.user_id ?? fromToken;
+    const service_id = b.service_id ?? null;
 
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!service_id)
+      return res.status(400).json({ message: "service_id is required" });
+
+    console.log("[initiateService] Starting →", { user_id, service_id });
+
+    const data = await ordsInitiateService(service_id, user_id);
+
+    console.log("[initiateService] Upstream data:", data);
+
+    // Normalize wrapped responses (ORDS style)
+    let parsed = data;
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {
+        console.warn(
+          "[initiateService] Could not parse inner response_body JSON"
+        );
+      }
+    }
+
+    // Expected: { success: true, request_id: 577402 }
+    const success = parsed?.success === true;
+    const requestId = parsed?.request_id ?? null;
+
+    if (success) {
+      return res.status(200).json({
+        success: true,
+        request_id: requestId,
+        message: "Service initiated successfully",
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: parsed?.message || "Failed to initiate service",
+        upstream: parsed,
+      });
+    }
+  } catch (e) {
+    console.error("[initiateService] ERROR", e.message);
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+module.exports = {
+  getServices,
+  ensureRun,
+  getUserDocs,
+  getActiveRuns,
+  getCurrentStep,
+  createBeneficiary,
+  getBeneficiaries,
+  getDocumentTypes,
+  uploadUserDocuments,
+  getProcedures,
+  getDepartments,
+  getUserAvatar,
+  uploadUserAvatar,
+  getUserDetails,
+  updateUserDetails,
+  initiateService,
+};

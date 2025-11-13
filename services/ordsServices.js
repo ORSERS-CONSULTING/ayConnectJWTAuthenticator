@@ -476,6 +476,56 @@ function ordsEnsureRun({ user_id, procedure_id, service_id, order_ref, beneficia
   return callGateway("POST", "procedures", { params });
 }
 
+async function ordsInitiateService(service_id, user_id) {
+  if (!service_id || !user_id) {
+    throw new Error("service_id and user_id are required");
+  }
+
+  const urlPath = "ayc/initiateService"; // your ORDS module path
+  const params = {
+    p_service_id: Number(service_id),
+    p_user_id: Number(user_id),
+  };
+
+  const tokenUrl = `${process.env.GATEWAY_BASE_URL}/${urlPath}`;
+  const token = await getIdcsToken(tokenUrl);
+
+  // ⚙️ Call ORDS endpoint via API Gateway with authorization
+  const axios = require("axios");
+  const res = await axios({
+    method: "POST",
+    url: `${tokenUrl}`,
+    params,
+    headers: { Authorization: `Bearer ${token}` },
+    validateStatus: () => true,
+    responseType: "text",
+    transformResponse: [(x) => x],
+  });
+
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(
+      `initiateService failed (${res.status}): ${res.data || "Unknown error"}`
+    );
+  }
+
+  // 🧩 Handle wrapped response (ORDS: { response_body: "{...}" })
+  let data;
+  try {
+    data = typeof res.data === "string" ? JSON.parse(res.data) : res.data;
+  } catch {
+    data = { response_body: res.data };
+  }
+
+  if (typeof data.response_body === "string") {
+    try {
+      data = JSON.parse(data.response_body);
+    } catch {
+      console.warn("⚠️ Could not parse response_body JSON");
+    }
+  }
+
+  return data; // e.g. { success: true, request_id: 577402 }
+}
 
 module.exports = {
   callGateway,
@@ -508,4 +558,6 @@ module.exports = {
   uploadDocuments,
   ordsGetProcedures,
   ordsGetDepartments,
+    ordsInitiateService,
+
 };
