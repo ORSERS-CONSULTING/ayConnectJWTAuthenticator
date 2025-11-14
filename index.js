@@ -2,6 +2,8 @@
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const http = require('http');                // <-- added
+const { Server } = require('socket.io');     // <-- added
 
 const authRoutes = require('./routes/authRoutes');
 const ayRoutes = require('./routes/ayconnectRoutes');
@@ -90,6 +92,84 @@ app.get('/debug/ip', (req, res) => {
   });
 });
 
-// === Start Server ===
+// -----------------------------------------------------
+//  🔥 Create HTTP server and WebSocket server
+// -----------------------------------------------------
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",  // Your Expo app must be able to connect
+  }
+});
+
+// -----------------------------------------------------
+//  🔥 LIVE CHAT WEBSOCKET HANDLERS
+// -----------------------------------------------------
+io.on("connection", (socket) => {
+  console.log("⚡ WebSocket client connected:", socket.id);
+
+  // join chat room
+  socket.on("join", ({ ticketId }) => {
+    socket.join(`ticket:${ticketId}`);
+    console.log(`Joined room: ticket:${ticketId}`);
+  });
+
+  // typing indicator
+  socket.on("typing", ({ ticketId }) =>
+    socket.to(`ticket:${ticketId}`).emit("typing")
+  );
+
+  socket.on("typing:stop", ({ ticketId }) =>
+    socket.to(`ticket:${ticketId}`).emit("typing:stop")
+  );
+
+  // text message
+  socket.on("message:send", (data, ack) => {
+    const msg = {
+      id: Date.now().toString(),
+      text: data.body,
+      senderId: data.senderId || 99999,
+      senderName: "Support",
+      createdAt: new Date().toISOString(),
+      status: "delivered",
+    };
+
+    io.to(`ticket:${data.ticketId}`).emit("message:new", msg);
+    ack?.();
+  });
+
+  // file upload simulation
+  socket.on("message:file", (data, ack) => {
+    socket.emit("upload:progress", {
+      tempId: data.tempId,
+      progress: 50,
+    });
+
+    setTimeout(() => {
+      io.to(`ticket:${data.ticketId}`).emit("upload:done", {
+        tempId: data.tempId,
+        url: "https://your-file-server.com/uploads/" + data.fileName,
+      });
+    }, 1200);
+
+    ack?.({ ok: true });
+  });
+
+  socket.on("file:retry", ({ ticketId, tempId }) => {
+    io.to(`ticket:${ticketId}`).emit("upload:done", {
+      tempId,
+      url: "https://your-file-server.com/uploads/retry-" + tempId,
+    });
+  });
+});
+
+// -----------------------------------------------------
+//  🔥 Start server (Express + WebSockets)
+// -----------------------------------------------------
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ JWT service running on port ${PORT}`));
+
+server.listen(PORT, () =>
+  console.log(`✅ API + WebSocket running on ${PORT}`)
+);
