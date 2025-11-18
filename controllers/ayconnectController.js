@@ -17,7 +17,7 @@ const {
   ordsGetUserDetails,
   ordsUpdateUserDetails,
   ordsInitiateService,
-  ordsGetServiceStatus
+  ordsGetServiceStatus,
 } = require("../services/ordsServices");
 
 async function getServices(_req, res) {
@@ -661,8 +661,7 @@ async function getServiceStatus(req, res) {
     const user_id = q.user_id ?? fromToken;
     const service_id = q.service_id ?? null;
 
-    if (!user_id)
-      return res.status(401).json({ message: "No user in token" });
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
     if (!service_id)
       return res.status(400).json({ message: "service_id is required" });
 
@@ -691,9 +690,13 @@ async function getServiceStatus(req, res) {
     // Expected shape: { user_id, service_id, status }
     return res.status(200).json({
       success: true,
-      user_id: parsed.user_id ?? user_id,
-      service_id: parsed.service_id ?? service_id,
-      status: parsed.status ?? null,
+      user_id: parsed.user_id,
+      service_id: parsed.service_id,
+      status: parsed.status,
+      beneficiary_id: parsed.beneficiary_id,
+      instance_svc_id: parsed.instance_svc_id,
+      request_id: parsed.request_id,
+      proc_instance_id: parsed.proc_instance_id,
     });
   } catch (e) {
     console.error("[getServiceStatus] ERROR", e.message);
@@ -719,5 +722,5 @@ module.exports = {
   getUserDetails,
   updateUserDetails,
   initiateService,
-  getServiceStatus
+  getServiceStatus,
 };
