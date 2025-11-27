@@ -855,7 +855,6 @@ async function registerPushToken(req, res) {
     );
   }
 }
-
 module.exports = {
   getServices,
   ensureRun,
