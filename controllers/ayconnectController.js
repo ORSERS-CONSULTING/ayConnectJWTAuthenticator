@@ -705,6 +705,107 @@ async function getServiceStatus(req, res) {
   }
 }
 
+async function processPayment(req, res) {
+  try {
+    const request_id = req.body?.request_id || req.query?.request_id;
+
+    if (!request_id) {
+      return res.status(400).json({ message: "request_id is required" });
+    }
+
+    console.log("[processPayment] →", { request_id });
+
+    const data = await ordsProcessPayment(request_id);
+
+    // ORDS returns something like: {response_body:'{"success":true}'} or JSON
+    let parsed = data;
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch (err) {
+        console.warn("[processPayment] Could not parse response_body");
+      }
+    }
+
+    if (parsed?.success === true) {
+      return res.status(200).json({
+        success: true,
+        message: "Service marked as PAID",
+        request_id,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message:
+        parsed?.message ||
+        parsed?.error ||
+        "Failed to update payment status",
+      upstream: parsed,
+    });
+  } catch (e) {
+    console.error("[processPayment] ERROR", e.message);
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+async function registerPushToken(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const b = req.body || req.query || {};
+
+    const user_id = b.user_id ?? fromToken;
+    const expo_push_token = b.expo_push_token;
+
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
+    if (!expo_push_token) {
+      return res.status(400).json({ message: "expo_push_token is required" });
+    }
+
+    console.log("[registerPushToken] →", { user_id, expo_push_token });
+
+    const data = await ordsRegisterPushToken({ user_id, expo_push_token });
+
+    let parsed = data;
+
+    // Unwrap ORDS response_body if present
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {
+        console.warn("[registerPushToken] Could not parse response_body JSON");
+      }
+    }
+
+    if (parsed?.status === "ok") {
+      return res.status(200).json({
+        success: true,
+        message: "Push token registered",
+        user_id,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: parsed?.error || "Failed to register push token",
+      upstream: parsed,
+    });
+
+  } catch (e) {
+    console.error("[registerPushToken] ERROR", e.message);
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(
+      e.response?.data ?? {
+        message: e.message,
+      }
+    );
+  }
+}
+
+
+
 module.exports = {
   getServices,
   ensureRun,
@@ -723,4 +824,6 @@ module.exports = {
   updateUserDetails,
   initiateService,
   getServiceStatus,
+  processPayment,
+  registerPushToken
 };

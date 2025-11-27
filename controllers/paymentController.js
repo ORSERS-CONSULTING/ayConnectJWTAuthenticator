@@ -5,17 +5,12 @@ const {
 } = require("../services/ordsServices");
 const axios = require("axios");
 
-/**
- * Create a payment intent and forward to ORDS backend.
- */
 async function createPayment(req, res) {
   try {
     const b = req.body || {};
     if (b.amount == null || !b.currency) {
       return res.status(400).json({ message: "amount and currency are required" });
     }
-
-   
     const ctx = {
       userId: req.user?.id || req.user?.sub || null,
       serviceId: b.service_id,
@@ -35,7 +30,6 @@ async function createPayment(req, res) {
       },
       ctx
     );
-
     return res.status(200).json(data);
   } catch (e) {
     console.error("[createPayment] ERROR:", e);

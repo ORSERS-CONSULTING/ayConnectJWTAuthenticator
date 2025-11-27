@@ -523,6 +523,26 @@ function ordsGetServiceStatus(user_id, service_id) {
   return callGateway("GET", "getServiceStatus", { params });
 }
 
+function ordsProcessPayment(request_id) {
+  if (!request_id) throw new Error("request_id is required");
+
+  return callGateway("POST", "processPayment", {
+    params: { request_id: Number(request_id) },
+  });
+}
+function ordsRegisterPushToken({ user_id, expo_push_token }) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!expo_push_token) throw new Error("expo_push_token is required");
+
+  return callGateway("POST", "registerPushToken", {
+    params: {
+      user_id: Number(user_id),
+      expo_push_token: String(expo_push_token),
+    },
+  });
+}
+
+
 
 module.exports = {
   callGateway,
@@ -556,5 +576,7 @@ module.exports = {
   ordsGetProcedures,
   ordsGetDepartments,
   ordsInitiateService,
-  ordsGetServiceStatus
+  ordsGetServiceStatus,
+  ordsProcessPayment,
+  ordsRegisterPushToken
 };
