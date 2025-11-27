@@ -31,7 +31,6 @@ router.get("/procedure-instances/current-step", authUser, ctrl.getCurrentStep);
 router.post("/procedures", authUser, express.json(), ctrl.ensureRun);
 router.post("/initiateService", authUser, express.json(), ctrl.initiateService);
 router.get("/getServiceStatus", authUser, ctrl.getServiceStatus);
-router.post("/processPayment", authUser, ctrl.processPayment);
 router.post("/registerPushToken", authUser, ctrl.registerPushToken);
 
 module.exports = router;
