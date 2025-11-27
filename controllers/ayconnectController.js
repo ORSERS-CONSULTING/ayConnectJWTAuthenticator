@@ -717,12 +717,12 @@ async function processPayment(req, res) {
 
     const data = await ordsProcessPayment(request_id);
 
-    // ORDS returns something like: {response_body:'{"success":true}'} or JSON
+    // ORDS returns something like: {response_body:'{"success":true}'} or plain JSON
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch (err) {
+      } catch {
         console.warn("[processPayment] Could not parse response_body");
       }
     }
@@ -749,6 +749,7 @@ async function processPayment(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+
 async function registerPushToken(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
