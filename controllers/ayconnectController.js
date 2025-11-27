@@ -704,30 +704,67 @@ async function getServiceStatus(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 async function processPayment(req, res) {
   try {
     const request_id = req.body?.request_id || req.query?.request_id;
 
+    // -----------------------------------------------------
+    // Validate request_id
+    // -----------------------------------------------------
     if (!request_id) {
+      console.warn("[processPayment] Missing request_id");
       return res.status(400).json({ message: "request_id is required" });
     }
 
-    console.log("[processPayment] →", { request_id });
+    console.log("[processPayment] START", {
+      method: req.method,
+      path: req.originalUrl,
+      request_id,
+    });
+
+    // -----------------------------------------------------
+    // Call ORDS
+    // -----------------------------------------------------
+    console.log("[processPayment] Calling ORDS → ordsProcessPayment()", {
+      request_id,
+    });
 
     const data = await ordsProcessPayment(request_id);
 
-    // ORDS returns something like: {response_body:'{"success":true}'} or plain JSON
+    console.log("[processPayment] ORDS raw response:", {
+      status: data?.status,
+      headers: data?.headers,
+      raw: data?.raw,
+      data: data?.data,
+    });
+
+    // -----------------------------------------------------
+    // Parse ORDS response_body JSON
+    // -----------------------------------------------------
     let parsed = data;
     if (typeof data?.response_body === "string") {
+      console.log("[processPayment] Parsing response_body…");
+
       try {
         parsed = JSON.parse(data.response_body);
-      } catch {
-        console.warn("[processPayment] Could not parse response_body");
+      } catch (err) {
+        console.warn("[processPayment] Failed to parse response_body JSON", {
+          error: err.message,
+          bodyPreview: data.response_body?.slice(0, 200),
+        });
       }
     }
 
+    console.log("[processPayment] Parsed payload:", parsed);
+
+    // -----------------------------------------------------
+    // SUCCESS
+    // -----------------------------------------------------
     if (parsed?.success === true) {
+      console.log("[processPayment] SUCCESS — Payment marked as PAID", {
+        request_id,
+      });
+
       return res.status(200).json({
         success: true,
         message: "Service marked as PAID",
@@ -735,16 +772,31 @@ async function processPayment(req, res) {
       });
     }
 
+    // -----------------------------------------------------
+    // FAILURE CASE
+    // -----------------------------------------------------
+    console.warn("[processPayment] FAILURE — ORDS did not confirm success", {
+      request_id,
+      parsed,
+    });
+
     return res.status(500).json({
       success: false,
       message:
-        parsed?.message ||
-        parsed?.error ||
-        "Failed to update payment status",
+        parsed?.message || parsed?.error || "Failed to update payment status",
       upstream: parsed,
     });
   } catch (e) {
-    console.error("[processPayment] ERROR", e.message);
+    // -----------------------------------------------------
+    // UNCAUGHT ERROR
+    // -----------------------------------------------------
+    console.error("[processPayment] ERROR", {
+      error: e.message,
+      stack: e.stack,
+      upstreamStatus: e.response?.status,
+      upstreamData: e.response?.data,
+    });
+
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
@@ -793,7 +845,6 @@ async function registerPushToken(req, res) {
       message: parsed?.error || "Failed to register push token",
       upstream: parsed,
     });
-
   } catch (e) {
     console.error("[registerPushToken] ERROR", e.message);
     const code = e.response?.status ?? 500;
@@ -804,8 +855,6 @@ async function registerPushToken(req, res) {
     );
   }
 }
-
-
 
 module.exports = {
   getServices,
@@ -826,5 +875,5 @@ module.exports = {
   initiateService,
   getServiceStatus,
   processPayment,
-  registerPushToken
+  registerPushToken,
 };
