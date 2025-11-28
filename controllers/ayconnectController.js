@@ -18,7 +18,8 @@ const {
   ordsUpdateUserDetails,
   ordsInitiateService,
   ordsGetServiceStatus,
-  ordsRegisterPushToken
+  ordsRegisterPushToken,
+  ordsGetNotifications
 } = require("../services/ordsServices");
 
 async function getServices(_req, res) {
@@ -760,6 +761,37 @@ async function registerPushToken(req, res) {
     );
   }
 }
+
+async function getNotifications(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.query?.user_id || fromToken);
+
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
+
+    const data = await ordsGetNotifications(user_id);
+
+    // ORDS may wrap responses inside { response_body: "<json>" }
+    let parsed = data;
+
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {
+        console.warn("[getNotifications] Could not parse response_body JSON");
+      }
+    }
+
+    // Ensure consistent output shape
+    return res.status(200).json(parsed);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
 module.exports = {
   getServices,
   ensureRun,
@@ -779,4 +811,5 @@ module.exports = {
   initiateService,
   getServiceStatus,
   registerPushToken,
+  getNotifications
 };

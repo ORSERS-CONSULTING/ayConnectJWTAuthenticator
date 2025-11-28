@@ -542,6 +542,14 @@ function ordsRegisterPushToken({ user_id, expo_push_token }) {
   });
 }
 
+function ordsGetNotifications(user_id) {
+  if (!user_id) throw new Error("user_id is required");
+
+  return callGateway("GET", "getNotifications", {
+    params: { user_id: Number(user_id) },
+  });
+}
+
 
 
 module.exports = {
@@ -578,5 +586,6 @@ module.exports = {
   ordsInitiateService,
   ordsGetServiceStatus,
   ordsProcessPayment,
-  ordsRegisterPushToken
+  ordsRegisterPushToken,
+  ordsGetNotifications
 };
