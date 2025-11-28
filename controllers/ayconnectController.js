@@ -18,6 +18,7 @@ const {
   ordsUpdateUserDetails,
   ordsInitiateService,
   ordsGetServiceStatus,
+  ordsRegisterPushToken
 } = require("../services/ordsServices");
 
 async function getServices(_req, res) {
