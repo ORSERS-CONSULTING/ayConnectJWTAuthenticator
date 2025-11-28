@@ -541,7 +541,6 @@ function ordsRegisterPushToken({ user_id, expo_push_token }) {
     },
   });
 }
-
 function ordsGetNotifications(user_id) {
   if (!user_id) throw new Error("user_id is required");
 
