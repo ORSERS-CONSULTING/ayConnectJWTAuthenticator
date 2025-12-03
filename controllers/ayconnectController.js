@@ -592,11 +592,9 @@ async function initiateService(req, res) {
     const beneficiary_id = b.beneficiary_id ?? null;
     const procedure_id = b.procedure_id ?? null;
 
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
-    if (!service_id)
-      return res.status(400).json({ message: "service_id is required" });
-    if (!beneficiary_id)
-      return res.status(400).json({ message: "beneficiary_id is required" });
+    if (!user_id) return res.status(401).json({ success: false, message: "No user in token" });
+    if (!service_id) return res.status(400).json({ success: false, message: "service_id is required" });
+    if (!beneficiary_id) return res.status(400).json({ success: false, message: "beneficiary_id is required" });
 
     console.log("[initiateService] Starting →", {
       user_id,
@@ -605,7 +603,7 @@ async function initiateService(req, res) {
       procedure_id,
     });
 
-    // 🔹 Call ORDS backend with all required params
+    // 🔹 Call ORDS backend
     const data = await ordsInitiateService(
       service_id,
       user_id,
@@ -613,39 +611,45 @@ async function initiateService(req, res) {
       procedure_id
     );
 
-    console.log("[initiateService] Upstream data:", data);
+    console.log("[initiateService] Upstream raw:", data);
 
-    // 🔹 Normalize wrapped ORDS response
+    // 🔹 Parse ORDS JSON wrapper
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
       } catch {
-        console.warn(
-          "[initiateService] Could not parse inner response_body JSON"
-        );
+        console.warn("[initiateService] JSON parse failed for response_body");
       }
     }
 
+    console.log("[initiateService] Parsed:", parsed);
+
+    // 🔹 SUCCESS → return fields from PL/SQL EXACTLY AS THEY ARE
     if (parsed?.success === true) {
       return res.status(200).json({
         success: true,
+        action: parsed.action,
+        instance_svc_id: parsed.instance_svc_id,
         request_id: parsed.request_id,
-        service_id: parsed.service_id,
-        procedure_id: parsed.procedure_id,
-        beneficiary_id: parsed.beneficiary_id,
+        application_id: parsed.application_id ?? null,
+        proc_instance_id: parsed.proc_instance_id ?? null,
         message: "Service initiated successfully",
       });
     }
 
+    // 🔹 FAILED
     return res.status(500).json({
       success: false,
       message: parsed?.error || parsed?.message || "Failed to initiate service",
       upstream: parsed,
     });
+
   } catch (e) {
     console.error("[initiateService] ERROR", e.message);
+
     const code = e.response?.status ?? 500;
+
     return res.status(code).json(
       e.response?.data ?? {
         success: false,
@@ -654,6 +658,7 @@ async function initiateService(req, res) {
     );
   }
 }
+
 // GET /ayconnect/getServiceStatus
 async function getServiceStatus(req, res) {
   try {
