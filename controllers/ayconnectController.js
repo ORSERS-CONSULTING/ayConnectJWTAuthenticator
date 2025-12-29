@@ -19,7 +19,7 @@ const {
   ordsInitiateService,
   ordsGetServiceStatus,
   ordsRegisterPushToken,
-  ordsGetNotifications
+  ordsGetNotifications,
 } = require("../services/ordsServices");
 
 async function getServices(_req, res) {
@@ -85,9 +85,9 @@ async function uploadUserDocuments(req, res) {
   try {
     const userFromToken = String(req.user?.id || req.user?.sub || "");
     const b = req.body || {};
-
     const body = {
       user_id: b.user_id ?? userFromToken,
+      beneficiary_id: Number(b.beneficiary_id), // ✅ REQUIRED
       document_id: Number(b.document_id),
       file_name: b.file_name,
       file_type: b.file_type,
@@ -167,7 +167,7 @@ async function uploadUserDocuments(req, res) {
       typeof parsed?.document_id === "number" ||
       typeof idFromLocation === "number";
 
-    const uploaded = is2xx && (uploadedExplicit || true); // accept empty 2xx as success
+    const uploaded = is2xx && uploadedExplicit;
     const resolvedId =
       parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
     console.info("[uploadUserDocuments] Upload result summary", {
@@ -592,9 +592,18 @@ async function initiateService(req, res) {
     const beneficiary_id = b.beneficiary_id ?? null;
     const procedure_id = b.procedure_id ?? null;
 
-    if (!user_id) return res.status(401).json({ success: false, message: "No user in token" });
-    if (!service_id) return res.status(400).json({ success: false, message: "service_id is required" });
-    if (!beneficiary_id) return res.status(400).json({ success: false, message: "beneficiary_id is required" });
+    if (!user_id)
+      return res
+        .status(401)
+        .json({ success: false, message: "No user in token" });
+    if (!service_id)
+      return res
+        .status(400)
+        .json({ success: false, message: "service_id is required" });
+    if (!beneficiary_id)
+      return res
+        .status(400)
+        .json({ success: false, message: "beneficiary_id is required" });
 
     console.log("[initiateService] Starting →", {
       user_id,
@@ -644,7 +653,6 @@ async function initiateService(req, res) {
       message: parsed?.error || parsed?.message || "Failed to initiate service",
       upstream: parsed,
     });
-
   } catch (e) {
     console.error("[initiateService] ERROR", e.message);
 
@@ -711,7 +719,6 @@ async function getServiceStatus(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 
 async function registerPushToken(req, res) {
   try {
@@ -816,5 +823,5 @@ module.exports = {
   initiateService,
   getServiceStatus,
   registerPushToken,
-  getNotifications
+  getNotifications,
 };

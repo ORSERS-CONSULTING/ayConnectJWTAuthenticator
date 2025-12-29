@@ -16,7 +16,7 @@ const required = async (name, vaultOcidEnvVar) => {
 
 async function loadConfig() {
   return {
-    PORT: process.env.PORT || 3000,
+    PORT: process.env.PORT || 3000, 
     ACCESS_TOKEN_TTL: process.env.ACCESS_TOKEN_TTL,  // <— add this line
     JWT_SECRET: await required("JWT_SECRET", "JWT_SECRET_OCID"),
 
