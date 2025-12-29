@@ -167,7 +167,7 @@ async function uploadUserDocuments(req, res) {
       typeof parsed?.document_id === "number" ||
       typeof idFromLocation === "number";
 
-    const uploaded = is2xx && uploadedExplicit;
+    const uploaded = is2xx && (uploadedExplicit || true); // accept empty 2xx as success
     const resolvedId =
       parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
     console.info("[uploadUserDocuments] Upload result summary", {
