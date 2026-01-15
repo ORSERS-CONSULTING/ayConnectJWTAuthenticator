@@ -29,11 +29,20 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
   if (amount == null || !orderId || !returnUrl) {
     throw new Error("amount, orderId and returnUrl are required");
   }
-
+  console.log("🧪 createCheckoutSession INPUT", {
+    amount,
+    orderId,
+    returnUrl,
+    envReturnUrl: process.env.HPP_RETURN_URL,
+  });
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
   const currency = process.env.CURRENCY || "AED";
-
+  console.log("🧪 MPGS CONFIG", {
+    merchantId,
+    currency,
+    baseUrl,
+  });
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
   // ✅ MPGS-CORRECT PAYLOAD
@@ -47,7 +56,7 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
       },
     },
     order: {
-      id: String(orderId),          // MUST be string
+      id: String(orderId), // MUST be string
       amount: Number(amount),
       currency,
     },
@@ -64,6 +73,7 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
       },
       timeout: 15000,
     });
+    console.log("🧪 MPGS RESPONSE:", JSON.stringify(res.data, null, 2));
   } catch (err) {
     const msg =
       err.response?.data || err.message || "Failed to create MPGS session";
