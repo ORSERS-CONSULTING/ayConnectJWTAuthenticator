@@ -171,7 +171,8 @@ io.on("connection", (socket) => {
 // -----------------------------------------------------
 
 const PORT = process.env.PORT || 3000;
+const HOST = "127.0.0.1";
 
-server.listen(PORT, () =>
-  console.log(`✅ JWT service running on http://localhost:${PORT}`)
-)
+server.listen(PORT, HOST, () => {
+  console.log(`✅ API + WebSocket running on http://${HOST}:${PORT}`);
+});
