@@ -171,8 +171,7 @@ io.on("connection", (socket) => {
 // -----------------------------------------------------
 
 const PORT = process.env.PORT || 3000;
-const HOST = "127.0.0.1"; // only allow local connections (Nginx on same VM)
 
-server.listen(PORT, HOST, () =>
+server.listen(PORT, () =>
   console.log(`✅ JWT service running on http://${HOST}:${PORT}`)
 );
