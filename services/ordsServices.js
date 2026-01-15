@@ -454,10 +454,6 @@ async function ordsUpdatePaymentStatus({
   });
 }
 
-/**
- * Get payment by ID
- * ORDS: GET /payments/status?payment_id=...
- */
 async function ordsGetPayment(payment_id) {
   if (!payment_id) throw new Error("payment_id is required");
 
