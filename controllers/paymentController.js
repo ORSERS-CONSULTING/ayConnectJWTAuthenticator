@@ -17,6 +17,11 @@ const {
  * POST /payments/init
  */
 async function initPayment(req, res) {
+  console.log("🔥 /payments/init HIT", {
+    url: req.originalUrl,
+    body: req.body,
+    user: req.user,
+  });
   try {
     const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
     if (!user_id) {
@@ -40,8 +45,7 @@ async function initPayment(req, res) {
     });
 
     const payment_id =
-      ordsRes?.data?.payment_id ||
-      ordsRes?.data?.response_body?.payment_id;
+      ordsRes?.data?.payment_id || ordsRes?.data?.response_body?.payment_id;
 
     if (!payment_id) {
       throw new Error("ORDS did not return payment_id");
