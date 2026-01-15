@@ -57,7 +57,7 @@ async function initPayment(req, res) {
     const { sessionId } = await createCheckoutSession({
       amount,
       orderId,
-      returnUrl: process.env.HPP_RETURN_URL,
+      returnUrl: "https://test.yalayis.com/return",
     });
 
     // 3️⃣ Save MPGS session in ORDS
