@@ -475,7 +475,7 @@ module.exports = {
   ordsUploadUserAvatar,
   ordsGetUserDetails,
   ordsUpdateUserDetails,
-  initPayment,
+  ordsGetUserDetails,
   resendClientCode,
   getClientEmail,
   sendMobileOtp,
