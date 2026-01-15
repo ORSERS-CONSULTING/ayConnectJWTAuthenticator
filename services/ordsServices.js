@@ -397,8 +397,8 @@ async function ordsInitPayment({
     throw new Error("Missing required payment fields");
   }
 
-  return callGatewayJson("POST", "payments/init", {
-    data: {
+  return callGateway("POST", "payments/init", {
+    params: {
       user_id: Number(user_id),
       payment_type,
       reference_id: Number(reference_id),
@@ -421,8 +421,8 @@ async function ordsUpdatePaymentSession({
     throw new Error("Missing MPGS session fields");
   }
 
-  return callGatewayJson("POST", "payments/update-session", {
-    data: {
+  return callGateway("POST", "payments/update-session", {
+    params: {
       payment_id: Number(payment_id),
       mpgs_order_id,
       mpgs_session_id,
@@ -444,8 +444,8 @@ async function ordsUpdatePaymentStatus({
     throw new Error("payment_id and status are required");
   }
 
-  return callGatewayJson("POST", "payments/update-status", {
-    data: {
+  return callGateway("POST", "payments/update-status", {
+    params: {
       payment_id: Number(payment_id),
       status,
       mpgs_transaction_id,
