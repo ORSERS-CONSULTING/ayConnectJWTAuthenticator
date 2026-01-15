@@ -391,7 +391,6 @@ async function ordsInitPayment({
   payment_type,
   reference_id,
   amount,
-  currency = "AED",
 }) {
   if (!user_id || !payment_type || !reference_id || !amount) {
     throw new Error("Missing required payment fields");
@@ -403,7 +402,6 @@ async function ordsInitPayment({
       payment_type,
       reference_id: Number(reference_id),
       amount: Number(amount),
-      currency,
     },
   });
 }
