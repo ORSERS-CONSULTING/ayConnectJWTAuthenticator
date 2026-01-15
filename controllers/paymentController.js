@@ -1,174 +1,140 @@
 const {
-  initPayment,
-  forwardToOrds,
-  getPaymentResult,
-  ordsProcessPayment,
+  ordsInitPayment,
+  ordsUpdatePaymentSession,
+  ordsUpdatePaymentStatus,
+  ordsGetPayment,
 } = require("../services/ordsServices");
-const axios = require("axios");
 
-async function createPayment(req, res) {
+const {
+  createCheckoutSession,
+  retrieveOrder,
+} = require("../services/rakbankService");
+
+/**
+ * ----------------------------------------------------
+ * INIT PAYMENT (create ORDS + MPGS session)
+ * ----------------------------------------------------
+ * POST /payments/init
+ */
+async function initPayment(req, res) {
   try {
-    const b = req.body || {};
-    if (b.amount == null || !b.currency) {
-      return res
-        .status(400)
-        .json({ message: "amount and currency are required" });
+    const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
+    if (!user_id) {
+      return res.status(401).json({ message: "Unauthorized" });
     }
-    const ctx = {
-      userId: req.user?.id || req.user?.sub || null,
-      serviceId: b.service_id,
-      procedureId: b.procedure_id,
-      requestId: b.request_id,
-      stepOrder: b.step_order,
-      email: b.email,
-      name: b.name,
-    };
 
-    const data = await initPayment(
-      {
-        amount: b.amount,
-        currency: b.currency,
-        description: b.description,
-        serviceCode: b.service_code,
-      },
-      ctx
+    const { payment_type, reference_id, amount } = req.body;
+
+    if (!payment_type || !reference_id || !amount) {
+      return res.status(400).json({
+        message: "payment_type, reference_id and amount are required",
+      });
+    }
+
+    // 1️⃣ Create ORDS payment (PENDING)
+    const ordsRes = await ordsInitPayment({
+      user_id,
+      payment_type,
+      reference_id,
+      amount,
+    });
+
+    const payment_id =
+      ordsRes?.data?.payment_id ||
+      ordsRes?.data?.response_body?.payment_id;
+
+    if (!payment_id) {
+      throw new Error("ORDS did not return payment_id");
+    }
+
+    // 2️⃣ Create MPGS session
+    const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
+
+    const { sessionId } = await createCheckoutSession({
+      amount,
+      orderId,
+      returnUrl: process.env.HPP_RETURN_URL,
+    });
+
+    // 3️⃣ Save MPGS session in ORDS
+    await ordsUpdatePaymentSession({
+      payment_id,
+      mpgs_order_id: orderId,
+      mpgs_session_id: sessionId,
+    });
+
+    return res.status(200).json({
+      paymentId: payment_id,
+      sessionId,
+    });
+  } catch (e) {
+    console.error("[initPayment] ERROR", e.message);
+    return res.status(500).json({ message: e.message });
+  }
+}
+
+/**
+ * ----------------------------------------------------
+ * VERIFY PAYMENT (after checkout)
+ * ----------------------------------------------------
+ * POST /payments/verify
+ */
+async function verifyPayment(req, res) {
+  try {
+    const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
+    if (!user_id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { paymentId } = req.body;
+    if (!paymentId) {
+      return res.status(400).json({ message: "paymentId is required" });
+    }
+
+    const payment = await ordsGetPayment(paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    // 🔒 Ownership check
+    if (Number(payment.user_id) !== Number(user_id)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Idempotent response
+    if (payment.status === "PAID" || payment.status === "FAILED") {
+      return res.json({ status: payment.status });
+    }
+
+    // Ask MPGS (source of truth)
+    const order = await retrieveOrder(payment.mpgs_order_id);
+    const txns = order.transaction || [];
+
+    const paymentTxn = txns.find(
+      (t) => (t.transaction?.type || t.type) === "PAYMENT"
     );
-    return res.status(200).json(data);
-  } catch (e) {
-    console.error("[createPayment] ERROR:", e);
-    const code = e.response?.status ?? 500;
-    return res
-      .status(code)
-      .json({ message: e.message, details: e.response?.data });
-  }
-}
 
-async function proxyStripeToOrds(req, res) {
-  try {
-    const stripeSig = req.headers["stripe-signature"];
-    if (!stripeSig) return res.status(400).send("Missing Stripe-Signature");
+    const txnResult = paymentTxn?.result;
+    const txnId = paymentTxn?.transaction?.id ?? paymentTxn?.id ?? null;
 
-    const r = await forwardToOrds(req.body, stripeSig);
-    return res.status(r.status).send(r.data ?? "OK");
-  } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).send(e.response?.data || e.message);
-  }
-}
-
-async function getPaymentResultController(req, res) {
-  try {
-    const id = req.params.id;
-    const out = await getPaymentResult(id);
-    return res.status(200).json(out);
-  } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res
-      .status(code)
-      .json({ message: e.message, details: e.response?.data });
-  }
-}
-async function processPayment(req, res) {
-  try {
-    const request_id = req.body?.request_id || req.query?.request_id;
-
-    // -----------------------------------------------------
-    // Validate request_id
-    // -----------------------------------------------------
-    if (!request_id) {
-      console.warn("[processPayment] Missing request_id");
-      return res.status(400).json({ message: "request_id is required" });
-    }
-
-    console.log("[processPayment] START", {
-      method: req.method,
-      path: req.originalUrl,
-      request_id,
-    });
-
-    // -----------------------------------------------------
-    // Call ORDS
-    // -----------------------------------------------------
-    console.log("[processPayment] Calling ORDS → ordsProcessPayment()", {
-      request_id,
-    });
-
-    const data = await ordsProcessPayment(request_id);
-
-    console.log("[processPayment] ORDS raw response:", {
-      status: data?.status,
-      headers: data?.headers,
-      raw: data?.raw,
-      data: data?.data,
-    });
-
-    // -----------------------------------------------------
-    // Parse ORDS response_body JSON
-    // -----------------------------------------------------
-    let parsed = data;
-    if (typeof data?.response_body === "string") {
-      console.log("[processPayment] Parsing response_body…");
-
-      try {
-        parsed = JSON.parse(data.response_body);
-      } catch (err) {
-        console.warn("[processPayment] Failed to parse response_body JSON", {
-          error: err.message,
-          bodyPreview: data.response_body?.slice(0, 200),
-        });
-      }
-    }
-
-    console.log("[processPayment] Parsed payload:", parsed);
-
-    // -----------------------------------------------------
-    // SUCCESS
-    // -----------------------------------------------------
-    if (parsed?.success === true) {
-      console.log("[processPayment] SUCCESS — Payment marked as PAID", {
-        request_id,
+    if (order.status === "CAPTURED" && txnResult === "SUCCESS") {
+      await ordsUpdatePaymentStatus({
+        payment_id: paymentId,
+        status: "PAID",
+        mpgs_transaction_id: txnId,
       });
 
-      return res.status(200).json({
-        success: true,
-        message: "Service marked as PAID",
-        request_id,
-      });
+      return res.json({ status: "PAID" });
     }
 
-    // -----------------------------------------------------
-    // FAILURE CASE
-    // -----------------------------------------------------
-    console.warn("[processPayment] FAILURE — ORDS did not confirm success", {
-      request_id,
-      parsed,
-    });
-
-    return res.status(500).json({
-      success: false,
-      message:
-        parsed?.message || parsed?.error || "Failed to update payment status",
-      upstream: parsed,
-    });
+    return res.json({ status: "PENDING" });
   } catch (e) {
-    // -----------------------------------------------------
-    // UNCAUGHT ERROR
-    // -----------------------------------------------------
-    console.error("[processPayment] ERROR", {
-      error: e.message,
-      stack: e.stack,
-      upstreamStatus: e.response?.status,
-      upstreamData: e.response?.data,
-    });
-
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    console.error("[verifyPayment] ERROR", e.message);
+    return res.status(500).json({ message: e.message });
   }
 }
 
 module.exports = {
-  createPayment,
-  proxyStripeToOrds,
-  getPaymentResultController,
-  processPayment,
+  initPayment,
+  verifyPayment,
 };

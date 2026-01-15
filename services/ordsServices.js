@@ -7,24 +7,6 @@ const { getIdcsToken } = require("./idcsServices");
 //   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
 // }
 
-// Canonicalize to your app's enum
-function normalizeToAppStatus(rawStatus) {
-  const s = String(rawStatus || "").toUpperCase();
-
-  if (s === "PAID" || s === "SUCCESS" || s === "SUCCEEDED") return "PAID";
-
-  // Treat anything non-terminal as pending payment
-  if (
-    s === "PENDING_PAYMENT" ||
-    s === "PENDING" ||
-    s === "PROCESSING" ||
-    s.startsWith("REQUIRES_") // Stripe: requires_payment_method, requires_action, etc.
-  )
-    return "PENDING_PAYMENT";
-
-  return "FAILED";
-}
-
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -66,85 +48,6 @@ async function callGateway(method, path, { params, data } = {}) {
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
-}
-async function forwardToOrds(rawBodyBuffer, stripeSignature) {
-  const url = `${process.env.GATEWAY_BASE_URL}/webhook`;
-
-  const token = await getIdcsToken(url);
-  return axios.post(url, rawBodyBuffer, {
-    headers: {
-      "Content-Type": "application/json", // keep JSON
-      Stripe_Signature: stripeSignature, // original
-      X_Stripe_Signature: stripeSignature, // copy for gateways that strip the first
-      Authorization: `Bearer ${token}`, // satisfy API Gateway
-    },
-    transformRequest: [(d) => d], // DO NOT touch raw body
-    maxBodyLength: Infinity,
-    timeout: 15000,
-    validateStatus: () => true,
-  });
-}
-async function getPaymentResult(requestId) {
-  if (requestId == null) throw new Error("requestId is required");
-
-  // If your ORDS uses POST + ?request_id=..., keep this URL.
-  // If you later switch to a path param style, change to /requests/:id.
-  const url = `${process.env.GATEWAY_BASE_URL}/getPaymentResult`;
-  const token = await getIdcsToken(url);
-
-  const res = await axios({
-    method: "POST",
-    url,
-    params: { request_id: requestId }, // <-- matches your current ORDS route
-    headers: { Authorization: `Bearer ${token}` },
-    validateStatus: () => true,
-    timeout: 15000,
-  });
-
-  if (res.status === 404) return { status: "PENDING_PAYMENT" };
-  if (res.status < 200 || res.status >= 300) {
-    const msg =
-      typeof res.data === "string"
-        ? res.data
-        : res.data?.error || res.data?.message || JSON.stringify(res.data);
-    throw new Error(`getPaymentResult failed (${res.status}): ${msg}`);
-  }
-
-  // -------- Unwrap any ORDS shape (object | string | {response_body: string}) --------
-  let payload = res.data ?? {};
-
-  // case A: raw string body
-  if (typeof payload === "string") {
-    try {
-      payload = JSON.parse(payload);
-    } catch {}
-  }
-
-  // case B: wrapper with response_body/responseBody
-  if (payload && typeof payload.response_body === "string") {
-    try {
-      payload = JSON.parse(payload.response_body);
-    } catch {}
-  } else if (payload && typeof payload.responseBody === "string") {
-    try {
-      payload = JSON.parse(payload.responseBody);
-    } catch {}
-  }
-
-  const raw = payload?.status;
-  const norm = normalizeToAppStatus(raw);
-
-  // drop any conflicting status-like fields, return normalized LAST
-  const {
-    status: _s1,
-    state: _s2,
-    payment_status: _s3,
-    order_status: _s4,
-    result: _s5,
-    ...rest
-  } = payload || {};
-
-  return { ...rest, status: norm };
 }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
@@ -312,87 +215,6 @@ function uploadDocuments(docPayload) {
   // TODO: confirm correct upstream path
   return callGatewayUpload("uploadDocuments", docPayload); // <-- set the RIGHT path
 }
-async function initPayment(payPayload, ctx = {}) {
-  const body = {
-    amount: Number(payPayload.amount),
-    currency: payPayload.currency,
-    description:
-      payPayload.description ?? `Service ${payPayload.serviceCode ?? ""}`,
-
-    // ✅ Align JSON shape 1:1 with ORDS parser paths
-    context: {
-      user_id: ctx.user_id ?? ctx.userId ?? 0,
-      service_id: ctx.service_id ?? ctx.serviceId ?? 0,
-      procedure_id: ctx.procedure_id ?? ctx.procedureId ?? null,
-      request_id: ctx.request_id ?? ctx.requestId ?? null,
-      step_order: ctx.step_order ?? ctx.stepOrder ?? null, // ✅ added
-      email: ctx.email ?? "test.user@example.com",
-      name: ctx.name ?? "Test User",
-    },
-  };
-
-  const idempotency = body.context.request_id
-    ? String(body.context.request_id)
-    : undefined;
-
-  const headers = idempotency ? { "Idempotency-Key": idempotency } : undefined;
-
-  const res = await callGatewayJson("POST", "pay", { data: body, headers });
-  const { status, data } = res;
-
-  if (status < 200 || status >= 300) {
-    throw new Error(
-      data?.error ||
-        data?.message ||
-        `Payment initialization failed (status ${status})`
-    );
-  }
-
-  // unwrap ORDS response {response_body: "<json string>"}
-  let parsed = data;
-  if (typeof data?.response_body === "string") {
-    try {
-      parsed = JSON.parse(data.response_body);
-    } catch {
-      throw new Error("response_body was not valid JSON");
-    }
-  }
-
-  const clientSecret =
-    parsed.paymentIntent ?? parsed.client_secret ?? parsed.clientSecret;
-  const customerId = parsed.customer ?? parsed.customer_id ?? parsed.customerId;
-  const ephemeralKey = parsed.ephemeralKey ?? parsed.ephemeral_key;
-  const requestId =
-    parsed.requestId ?? parsed.request_id ?? body.context.request_id ?? null;
-
-  if (!clientSecret || !customerId || !ephemeralKey) {
-    throw new Error(
-      `Malformed payment response. Keys: ${Object.keys(parsed || {}).join(
-        ", "
-      )}`
-    );
-  }
-
-  return { clientSecret, customerId, ephemeralKey, requestId };
-}
-
-// async function waitForPaid(
-//   requestId,
-//   { timeoutMs = 20000, intervalMs = 1000 } = {}
-// ) {
-//   const until = Date.now() + timeoutMs;
-//   let last = { status: "PENDING_PAYMENT" };
-
-//   while (Date.now() < until) {
-//     const current = await getPaymentResult(requestId);
-//     const s = String(current.status).toUpperCase();
-//     if (s === "PAID" || s === "FAILED") return current;
-
-//     last = { ...current, status: "PENDING_PAYMENT" };
-//     await sleep(intervalMs);
-//   }
-//   return last;
-// }
 
 async function ordsUploadUserAvatar(user_id, fileBuffer, mimeType) {
   const PATH = "uploadAvatar";
@@ -494,7 +316,12 @@ function ordsEnsureRun({
   // ORDS handler is PL/SQL with IN params via URI
   return callGateway("POST", "procedures", { params });
 }
-function ordsInitiateService(service_id, user_id, beneficiary_id, procedure_id = null) {
+function ordsInitiateService(
+  service_id,
+  user_id,
+  beneficiary_id,
+  procedure_id = null
+) {
   if (!service_id || !user_id || !beneficiary_id)
     throw new Error("service_id, user_id, and beneficiary_id are required");
 
@@ -549,7 +376,97 @@ function ordsGetNotifications(user_id) {
   });
 }
 
+/**
+ * ----------------------------------------------------
+ * PAYMENTS (RAKBANK / MPGS)
+ * ----------------------------------------------------
+ */
 
+/**
+ * Create payment record (PENDING)
+ * ORDS: POST /payments/init
+ */
+async function ordsInitPayment({
+  user_id,
+  payment_type,
+  reference_id,
+  amount,
+  currency = "AED",
+}) {
+  if (!user_id || !payment_type || !reference_id || !amount) {
+    throw new Error("Missing required payment fields");
+  }
+
+  return callGatewayJson("POST", "payments/init", {
+    data: {
+      user_id: Number(user_id),
+      payment_type,
+      reference_id: Number(reference_id),
+      amount: Number(amount),
+      currency,
+    },
+  });
+}
+
+/**
+ * Attach MPGS order + session
+ * ORDS: POST /payments/update-session
+ */
+async function ordsUpdatePaymentSession({
+  payment_id,
+  mpgs_order_id,
+  mpgs_session_id,
+}) {
+  if (!payment_id || !mpgs_order_id || !mpgs_session_id) {
+    throw new Error("Missing MPGS session fields");
+  }
+
+  return callGatewayJson("POST", "payments/update-session", {
+    data: {
+      payment_id: Number(payment_id),
+      mpgs_order_id,
+      mpgs_session_id,
+    },
+  });
+}
+
+/**
+ * Update final payment status
+ * ORDS: POST /payments/update-status
+ */
+async function ordsUpdatePaymentStatus({
+  payment_id,
+  status,
+  mpgs_transaction_id,
+  result_reason,
+}) {
+  if (!payment_id || !status) {
+    throw new Error("payment_id and status are required");
+  }
+
+  return callGatewayJson("POST", "payments/update-status", {
+    data: {
+      payment_id: Number(payment_id),
+      status,
+      mpgs_transaction_id,
+      result_reason,
+    },
+  });
+}
+
+/**
+ * Get payment by ID
+ * ORDS: GET /payments/status?payment_id=...
+ */
+async function ordsGetPayment(payment_id) {
+  if (!payment_id) throw new Error("payment_id is required");
+
+  const res = await callGatewayJson("GET", "payments/status", {
+    params: { payment_id: Number(payment_id) },
+  });
+
+  return res?.data?.items?.[0] || null;
+}
 
 module.exports = {
   callGateway,
@@ -563,7 +480,6 @@ module.exports = {
   ordsUploadUserAvatar,
   ordsGetUserDetails,
   ordsUpdateUserDetails,
-  getPaymentResult,
   initPayment,
   resendClientCode,
   getClientEmail,
@@ -586,5 +502,9 @@ module.exports = {
   ordsGetServiceStatus,
   ordsProcessPayment,
   ordsRegisterPushToken,
-  ordsGetNotifications
+  ordsGetNotifications,
+  ordsInitPayment,
+  ordsUpdatePaymentSession,
+  ordsUpdatePaymentStatus,
+  ordsGetPayment,
 };

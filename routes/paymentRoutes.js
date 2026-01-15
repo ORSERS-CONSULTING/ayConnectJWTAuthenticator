@@ -2,24 +2,14 @@ const router = require("express").Router();
 const express = require("express");
 const { authUser } = require("../middleware/authUser");
 const {
-  createPayment,
-  proxyStripeToOrds,
-  getPaymentResultController,
-  processPayment,
+  initPayment,
+  verifyPayment,
 } = require("../controllers/paymentController");
 
-// ✅ Parse JSON for /pay ONLY
-router.post("/pay", express.json(), authUser, createPayment);
+// Init payment (create ORDS + MPGS session)
+router.post("/init", express.json(), authUser, initPayment);
 
-// ✅ Keep RAW body for Stripe webhook so signature works
-router.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  proxyStripeToOrds
-);
-
-// New: one-shot status fetch used by frontend polling
-router.get("/getPaymentResult/:id", authUser, getPaymentResultController);
-router.post("/processPayment", authUser, processPayment);
+// Verify payment after checkout
+router.post("/verify", express.json(), authUser, verifyPayment);
 
 module.exports = router;
