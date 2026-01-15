@@ -43,6 +43,7 @@ async function initPayment(req, res) {
       reference_id,
       amount,
     });
+console.log("🟡 ORDS RAW RESPONSE:", JSON.stringify(ordsRes, null, 2));
 
     const payment_id =
       ordsRes?.data?.payment_id || ordsRes?.data?.response_body?.payment_id;
