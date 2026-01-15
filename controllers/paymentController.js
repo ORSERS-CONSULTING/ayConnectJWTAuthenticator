@@ -17,11 +17,6 @@ const {
  * POST /payments/init
  */
 async function initPayment(req, res) {
-  console.log("🔥 /payments/init HIT", {
-    url: req.originalUrl,
-    body: req.body,
-    user: req.user,
-  });
   try {
     const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
     if (!user_id) {
@@ -45,15 +40,21 @@ async function initPayment(req, res) {
     });
     console.log("🟡 ORDS RAW RESPONSE:", JSON.stringify(ordsRes, null, 2));
 
-    const payment_id = ordsRes?.payment_id;
+    const payment_id = Number(
+      ordsRes?.payment_id ??
+        ordsRes?.data?.payment_id ??
+        ordsRes?.data?.response_body?.payment_id
+    );
 
-    if (!payment_id) {
-      throw new Error("ORDS did not return payment_id");
+    console.log("🟢 Normalized payment_id:", payment_id);
+
+    if (!Number.isFinite(payment_id)) {
+      throw new Error("ORDS did not return a valid payment_id");
     }
 
     // 2️⃣ Create MPGS session
     const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
-
+    console.log("🟡 Generated MPGS orderId:", orderId);
     const { sessionId } = await createCheckoutSession({
       amount,
       orderId,
