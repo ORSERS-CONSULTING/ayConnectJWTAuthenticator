@@ -43,10 +43,9 @@ async function initPayment(req, res) {
       reference_id,
       amount,
     });
-console.log("🟡 ORDS RAW RESPONSE:", JSON.stringify(ordsRes, null, 2));
+    console.log("🟡 ORDS RAW RESPONSE:", JSON.stringify(ordsRes, null, 2));
 
-    const payment_id =
-      ordsRes?.data?.payment_id || ordsRes?.data?.response_body?.payment_id;
+    const payment_id = ordsRes?.payment_id;
 
     if (!payment_id) {
       throw new Error("ORDS did not return payment_id");
