@@ -470,7 +470,6 @@ async function ordsGetPayment(payment_id) {
 
 module.exports = {
   callGateway,
-  forwardToOrds,
   ordsGetActiveRuns,
   ordsEnsureRun,
   ordsGetCurrentStep,
