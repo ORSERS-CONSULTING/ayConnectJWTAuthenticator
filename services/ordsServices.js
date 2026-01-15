@@ -396,7 +396,7 @@ async function ordsInitPayment({
     throw new Error("Missing required payment fields");
   }
 
-  return callGateway("POST", "payments/init", {
+  return callGateway("POST", "initiatePayment", {
     params: {
       user_id: Number(user_id),
       payment_type,
