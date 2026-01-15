@@ -37,42 +37,37 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
   const payload = {
-    apiOperation: "INITIATE_CHECKOUT",
+    apiOperation: "CREATE_CHECKOUT_SESSION",
+    order: {
+      id: String(orderId),
+      amount: Number(amount),
+      currency,
+    },
     interaction: {
-      operation: "PURCHASE",
       returnUrl,
       merchant: {
         name: "AY Connect",
       },
     },
-    order: {
-      id: orderId,
-      amount: Number(amount),
-      currency,
-    },
   };
 
-  try {
-    const res = await axios.post(url, payload, {
-      headers: {
-        Authorization: getAuthHeader(),
-        "Content-Type": "application/json",
-      },
-      timeout: 15000,
-    });
+  console.log("🟣 MPGS PAYLOAD:", JSON.stringify(payload, null, 2));
 
-    const sessionId = res.data?.session?.id;
+  const res = await axios.post(url, payload, {
+    headers: {
+      Authorization: getAuthHeader(),
+      "Content-Type": "application/json",
+    },
+    timeout: 15000,
+  });
 
-    if (!sessionId) {
-      throw new Error("MPGS did not return a session ID");
-    }
+  const sessionId = res.data?.session?.id;
 
-    return { sessionId };
-  } catch (err) {
-    const msg =
-      err.response?.data || err.message || "Failed to create MPGS session";
-    throw new Error(`MPGS create session error: ${JSON.stringify(msg)}`);
+  if (!sessionId) {
+    throw new Error("MPGS did not return a session ID");
   }
+
+  return { sessionId };
 }
 
 /**
