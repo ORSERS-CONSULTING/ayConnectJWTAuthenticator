@@ -23,10 +23,10 @@ function getAuthHeader() {
  * ----------------------------------------------------
  * Create Hosted Checkout Session
  * ----------------------------------------------------
- * Called when user clicks "Pay"
  */
 async function createCheckoutSession({ amount, orderId, returnUrl }) {
-  if (!amount || !orderId || !returnUrl) {
+  // ✅ safer validation
+  if (amount == null || !orderId || !returnUrl) {
     throw new Error("amount, orderId and returnUrl are required");
   }
 
@@ -36,33 +36,41 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
 
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
+  // ✅ MPGS-CORRECT PAYLOAD
   const payload = {
-    apiOperation: "CREATE_CHECKOUT_SESSION",
-    order: {
-      id: String(orderId),
-      amount: Number(amount),
-      currency,
-    },
+    apiOperation: "INITIATE_CHECKOUT",
     interaction: {
+      operation: "PURCHASE",
       returnUrl,
       merchant: {
         name: "AY Connect",
       },
     },
+    order: {
+      id: String(orderId),          // MUST be string
+      amount: Number(amount),
+      currency,
+    },
   };
 
   console.log("🟣 MPGS PAYLOAD:", JSON.stringify(payload, null, 2));
 
-  const res = await axios.post(url, payload, {
-    headers: {
-      Authorization: getAuthHeader(),
-      "Content-Type": "application/json",
-    },
-    timeout: 15000,
-  });
+  let res;
+  try {
+    res = await axios.post(url, payload, {
+      headers: {
+        Authorization: getAuthHeader(),
+        "Content-Type": "application/json",
+      },
+      timeout: 15000,
+    });
+  } catch (err) {
+    const msg =
+      err.response?.data || err.message || "Failed to create MPGS session";
+    throw new Error(`MPGS session error: ${JSON.stringify(msg)}`);
+  }
 
   const sessionId = res.data?.session?.id;
-
   if (!sessionId) {
     throw new Error("MPGS did not return a session ID");
   }
@@ -74,7 +82,6 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
  * ----------------------------------------------------
  * Retrieve Order (Verification)
  * ----------------------------------------------------
- * Called AFTER checkout to verify PAID / FAILED
  */
 async function retrieveOrder(orderId) {
   if (!orderId) {
