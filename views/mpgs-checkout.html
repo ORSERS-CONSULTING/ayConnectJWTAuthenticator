@@ -19,20 +19,27 @@
         console.log("MPGS checkout cancelled");
       }
 
-      function startCheckout() {
-        Checkout.configure({
-          session: {
-            id: "{{SESSION_ID}}",
-          },
-        });
-
-        Checkout.showPaymentPage();
+      function waitForCheckoutAndStart() {
+        if (
+          window.Checkout &&
+          typeof window.Checkout.configure === "function"
+        ) {
+          Checkout.configure({
+            session: {
+              id: "{{SESSION_ID}}",
+            },
+          });
+          Checkout.showPaymentPage();
+        } else {
+          // ⏳ IMPORTANT: retry until Checkout.js is ready
+          setTimeout(waitForCheckoutAndStart, 50);
+        }
       }
     </script>
   </head>
 
   <body
-    onload="startCheckout()"
+    onload="waitForCheckoutAndStart()"
     style="
       background: #f5f8ff;
       display: flex;
