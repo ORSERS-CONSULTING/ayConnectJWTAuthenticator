@@ -83,55 +83,35 @@ async function initPayment(req, res) {
  * POST /payments/verify
  */
 async function verifyPayment(req, res) {
-   console.log("🔥 verifyPayment ENTERED", {
-    body: req.body,
-    user: req.user,
-    headers: req.headers.authorization,
-  });
-  try {
-    const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
-    if (!user_id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  console.log("🔥 verifyPayment ENTERED", req.body);
 
+  try {
     const { paymentId } = req.body;
     if (!paymentId) {
       return res.status(400).json({ message: "paymentId is required" });
     }
 
     const payment = await ordsGetPayment(paymentId);
-    console.log("🟡 ORDS payment status:", JSON.stringify(payment, null, 2));
+    console.log("🟡 ORDS payment:", payment);
+
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // 🔒 Ownership check
-    if (Number(payment.user_id) !== Number(user_id)) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
-
-    // Idempotent response
+    // idempotency
     if (payment.status === "PAID" || payment.status === "FAILED") {
       return res.json({ status: payment.status });
     }
 
-    // Ask MPGS (source of truth)
+    // MPGS verification (we’ll refine this next)
     const order = await retrieveOrder(payment.mpgs_order_id);
-    console.log("🟡 MPGS order status:", JSON.stringify(order, null, 2));
-    const txns = order.transaction || [];
+    console.log("🟡 MPGS order:", order);
 
-    const paymentTxn = txns.find(
-      (t) => (t.transaction?.type || t.type) === "PAYMENT"
-    );
-
-    const txnResult = paymentTxn?.result;
-    const txnId = paymentTxn?.transaction?.id ?? paymentTxn?.id ?? null;
-
-    if (order.status === "CAPTURED" && txnResult === "SUCCESS") {
+    if (order.status === "CAPTURED") {
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",
-        mpgs_transaction_id: txnId,
+        mpgs_transaction_id: order?.transaction?.[0]?.id ?? null,
       });
 
       return res.json({ status: "PAID" });
@@ -139,7 +119,7 @@ async function verifyPayment(req, res) {
 
     return res.json({ status: "PENDING" });
   } catch (e) {
-    console.error("[verifyPayment] ERROR", e.message);
+    console.error("[verifyPayment] ERROR", e);
     return res.status(500).json({ message: e.message });
   }
 }
