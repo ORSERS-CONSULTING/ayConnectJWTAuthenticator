@@ -83,6 +83,11 @@ async function initPayment(req, res) {
  * POST /payments/verify
  */
 async function verifyPayment(req, res) {
+   console.log("🔥 verifyPayment ENTERED", {
+    body: req.body,
+    user: req.user,
+    headers: req.headers.authorization,
+  });
   try {
     const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
     if (!user_id) {
