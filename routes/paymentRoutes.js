@@ -12,7 +12,7 @@ const {
 router.post("/init", express.json(), authUser, initPayment);
 
 // Verify payment after checkout
-router.post("/verify", express.json(), authUser, verifyPayment);
+router.post("/verify", express.json(), verifyPayment);
 
 // ✅ Hosted Checkout Page (NO AUTH, NO JSON)
 router.get("/checkout", serveCheckoutPage);
