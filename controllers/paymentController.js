@@ -9,7 +9,8 @@ const {
   createCheckoutSession,
   retrieveOrder,
 } = require("../services/rakbankService");
-
+const fs = require("fs");
+const path = require("path");
 /**
  * ----------------------------------------------------
  * INIT PAYMENT (create ORDS + MPGS session)
@@ -136,7 +137,31 @@ async function verifyPayment(req, res) {
   }
 }
 
+async function serveCheckoutPage(req, res) {
+  try {
+    const { sessionId } = req.query;
+
+    if (!sessionId) {
+      return res.status(400).send("Missing sessionId");
+    }
+
+    const filePath = path.join(
+      __dirname,
+      "../views/mpgs-checkout.html"
+    );
+
+    let html = fs.readFileSync(filePath, "utf8");
+    html = html.replace("{{SESSION_ID}}", sessionId);
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  } catch (err) {
+    console.error("[serveCheckoutPage] ERROR", err);
+    res.status(500).send("Unable to load payment page");
+  }
+}
 module.exports = {
   initPayment,
   verifyPayment,
+  serveCheckoutPage,
 };

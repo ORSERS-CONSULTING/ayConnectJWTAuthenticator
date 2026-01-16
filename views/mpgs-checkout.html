@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Secure Payment</title>
+
+  <script
+    src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"
+    data-error="onError"
+    data-cancel="onCancel"
+    data-complete="onComplete"
+  ></script>
+
+  <script>
+    function onError(error) {
+      console.log("MPGS error:", error);
+    }
+
+    function onCancel() {
+      console.log("Payment cancelled");
+    }
+
+    function onComplete(result) {
+      console.log("Payment completed:", result);
+    }
+
+    function startCheckout(sessionId) {
+      Checkout.configure({
+        session: { id: sessionId }
+      });
+      Checkout.showPaymentPage();
+    }
+  </script>
+</head>
+
+<body style="background:#f5f8ff;">
+  <h3 style="text-align:center;margin-top:40px">
+    Redirecting to secure payment…
+  </h3>
+
+  <script>
+    startCheckout("{{SESSION_ID}}");
+  </script>
+</body>
+</html>
