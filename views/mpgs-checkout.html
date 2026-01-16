@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
     <meta charset="UTF-8" />
-    <title>Redirecting to Secure Payment</title>
+    <title>MPGS Debug</title>
 
     <script
       src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"
@@ -12,43 +12,39 @@
 
     <script>
       function onCheckoutError(err) {
-        console.error("MPGS checkout error", err);
+        console.error("❌ Checkout error:", err);
+        alert("Checkout error: " + JSON.stringify(err));
       }
 
       function onCheckoutCancel() {
-        console.log("MPGS checkout cancelled");
+        alert("Checkout cancelled");
       }
 
-      function waitForCheckoutAndStart() {
-        if (
-          window.Checkout &&
-          typeof window.Checkout.configure === "function"
-        ) {
+      function start() {
+        console.log("window.Checkout =", window.Checkout);
+
+        if (!window.Checkout) {
+          alert("Checkout.js NOT loaded");
+          return;
+        }
+
+        try {
           Checkout.configure({
-            session: {
-              id: "{{SESSION_ID}}",
-            },
+            session: { id: "{{SESSION_ID}}" },
           });
+
+          console.log("Checkout configured");
           Checkout.showPaymentPage();
-        } else {
-          // ⏳ IMPORTANT: retry until Checkout.js is ready
-          setTimeout(waitForCheckoutAndStart, 50);
+          console.log("showPaymentPage called");
+        } catch (e) {
+          console.error("Exception:", e);
+          alert("Exception: " + e.message);
         }
       }
     </script>
   </head>
 
-  <body
-    onload="waitForCheckoutAndStart()"
-    style="
-      background: #f5f8ff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      font-family: system-ui, sans-serif;
-    "
-  >
-    <p>Redirecting to secure payment…</p>
+  <body onload="start()">
+    <h3>Debugging MPGS checkout…</h3>
   </body>
 </html>
