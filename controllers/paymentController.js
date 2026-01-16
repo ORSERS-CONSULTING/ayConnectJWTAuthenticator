@@ -95,6 +95,7 @@ async function verifyPayment(req, res) {
     }
 
     const payment = await ordsGetPayment(paymentId);
+    console.log("🟡 ORDS payment status:", JSON.stringify(payment, null, 2));
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -111,6 +112,7 @@ async function verifyPayment(req, res) {
 
     // Ask MPGS (source of truth)
     const order = await retrieveOrder(payment.mpgs_order_id);
+    console.log("🟡 MPGS order status:", JSON.stringify(order, null, 2));
     const txns = order.transaction || [];
 
     const paymentTxn = txns.find(
@@ -145,10 +147,7 @@ async function serveCheckoutPage(req, res) {
       return res.status(400).send("Missing sessionId");
     }
 
-    const filePath = path.join(
-      __dirname,
-      "../views/mpgs-checkout.html"
-    );
+    const filePath = path.join(__dirname, "../views/mpgs-checkout.html");
 
     let html = fs.readFileSync(filePath, "utf8");
     html = html.replace("{{SESSION_ID}}", sessionId);
