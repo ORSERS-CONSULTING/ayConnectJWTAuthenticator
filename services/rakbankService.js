@@ -45,23 +45,25 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
   });
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
-  const payload = {
-    apiOperation: "INITIATE_CHECKOUT",
-    interaction: {
-      operation: "PURCHASE",
-      returnUrl,
-      cancelUrl: returnUrl, // ✅ REQUIRED in app / cross-origin usage
-      merchant: {
-        name: "AY Connect",
-      },
+ const payload = {
+  apiOperation: "INITIATE_CHECKOUT",
+  interaction: {
+    operation: "PURCHASE",
+    merchant: {
+      name: "AY Connect",
     },
-    order: {
-      id: String(orderId),
-      amount: Number(Number(amount).toFixed(2)), // ✅ safe formatting
-      currency,
-      description: "Service Payment", // ✅ REQUIRED for WEBSITE mode
-    },
-  };
+  },
+  redirect: {
+    returnUrl,
+    cancelUrl: returnUrl,
+  },
+  order: {
+    id: String(orderId),
+    amount: Number(Number(amount).toFixed(2)),
+    currency,
+    description: "Service Payment",
+  },
+};
 
   console.log("🟣 MPGS PAYLOAD:", JSON.stringify(payload, null, 2));
 
