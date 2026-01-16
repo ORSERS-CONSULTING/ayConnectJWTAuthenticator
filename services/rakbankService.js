@@ -49,18 +49,16 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
     apiOperation: "INITIATE_CHECKOUT",
     interaction: {
       operation: "PURCHASE",
+      returnUrl,
       merchant: {
         name: "AY Connect",
       },
     },
-    //   redirect: {
-    //     returnUrl,
-    //   },
     order: {
       id: orderId,
       amount: Number(amount),
-      currency: "AED",
-      description: "Yalayis service Payment",
+      currency: process.env.CURRENCY,
+      description: "Yalayis Payment",
     },
   };
 
