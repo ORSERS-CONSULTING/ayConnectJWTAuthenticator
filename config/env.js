@@ -16,7 +16,7 @@ const required = async (name, vaultOcidEnvVar) => {
 
 async function loadConfig() {
   return {
-    PORT: process.env.PORT || 3000, 
+    PORT: process.env.PORT || 3000,
     ACCESS_TOKEN_TTL: process.env.ACCESS_TOKEN_TTL,  // <— add this line
     JWT_SECRET: await required("JWT_SECRET", "JWT_SECRET_OCID"),
 
@@ -24,7 +24,9 @@ async function loadConfig() {
     IDCS_CLIENT_ID: await required("IDCS_CLIENT_ID", "IDCS_CLIENT_ID_OCID"),
     IDCS_CLIENT_SECRET: await required("IDCS_CLIENT_SECRET", "IDCS_CLIENT_SECRET_OCID"),
     GATEWAY_BASE_URL: process.env.GATEWAY_BASE_URL,
-
+    MPGS_BASE_URL: await required("MPGS_BASE_URL, MPGS_BASE_URL_OCID"),
+    MERCHANT_ID: await required("MERCHANT_ID, MERCHANT_ID_OCID"),
+    MERCHANT_PASSWORD: await required("MERCHANT_PASSWORD, MERCHANT_PASSWORD_OCID"),
     ETISALAT_USER: await required("ETISALAT_USER", "ETISALAT_USER_OCID"),
     ETISALAT_PASSWORD: await required("ETISALAT_PASSWORD", "ETISALAT_PASSWORD_OCID"),
     ETISALAT_SENDER: await required("ETISALAT_SENDER", "ETISALAT_SENDER_OCID"),
