@@ -59,7 +59,7 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
       id: String(orderId),
       amount: Number(Number(amount).toFixed(2)), // ✅ safe formatting
       currency,
-      description: "Yalayis Parking Payment", // ✅ REQUIRED for WEBSITE mode
+      description: "Service Payment", // ✅ REQUIRED for WEBSITE mode
     },
   };
 
