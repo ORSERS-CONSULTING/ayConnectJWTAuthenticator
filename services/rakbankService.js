@@ -57,7 +57,7 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
     order: {
       id: orderId,
       amount: Number(amount),
-      currency: process.env.CURRENCY,
+      currency: "AED",
       description: "Yalayis Payment",
     },
   };
