@@ -1,45 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Secure Payment</title>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Redirecting to Secure Payment</title>
+  </head>
 
-  <script
-    src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"
-    data-error="onError"
-    data-cancel="onCancel"
-    data-complete="onComplete"
-  ></script>
+  <body onload="document.forms[0].submit()" style="background:#f5f8ff;">
+    <p style="text-align:center;margin-top:40px">
+      Redirecting to secure payment…
+    </p>
 
-  <script>
-    function onError(error) {
-      console.log("MPGS error:", error);
-    }
+    <form
+      method="POST"
+      action="https://rakbankpay-nam.gateway.mastercard.com/api/page/version/100/pay"
+    >
+      <!-- REQUIRED -->
+      <input type="hidden" name="session.id" value="{{SESSION_ID}}" />
 
-    function onCancel() {
-      console.log("Payment cancelled");
-    }
-
-    function onComplete(result) {
-      console.log("Payment completed:", result);
-    }
-
-    function startCheckout(sessionId) {
-      Checkout.configure({
-        session: { id: sessionId }
-      });
-      Checkout.showPaymentPage();
-    }
-  </script>
-</head>
-
-<body style="background:#f5f8ff;">
-  <h3 style="text-align:center;margin-top:40px">
-    Redirecting to secure payment…
-  </h3>
-
-  <script>
-    startCheckout("{{SESSION_ID}}");
-  </script>
-</body>
+      <!-- OPTIONAL but recommended -->
+      <input type="hidden" name="interaction.operation" value="PURCHASE" />
+    </form>
+  </body>
 </html>
