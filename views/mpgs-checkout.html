@@ -30,7 +30,13 @@
 
         try {
           Checkout.configure({
-            session: { id: "{{SESSION_ID}}" },
+            session: {
+              id: "{{SESSION_ID}}",
+            },
+            interaction: {
+              returnUrl: "{{RETURN_URL}}",
+              cancelUrl: "{{RETURN_URL}}", // ✅ REQUIRED
+            },
           });
 
           console.log("Checkout configured");

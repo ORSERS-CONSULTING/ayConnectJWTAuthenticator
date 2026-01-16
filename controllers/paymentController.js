@@ -57,7 +57,6 @@ async function initPayment(req, res) {
     const { sessionId } = await createCheckoutSession({
       amount,
       orderId,
-      returnUrl: "https://google.com",
     });
 
     await ordsUpdatePaymentSession({
@@ -135,7 +134,9 @@ async function serveCheckoutPage(req, res) {
     const filePath = path.join(__dirname, "../views/mpgs-checkout.html");
 
     let html = fs.readFileSync(filePath, "utf8");
-    html = html.replace("{{SESSION_ID}}", sessionId);
+    html = html
+      .replace("{{SESSION_ID}}", sessionId)
+      .replace("{{RETURN_URL}}", returnUrl);
 
     res.setHeader("Content-Type", "text/html");
     res.send(html);
