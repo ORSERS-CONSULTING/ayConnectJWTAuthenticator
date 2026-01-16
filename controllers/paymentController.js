@@ -126,11 +126,17 @@ async function verifyPayment(req, res) {
 
 async function serveCheckoutPage(req, res) {
   try {
-    const { sessionId } = req.query;
+    const { sessionId, instance_svc_id } = req.query;
 
-    if (!sessionId) {
-      return res.status(400).send("Missing sessionId");
+    if (!sessionId || !instance_svc_id) {
+      return res
+        .status(400)
+        .send("Missing sessionId or instance_svc_id");
     }
+
+    // ✅ DEFINE returnUrl HERE
+    const returnUrl =
+      `https://ameryon.com/payments/return?instance_svc_id=${instance_svc_id}`;
 
     const filePath = path.join(__dirname, "../views/mpgs-checkout.html");
 
@@ -146,6 +152,7 @@ async function serveCheckoutPage(req, res) {
     res.status(500).send("Unable to load payment page");
   }
 }
+
 
 async function paymentReturn(req, res) {
   try {
