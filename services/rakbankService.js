@@ -45,20 +45,21 @@ async function createCheckoutSession({ amount, orderId, returnUrl }) {
   });
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
-  // ✅ MPGS-CORRECT PAYLOAD
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
     interaction: {
       operation: "PURCHASE",
       returnUrl,
+      cancelUrl: returnUrl, // ✅ REQUIRED in app / cross-origin usage
       merchant: {
         name: "AY Connect",
       },
     },
     order: {
-      id: String(orderId), // MUST be string
-      amount: Number(amount),
+      id: String(orderId),
+      amount: Number(Number(amount).toFixed(2)), // ✅ safe formatting
       currency,
+      description: "Yalayis Parking Payment", // ✅ REQUIRED for WEBSITE mode
     },
   };
 
