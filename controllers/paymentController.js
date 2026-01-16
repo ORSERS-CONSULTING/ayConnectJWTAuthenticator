@@ -129,30 +129,27 @@ async function serveCheckoutPage(req, res) {
     const { sessionId, instance_svc_id } = req.query;
 
     if (!sessionId || !instance_svc_id) {
-      return res
-        .status(400)
-        .send("Missing sessionId or instance_svc_id");
+      return res.status(400).send("Missing sessionId or instance_svc_id");
     }
 
     // ✅ DEFINE returnUrl HERE
-    const returnUrl =
-      `https://ameryon.com/payments/return?instance_svc_id=${instance_svc_id}`;
+    const returnUrl = `https://ameryon.com/payments/return?instance_svc_id=${instance_svc_id}`;
 
     const filePath = path.join(__dirname, "../views/mpgs-checkout.html");
 
     let html = fs.readFileSync(filePath, "utf8");
     html = html
-      .replace("{{SESSION_ID}}", sessionId)
-      .replace("{{RETURN_URL}}", returnUrl);
+      .replace(/{{SESSION_ID}}/g, sessionId)
+      .replace(/{{RETURN_URL}}/g, returnUrl);
 
     res.setHeader("Content-Type", "text/html");
+    console.log("🧪 Injected RETURN_URL:", returnUrl);
     res.send(html);
   } catch (err) {
     console.error("[serveCheckoutPage] ERROR", err);
     res.status(500).send("Unable to load payment page");
   }
 }
-
 
 async function paymentReturn(req, res) {
   try {
