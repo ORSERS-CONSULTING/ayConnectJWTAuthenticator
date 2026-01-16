@@ -31,7 +31,6 @@ async function initPayment(req, res) {
       });
     }
 
-    // 1️⃣ Create ORDS payment (PENDING)
     const ordsRes = await ordsInitPayment({
       user_id,
       payment_type,
@@ -52,7 +51,6 @@ async function initPayment(req, res) {
       throw new Error("ORDS did not return a valid payment_id");
     }
 
-    // 2️⃣ Create MPGS session
     const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
     console.log("🟡 Generated MPGS orderId:", orderId);
     const { sessionId } = await createCheckoutSession({
@@ -61,7 +59,6 @@ async function initPayment(req, res) {
       returnUrl: "https://google.com",
     });
 
-    // 3️⃣ Save MPGS session in ORDS
     await ordsUpdatePaymentSession({
       payment_id,
       mpgs_order_id: orderId,
