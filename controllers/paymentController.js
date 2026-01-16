@@ -51,12 +51,13 @@ async function initPayment(req, res) {
     if (!Number.isFinite(payment_id)) {
       throw new Error("ORDS did not return a valid payment_id");
     }
-
+    const returnUrl = `https://ameryon.com/payments/return?instance_svc_id=${reference_id}`;
     const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
     // console.log("🟡 Generated MPGS orderId:", orderId);
     const { sessionId } = await createCheckoutSession({
       amount,
       orderId,
+      returnUrl, // ✅ REQUIRED BY MPGS
     });
 
     await ordsUpdatePaymentSession({
@@ -145,8 +146,30 @@ async function serveCheckoutPage(req, res) {
     res.status(500).send("Unable to load payment page");
   }
 }
+
+async function paymentReturn(req, res) {
+  try {
+    const { instance_svc_id } = req.query;
+
+    if (!instance_svc_id) {
+      return res.status(400).send("Missing instance_svc_id");
+    }
+
+    // 🔑 Deep link back into the app
+    const deepLink = `ayconnect://requests/${instance_svc_id}`;
+
+    console.log("🔁 MPGS return → redirecting to:", deepLink);
+
+    // 302 redirect opens the app
+    return res.redirect(deepLink);
+  } catch (err) {
+    console.error("[paymentReturn] ERROR", err);
+    return res.status(500).send("Payment return failed");
+  }
+}
 module.exports = {
   initPayment,
   verifyPayment,
   serveCheckoutPage,
+  paymentReturn,
 };
