@@ -38,7 +38,7 @@ async function initPayment(req, res) {
       reference_id,
       amount,
     });
-    console.log("🟡 ORDS RAW RESPONSE:", JSON.stringify(ordsRes, null, 2));
+    // console.log("🟡 ORDS RAW RESPONSE:", JSON.stringify(ordsRes, null, 2));
 
     const payment_id = Number(
       ordsRes?.payment_id ??
@@ -46,14 +46,14 @@ async function initPayment(req, res) {
         ordsRes?.data?.response_body?.payment_id
     );
 
-    console.log("🟢 Normalized payment_id:", payment_id);
+    // console.log("🟢 Normalized payment_id:", payment_id);
 
     if (!Number.isFinite(payment_id)) {
       throw new Error("ORDS did not return a valid payment_id");
     }
 
     const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
-    console.log("🟡 Generated MPGS orderId:", orderId);
+    // console.log("🟡 Generated MPGS orderId:", orderId);
     const { sessionId } = await createCheckoutSession({
       amount,
       orderId,
