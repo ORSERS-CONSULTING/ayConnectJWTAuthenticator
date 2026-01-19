@@ -132,6 +132,10 @@ async function serveCheckoutPage(req, res) {
   try {
     const { sessionId, returnUrl } = req.query;
 
+    console.log("🧪 /payment/checkout called");
+    console.log("🧪 sessionId:", sessionId);
+    console.log("🧪 returnUrl:", returnUrl);
+
     if (!sessionId || !returnUrl) {
       return res.status(400).send("Missing sessionId or returnUrl");
     }
@@ -143,6 +147,8 @@ async function serveCheckoutPage(req, res) {
       .replace(/{{SESSION_ID}}/g, sessionId)
       .replace(/{{RETURN_URL}}/g, returnUrl);
 
+    console.log("🧪 HTML injected successfully");
+
     res.setHeader("Content-Type", "text/html");
     res.send(html);
   } catch (err) {
@@ -150,6 +156,7 @@ async function serveCheckoutPage(req, res) {
     res.status(500).send("Unable to load payment page");
   }
 }
+
 
 /**
  * ----------------------------------------------------

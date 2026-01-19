@@ -9,47 +9,50 @@
       data-error="onCheckoutError"
       data-cancel="onCheckoutCancel"
     ></script>
+<script>
+  function onCheckoutError(err) {
+    console.error("❌ Checkout ERROR:", err);
+    alert("Checkout error:\n" + JSON.stringify(err, null, 2));
+  }
 
-    <script>
-      function onCheckoutError(err) {
-        console.error("❌ Checkout error:", err);
-        alert("Checkout error: " + JSON.stringify(err));
-      }
+  function onCheckoutCancel() {
+    console.warn("⚠️ Checkout cancelled by user");
+    alert("Checkout cancelled");
+  }
 
-      function onCheckoutCancel() {
-        alert("Checkout cancelled");
-      }
+  function start() {
+    console.log("🚀 Starting MPGS checkout");
+    console.log("SESSION_ID =", "{{SESSION_ID}}");
+    console.log("RETURN_URL =", "{{RETURN_URL}}");
 
-      function start() {
-        console.log("window.Checkout =", window.Checkout);
+    if (!window.Checkout) {
+      console.error("❌ Checkout.js NOT loaded");
+      alert("Checkout.js not loaded");
+      return;
+    }
 
-        if (!window.Checkout) {
-          alert("Checkout.js NOT loaded");
-          return;
-        }
+    try {
+      Checkout.configure({
+        session: {
+          id: "{{SESSION_ID}}",
+        },
+        interaction: {
+          redirect: {
+            returnUrl: "{{RETURN_URL}}",
+          },
+        },
+      });
 
-        try {
-          Checkout.configure({
-            session: {
-              id: "{{SESSION_ID}}",
-            },
-            interaction: {
-              redirect: {
-                returnUrl: "{{RETURN_URL}}",
-                //cancelUrl: "{{RETURN_URL}}", // ✅ REQUIRED
-              },
-            },
-          });
+      console.log("✅ Checkout.configure OK");
+      Checkout.showPaymentPage();
+      console.log("➡️ Checkout.showPaymentPage called");
+    } catch (e) {
+      console.error("❌ Exception during checkout:", e);
+      alert("Exception: " + e.message);
+    }
+  }
+</script>
 
-          console.log("Checkout configured");
-          Checkout.showPaymentPage();
-          console.log("showPaymentPage called");
-        } catch (e) {
-          console.error("Exception:", e);
-          alert("Exception: " + e.message);
-        }
-      }
-    </script>
   </head>
 
   <body onload="start()">
