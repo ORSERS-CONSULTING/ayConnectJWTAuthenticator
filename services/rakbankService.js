@@ -61,7 +61,7 @@ async function createCheckoutSession({ amount, orderId }) {
   //     },
   //   };
   const payload = {
-    apiOperation: "INITIATE_CHECKOUT",
+    apiOperation: "CREATE_CHECKOUT_SESSION",
 
     checkoutMode: "EMBEDDED",
 
