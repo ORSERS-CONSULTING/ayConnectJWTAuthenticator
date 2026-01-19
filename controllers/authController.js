@@ -281,7 +281,7 @@ async function getClientCode(req, res) {
   }
 }
 
-async function registerExistingClientFromMainDB(rew, res) {
+async function registerExistingClientFromMainDB(req, res) {
   try {
     let { client_code } = req.body || {};
     if (!client_code) {
@@ -296,11 +296,8 @@ async function registerExistingClientFromMainDB(rew, res) {
       data.response_message ??
       data.RESPONSE_MESSAGE ??
       'Client does not exist';
-    if (!out_user_id) {
-      return res.status(401).json({ message: response_message });
-    }
     if (!out_email) {
-      return res.status(401).json({ message: 'Login failed' });
+      return res.status(404).json({ message: 'Login failed' });
     }
 
     return res.json({
@@ -327,20 +324,26 @@ async function clienCodeExist(req, res) {
     // Try the direct field first
     let status = chk?.status;
 
-    // If not there, try response (which may be a JSON string)
-    if (!status && chk?.response) {
-      const r = chk.response;
-      if (typeof r === 'string') {
-        try { status = JSON.parse(r).status; } catch (e) { /* log if needed */ }
-      } else if (typeof r === 'object') {
-        status = r.status;
-      }
-    }
-    return res.json({ status });
 
+    if (!status) {
+      return res.status(500).json({ ok: false, message: "Invalid ORDS response." });
+    }
+
+    if (status === "NOT_FOUND") {
+      return res.status(404).json({ ok: false, status, message: "Invalid client code." });
+    }
+
+    return res.json({
+      ok: true,
+      status,
+      message:
+        status === "AYC_USERS"
+          ? "Client already registered."
+          : "Client found in main system.",
+    });
   } catch (e) {
     const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    return res.status(code).json(e.response?.data ?? { ok: false, message: e.message });
   }
 }
 
