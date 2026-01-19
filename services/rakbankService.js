@@ -27,14 +27,12 @@ function getAuthHeader() {
 async function createCheckoutSession({ amount, orderId }) {
   // ✅ safer validation
 
-
-  if (amount == null || !orderId ) {
+  if (amount == null || !orderId) {
     throw new Error("amount, orderId are required");
   }
   console.log("🧪 createCheckoutSession INPUT", {
     amount,
     orderId,
-    
   });
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
@@ -64,15 +62,20 @@ async function createCheckoutSession({ amount, orderId }) {
   //   };
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
+
+    checkoutMode: "EMBEDDED",
+
     interaction: {
       operation: "PURCHASE",
+      returnUrl: "ayconnect://payment-return",
       merchant: {
         name: "AY Connect",
       },
     },
+
     order: {
       id: orderId,
-      amount: Number(amount),
+      amount: amount,
       currency: "AED",
       description: "Yalayis Payment",
     },
