@@ -103,7 +103,7 @@ async function login(req, res) {
       if (String(channel).toLowerCase() === 'email') email = target;
       if (String(channel).toLowerCase() === 'mobile') mobile_number = target;
     }
-    
+
     const data = await ordsLogin({ email, mobile_number });
 
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
@@ -111,9 +111,13 @@ async function login(req, res) {
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
     const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
+    const response_message =
+      data.response_message ??
+      data.RESPONSE_MESSAGE ??
+      'Login failed';
 
     if (!out_user_id) {
-      return res.status(401).json({ message: 'Login failed' });
+      return res.status(401).json({ message: response_message });
     }
 
     // Issue your app tokens
@@ -122,6 +126,7 @@ async function login(req, res) {
     store.put(refresh_token, String(out_user_id));
 
     return res.json({
+      message: response_message, // ← backend-driven message
       access_token,
       refresh_token,
       profile: {
