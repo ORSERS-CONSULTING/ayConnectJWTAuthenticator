@@ -77,7 +77,6 @@ async function createCheckoutSession({ amount, orderId }) {
       id: orderId,
       amount: amount,
       currency: "AED",
-      description: "Yalayis Payment",
     },
   };
 
