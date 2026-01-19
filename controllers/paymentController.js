@@ -130,24 +130,24 @@ async function verifyPayment(req, res) {
  */
 async function serveCheckoutPage(req, res) {
   try {
-    const { sessionId, returnUrl } = req.query;
+    const { sessionId, instance_svc_id } = req.query;
 
     console.log("🧪 /payment/checkout called");
     console.log("🧪 sessionId:", sessionId);
-    console.log("🧪 returnUrl:", returnUrl);
 
-    if (!sessionId || !returnUrl) {
-      return res.status(400).send("Missing sessionId or returnUrl");
-    }
+    // 🔴 FORCE HTTPS RETURN URL
+    const returnUrl =
+      `https://ameryon.com/payments/return?instance_svc_id=${instance_svc_id}`;
+
+    console.log("🧪 FORCED returnUrl:", returnUrl);
 
     const filePath = path.join(__dirname, "../views/mpgs-checkout.html");
     let html = fs.readFileSync(filePath, "utf8");
 
     html = html
       .replace(/{{SESSION_ID}}/g, sessionId)
-      .replace(/{{RETURN_URL}}/g, returnUrl);
-
-    console.log("🧪 HTML injected successfully");
+      .replace(/{{RETURN_URL}}/g, returnUrl)
+      .replace(/{{AMOUNT}}/g, "10.00"); // temp hardcode if needed
 
     res.setHeader("Content-Type", "text/html");
     res.send(html);
