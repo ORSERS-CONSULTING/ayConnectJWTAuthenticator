@@ -163,7 +163,7 @@ async function register(req, res) {
       data.RESPONSE_MESSAGE ??
       'Registration failed';
     if (!out_user_id) {
-      return res.status(401).json({ message:response_message });
+      return res.status(401).json({ message: response_message });
     }
 
     // Issue your app tokens
@@ -202,10 +202,14 @@ async function loginClient(req, res) {
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
     const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
-
+    const response_message =
+      data.response_message ??
+      data.RESPONSE_MESSAGE ??
+      'Client does not exist';
     if (!out_user_id) {
-      return res.status(401).json({ message: 'Login failed' });
+      return res.status(401).json({ message: response_message });
     }
+
 
     // Issue your app tokens
     const access_token = signAccessToken({ sub: String(out_user_id), role: 'user', email: out_email }, '30m');
@@ -213,6 +217,7 @@ async function loginClient(req, res) {
     store.put(refresh_token, String(out_user_id));
 
     return res.json({
+      message: response_message, // ← backend-driven message
       access_token,
       refresh_token,
       profile: {
@@ -237,8 +242,17 @@ async function getLoginClientEmail(req, res) {
     }
 
     const data = await getClientEmail({ client_code });
+
+    const response_message =
+      data.response_message ??
+      data.RESPONSE_MESSAGE ??
+      'Invalid client code.';
+    if (!out_user_id) {
+      return res.status(401).json({ message: response_message });
+    }
     // ORDS returns OUT params: { out_email, out_mobile_number }
     return res.json({
+      message: response_message, // ← backend-driven message
       email: data?.out_email ?? null,
       mobile: data?.out_mobile_number ?? null,
     });
@@ -278,12 +292,19 @@ async function registerExistingClientFromMainDB(rew, res) {
 
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
-
+    const response_message =
+      data.response_message ??
+      data.RESPONSE_MESSAGE ??
+      'Client does not exist';
+    if (!out_user_id) {
+      return res.status(401).json({ message: response_message });
+    }
     if (!out_email) {
       return res.status(401).json({ message: 'Login failed' });
     }
 
     return res.json({
+      message: response_message, // ← backend-driven message
       profile: {
         email: out_email,
         full_name: out_name,
