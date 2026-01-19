@@ -158,9 +158,12 @@ async function register(req, res) {
     const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
     const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
-
+    const response_message =
+      data.response_message ??
+      data.RESPONSE_MESSAGE ??
+      'Registration failed';
     if (!out_user_id) {
-      return res.status(401).json({ message: data.response_message });
+      return res.status(401).json({ message:response_message });
     }
 
     // Issue your app tokens
@@ -169,6 +172,7 @@ async function register(req, res) {
     store.put(refresh_token, String(out_user_id));
 
     return res.json({
+      message: response_message, // ← backend-driven message
       access_token,
       refresh_token,
       profile: {
