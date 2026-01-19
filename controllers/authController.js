@@ -327,20 +327,26 @@ async function clienCodeExist(req, res) {
     // Try the direct field first
     let status = chk?.status;
 
-    // If not there, try response (which may be a JSON string)
-    if (!status && chk?.response) {
-      const r = chk.response;
-      if (typeof r === 'string') {
-        try { status = JSON.parse(r).status; } catch (e) { /* log if needed */ }
-      } else if (typeof r === 'object') {
-        status = r.status;
-      }
-    }
-    return res.json({ status });
 
+    if (!status) {
+      return res.status(500).json({ ok: false, message: "Invalid ORDS response." });
+    }
+
+    if (status === "NOT_FOUND") {
+      return res.status(404).json({ ok: false, status, message: "Invalid client code." });
+    }
+
+    return res.json({
+      ok: true,
+      status,
+      message:
+        status === "AYC_USERS"
+          ? "Client already registered."
+          : "Client found in main system.",
+    });
   } catch (e) {
     const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    return res.status(code).json(e.response?.data ?? { ok: false, message: e.message });
   }
 }
 
