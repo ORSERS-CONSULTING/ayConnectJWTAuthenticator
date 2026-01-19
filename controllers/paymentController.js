@@ -9,13 +9,15 @@ const {
   createCheckoutSession,
   retrieveOrder,
 } = require("../services/rakbankService");
+
 const fs = require("fs");
 const path = require("path");
+
 /**
  * ----------------------------------------------------
- * INIT PAYMENT (create ORDS + MPGS session)
+ * INIT PAYMENT (ORDS + MPGS session ONLY)
  * ----------------------------------------------------
- * POST /payments/init
+ * POST /payment/init
  */
 async function initPayment(req, res) {
   try {
@@ -26,19 +28,19 @@ async function initPayment(req, res) {
 
     const { payment_type, reference_id, amount } = req.body;
 
-    if (!payment_type || !reference_id || !amount) {
+    if (!payment_type || !reference_id || amount == null) {
       return res.status(400).json({
         message: "payment_type, reference_id and amount are required",
       });
     }
 
+    // 1️⃣ Create payment record in ORDS
     const ordsRes = await ordsInitPayment({
       user_id,
       payment_type,
       reference_id,
       amount,
     });
-    // console.log("🟡 ORDS RAW RESPONSE:", JSON.stringify(ordsRes, null, 2));
 
     const payment_id = Number(
       ordsRes?.payment_id ??
@@ -46,20 +48,19 @@ async function initPayment(req, res) {
         ordsRes?.data?.response_body?.payment_id
     );
 
-    // console.log("🟢 Normalized payment_id:", payment_id);
-
     if (!Number.isFinite(payment_id)) {
       throw new Error("ORDS did not return a valid payment_id");
     }
-    const returnUrl = `https://ameryon.com/payments/return?instance_svc_id=${reference_id}`;
+
+    // 2️⃣ Create MPGS order + session (NO returnUrl here ❗)
     const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
-    // console.log("🟡 Generated MPGS orderId:", orderId);
+
     const { sessionId } = await createCheckoutSession({
       amount,
       orderId,
-      returnUrl, // ✅ REQUIRED BY MPGS
     });
 
+    // 3️⃣ Store MPGS identifiers
     await ordsUpdatePaymentSession({
       payment_id,
       mpgs_order_id: orderId,
@@ -78,36 +79,33 @@ async function initPayment(req, res) {
 
 /**
  * ----------------------------------------------------
- * VERIFY PAYMENT (after checkout)
+ * VERIFY PAYMENT (after return)
  * ----------------------------------------------------
- * POST /payments/verify
+ * POST /payment/verify
  */
 async function verifyPayment(req, res) {
-  console.log("🔥 verifyPayment ENTERED", req.body);
-
   try {
     const { paymentId } = req.body;
+
     if (!paymentId) {
       return res.status(400).json({ message: "paymentId is required" });
     }
 
     const payment = await ordsGetPayment(paymentId);
-    console.log("🟡 ORDS payment:", payment);
 
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // idempotency
+    // Idempotency
     if (payment.status === "PAID" || payment.status === "FAILED") {
       return res.json({ status: payment.status });
     }
 
-    // MPGS verification (we’ll refine this next)
+    // MPGS verification
     const order = await retrieveOrder(payment.mpgs_order_id);
-    console.log("🟡 MPGS order:", order);
 
-    if (order.status === "CAPTURED") {
+    if (order?.status === "CAPTURED") {
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",
@@ -124,26 +122,28 @@ async function verifyPayment(req, res) {
   }
 }
 
+/**
+ * ----------------------------------------------------
+ * SERVE CHECKOUT PAGE (inject returnUrl)
+ * ----------------------------------------------------
+ * GET /payment/checkout
+ */
 async function serveCheckoutPage(req, res) {
   try {
-    const { sessionId, instance_svc_id } = req.query;
+    const { sessionId, returnUrl } = req.query;
 
-    if (!sessionId || !instance_svc_id) {
-      return res.status(400).send("Missing sessionId or instance_svc_id");
+    if (!sessionId || !returnUrl) {
+      return res.status(400).send("Missing sessionId or returnUrl");
     }
 
-    // ✅ DEFINE returnUrl HERE
-    const returnUrl = `https://ameryon.com/payments/return?instance_svc_id=${instance_svc_id}`;
-
     const filePath = path.join(__dirname, "../views/mpgs-checkout.html");
-
     let html = fs.readFileSync(filePath, "utf8");
+
     html = html
       .replace(/{{SESSION_ID}}/g, sessionId)
       .replace(/{{RETURN_URL}}/g, returnUrl);
 
     res.setHeader("Content-Type", "text/html");
-    console.log("🧪 Injected RETURN_URL:", returnUrl);
     res.send(html);
   } catch (err) {
     console.error("[serveCheckoutPage] ERROR", err);
@@ -151,6 +151,12 @@ async function serveCheckoutPage(req, res) {
   }
 }
 
+/**
+ * ----------------------------------------------------
+ * PAYMENT RETURN (browser → app)
+ * ----------------------------------------------------
+ * GET /payments/return
+ */
 async function paymentReturn(req, res) {
   try {
     const { instance_svc_id } = req.query;
@@ -159,18 +165,16 @@ async function paymentReturn(req, res) {
       return res.status(400).send("Missing instance_svc_id");
     }
 
-    // 🔑 Deep link back into the app
-    const deepLink = `ayconnect://requests/${instance_svc_id}`;
+    // ✅ Expo Router–correct deep link
+    const deepLink = `ayconnect://requests?instance_svc_id=${instance_svc_id}`;
 
-    console.log("🔁 MPGS return → redirecting to:", deepLink);
-
-    // 302 redirect opens the app
     return res.redirect(deepLink);
   } catch (err) {
     console.error("[paymentReturn] ERROR", err);
     return res.status(500).send("Payment return failed");
   }
 }
+
 module.exports = {
   initPayment,
   verifyPayment,
