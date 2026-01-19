@@ -24,16 +24,17 @@ function getAuthHeader() {
  * Create Hosted Checkout Session
  * ----------------------------------------------------
  */
-async function createCheckoutSession({ amount, orderId, returnUrl }) {
+async function createCheckoutSession({ amount, orderId }) {
   // ✅ safer validation
-  if (amount == null || !orderId || !returnUrl) {
-    throw new Error("amount, orderId and returnUrl are required");
+
+
+  if (amount == null || !orderId ) {
+    throw new Error("amount, orderId are required");
   }
   console.log("🧪 createCheckoutSession INPUT", {
     amount,
     orderId,
-    returnUrl,
-    envReturnUrl: process.env.HPP_RETURN_URL,
+    
   });
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
