@@ -34,8 +34,10 @@
               id: "{{SESSION_ID}}",
             },
             interaction: {
-              returnUrl: "{{RETURN_URL}}",
-              cancelUrl: "{{RETURN_URL}}", // ✅ REQUIRED
+              redirect: {
+                returnUrl: "{{RETURN_URL}}",
+                //cancelUrl: "{{RETURN_URL}}", // ✅ REQUIRED
+              },
             },
           });
 
