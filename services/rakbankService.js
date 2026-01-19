@@ -61,24 +61,22 @@ async function createCheckoutSession({ amount, orderId }) {
   //     },
   //   };
   const payload = {
-    apiOperation: "CREATE_CHECKOUT_SESSION",
+  apiOperation: "CREATE_CHECKOUT_SESSION",
 
-    checkoutMode: "EMBEDDED",
+  interaction: {
+    operation: "PURCHASE",
+    returnUrl: "ayconnect://payment-return",
+    merchant: {
+      name: "AY Connect"
+    }
+  },
 
-    interaction: {
-      operation: "PURCHASE",
-      returnUrl: "ayconnect://payment-return",
-      merchant: {
-        name: "AY Connect",
-      },
-    },
-
-    order: {
-      id: orderId,
-      amount: amount,
-      currency: "AED",
-    },
-  };
+  order: {
+    id: orderId,
+    amount: amount,
+    currency: "AED"
+  }
+};
 
   console.log("🟣 MPGS PAYLOAD:", JSON.stringify(payload, null, 2));
 
