@@ -281,7 +281,7 @@ async function getClientCode(req, res) {
   }
 }
 
-async function registerExistingClientFromMainDB(rew, res) {
+async function registerExistingClientFromMainDB(req, res) {
   try {
     let { client_code } = req.body || {};
     if (!client_code) {
@@ -296,11 +296,8 @@ async function registerExistingClientFromMainDB(rew, res) {
       data.response_message ??
       data.RESPONSE_MESSAGE ??
       'Client does not exist';
-    if (!out_user_id) {
-      return res.status(401).json({ message: response_message });
-    }
     if (!out_email) {
-      return res.status(401).json({ message: 'Login failed' });
+      return res.status(404).json({ message: 'Login failed' });
     }
 
     return res.json({
