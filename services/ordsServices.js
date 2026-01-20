@@ -41,7 +41,6 @@ async function callGatewayBinary(
 async function callGateway(method, path, { params, data, headers } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
-  const ordsToken = await getOrdsToken();
   const res = await axios({
     url,
     method,
