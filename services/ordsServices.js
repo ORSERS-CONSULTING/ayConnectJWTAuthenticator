@@ -1,12 +1,13 @@
 const axios = require("axios");
 const { getIdcsToken } = require("./idcsServices");
+const { getOrdsToken } = require("./ordsOAuthService");
+
 // function peek(s, n = 200) {
 //   return s && s.length > n ? s.slice(0, n) + "…(truncated)" : s || "";
 // }
 // function mask(s) {
 //   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
 // }
-
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -45,7 +46,9 @@ async function callGateway(method, path, { params, data } = {}) {
     method,
     params,
     data,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
   });
   return res.data;
 }
