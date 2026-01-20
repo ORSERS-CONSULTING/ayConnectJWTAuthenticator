@@ -461,12 +461,14 @@ async function ordsGetPayment(payment_id) {
   const res = await callGateway("GET", "getPaymentStatus", {
     params: { payment_id: Number(payment_id) },
   });
-  console.log("🟢 ordsGetPayment response:", res);
-  console.log("res keys:", Object.keys(res));
-console.log("res.data:", res.data);
-console.log("res.items:", res.items);
 
-  return Array.isArray(res?.items) ? res.items[0] : null;
+  console.log("🟢 ordsGetPayment raw response:", res);
+
+  if (!Array.isArray(res?.items) || res.items.length === 0) {
+    return null;
+  }
+
+  return res.items[0];
 }
 
 module.exports = {
