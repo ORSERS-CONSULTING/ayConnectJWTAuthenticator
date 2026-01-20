@@ -83,15 +83,14 @@ async function initPayment(req, res) {
  */
 async function verifyPayment(req, res) {
   try {
-    
     const { paymentId } = req.body;
-console.log("🟢 Verifying payment request:", paymentId);
+    console.log("🟢 Verifying payment request:", paymentId);
     if (!paymentId) {
       return res.status(400).json({ message: "paymentId is required" });
     }
 
     const payment = await ordsGetPayment(paymentId);
-console.log("🟢 Fetched payment:", payment);
+    console.log("🟢 Fetched payment:", payment);
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -103,8 +102,8 @@ console.log("🟢 Fetched payment:", payment);
     console.log("🟢 Verifying payment:", paymentId, payment.mpgs_order_id);
     // MPGS verification
     const order = await retrieveOrder(payment.mpgs_order_id);
-
-    if (order?.status === "CAPTURED") {
+    console.log("🟢 Retrieved MPGS order:", order);
+    if (order?.status === "CAPTURED" || order?.status === "AUTHORIZED") {
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",
