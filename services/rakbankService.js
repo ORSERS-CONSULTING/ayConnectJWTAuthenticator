@@ -30,7 +30,7 @@ async function initiateHostedCheckout({ amount, orderId }) {
   if (amount == null || !orderId) {
     throw new Error("amount, orderId are required");
   }
-  
+
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
   const currency = process.env.CURRENCY || "AED";
@@ -43,18 +43,22 @@ async function initiateHostedCheckout({ amount, orderId }) {
 
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
+    checkoutMode: "WEBSITE",
 
     interaction: {
       operation: "PURCHASE",
       merchant: {
         name: "AY Connect",
+        url: "https://ameryon.com",
       },
+      returnUrl: "https://ameryon.com/payments/return",
     },
 
     order: {
       id: orderId,
       amount: Number(amount),
       currency: currency,
+      description: "AY Connect Service Payment",
     },
   };
 
