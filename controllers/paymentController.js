@@ -79,18 +79,19 @@ async function initPayment(req, res) {
  * ----------------------------------------------------
  * VERIFY PAYMENT (after return)
  * ----------------------------------------------------
- * POST /payment/verify
+ * POST /payment/ver
  */
 async function verifyPayment(req, res) {
   try {
+    
     const { paymentId } = req.body;
-
+console.log("🟢 Verifying payment request:", paymentId);
     if (!paymentId) {
       return res.status(400).json({ message: "paymentId is required" });
     }
 
     const payment = await ordsGetPayment(paymentId);
-
+console.log("🟢 Fetched payment:", paymentId, payment?.status);
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
