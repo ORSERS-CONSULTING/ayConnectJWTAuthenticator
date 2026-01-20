@@ -63,11 +63,11 @@ async function initPayment(req, res) {
       mpgs_order_id: orderId,
       mpgs_session_id: sessionId,
     });
-    const checkoutUrl = `https://rakbankpay-nam.gateway.mastercard.com/checkout/pay/${sessionId}`;
+    // const checkoutUrl = `https://rakbankpay-nam.gateway.mastercard.com/checkout/pay/${sessionId}`;
 
     return res.status(200).json({
       paymentId: payment_id,
-      checkoutUrl,
+      sessionId,
     });
   } catch (e) {
     console.error("[initPayment] ERROR", e.message);

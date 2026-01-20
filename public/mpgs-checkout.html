@@ -3,14 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <title>Secure Payment</title>
-
-    <script src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"></script>
+    <script src="https://rakbankpay-nam.gateway.mastercard.com/checkout/version/61/checkout.js"></script>
   </head>
 
   <body>
     <script>
       const params = new URLSearchParams(window.location.search);
       const sessionId = params.get("sessionId");
+
+      if (!sessionId) {
+        document.body.innerHTML = "<h3>Missing sessionId</h3>";
+        throw new Error("Missing sessionId");
+      }
 
       Checkout.configure({
         session: {
