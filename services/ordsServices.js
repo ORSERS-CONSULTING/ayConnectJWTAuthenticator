@@ -38,10 +38,10 @@ async function callGatewayBinary(
   });
 }
 
-async function callGateway(method, path, { params, data } = {}) {
+async function callGateway(method, path, { params, data, headers } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
- const ordsToken = await getOrdsToken();
+  const ordsToken = await getOrdsToken();
   const res = await axios({
     url,
     method,
@@ -49,7 +49,7 @@ async function callGateway(method, path, { params, data } = {}) {
     data,
     headers: {
       Authorization: `Bearer ${token}`,
-      "X-Ords-Authorization": `Bearer ${ordsToken}`,
+      ...(headers || {}),
     },
   });
   return res.data;
@@ -185,8 +185,12 @@ function getClientEmail({ client_code }) {
     params: { client_code },
   });
 }
-function ordsGetServices() {
-  return callGateway("GET", "getServices");
+async function ordsGetServices() {
+  const ordsToken = await getOrdsToken();
+  return callGateway("GET", "getServices", {
+    headers: { "X-Ords-Authorization": `Bearer ${ordsToken}` },
+  });
+
 }
 function ordsGetDepartments() {
   return callGateway("GET", "getDepartments");
