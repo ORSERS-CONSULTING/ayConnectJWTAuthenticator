@@ -15,5 +15,5 @@ router.post("/init", express.json(), authUser, initPayment);
 router.post("/verify", express.json(), verifyPayment);
 
 // ✅ Hosted Checkout Page (NO AUTH, NO JSON)
-router.get("/payments/return", paymentReturn);
+router.get("/return", paymentReturn);
 module.exports = router;
