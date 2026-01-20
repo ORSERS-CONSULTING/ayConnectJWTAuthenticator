@@ -462,6 +462,10 @@ async function ordsGetPayment(payment_id) {
     params: { payment_id: Number(payment_id) },
   });
   console.log("🟢 ordsGetPayment response:", res);
+  console.log("res keys:", Object.keys(res));
+console.log("res.data:", res.data);
+console.log("res.items:", res.items);
+
   return Array.isArray(res?.items) ? res.items[0] : null;
 }
 
