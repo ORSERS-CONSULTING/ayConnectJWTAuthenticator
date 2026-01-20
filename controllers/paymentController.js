@@ -128,14 +128,14 @@ async function verifyPayment(req, res) {
  */
 async function paymentReturn(req, res) {
   try {
-    const { instance_svc_id } = req.query;
+    // const { instance_svc_id } = req.query;
 
-    if (!instance_svc_id) {
-      return res.status(400).send("Missing instance_svc_id");
-    }
+    // if (!instance_svc_id) {
+    //   return res.status(400).send("Missing instance_svc_id");
+    // }
 
     // ✅ Expo Router–correct deep link
-    const deepLink = `ayconnect://requests?instance_svc_id=${instance_svc_id}`;
+    const deepLink = `ayconnect://requests`;
 
     return res.redirect(deepLink);
   } catch (err) {
