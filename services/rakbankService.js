@@ -24,16 +24,13 @@ function getAuthHeader() {
  * Create Hosted Checkout Session
  * ----------------------------------------------------
  */
-async function createCheckoutSession({ amount, orderId }) {
+async function initiateHostedCheckout({ amount, orderId }) {
   // ✅ safer validation
 
   if (amount == null || !orderId) {
     throw new Error("amount, orderId are required");
   }
-  console.log("🧪 createCheckoutSession INPUT", {
-    amount,
-    orderId,
-  });
+  
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
   const currency = process.env.CURRENCY || "AED";
@@ -44,39 +41,22 @@ async function createCheckoutSession({ amount, orderId }) {
   });
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
-  //   const payload = {
-  //     apiOperation: "INITIATE_CHECKOUT",
-  //     interaction: {
-  //       operation: "PURCHASE",
-  //       returnUrl,
-  //       merchant: {
-  //         name: "AY Connect",
-  //       },
-  //     },
-  //     order: {
-  //       id: orderId,
-  //       amount: Number(amount),
-  //       currency: "AED",
-  //       description: "Yalayis Payment",
-  //     },
-  //   };
   const payload = {
-  apiOperation: "CREATE_CHECKOUT_SESSION",
+    apiOperation: "INITIATE_CHECKOUT",
 
-  interaction: {
-    operation: "PURCHASE",
-    returnUrl: "ayconnect://payment-return",
-    merchant: {
-      name: "AY Connect"
-    }
-  },
+    interaction: {
+      operation: "PURCHASE",
+      merchant: {
+        name: "AY Connect",
+      },
+    },
 
-  order: {
-    id: orderId,
-    amount: amount,
-    currency: "AED"
-  }
-};
+    order: {
+      id: orderId,
+      amount: Number(amount),
+      currency: currency,
+    },
+  };
 
   console.log("🟣 MPGS PAYLOAD:", JSON.stringify(payload, null, 2));
 
@@ -137,6 +117,6 @@ async function retrieveOrder(orderId) {
 }
 
 module.exports = {
-  createCheckoutSession,
+  initiateHostedCheckout,
   retrieveOrder,
 };

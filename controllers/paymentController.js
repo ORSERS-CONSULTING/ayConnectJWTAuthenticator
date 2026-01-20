@@ -6,12 +6,9 @@ const {
 } = require("../services/ordsServices");
 
 const {
-  createCheckoutSession,
+  initiateHostedCheckout,
   retrieveOrder,
 } = require("../services/rakbankService");
-
-const fs = require("fs");
-const path = require("path");
 
 /**
  * ----------------------------------------------------
@@ -55,7 +52,7 @@ async function initPayment(req, res) {
     // 2️⃣ Create MPGS order + session (NO returnUrl here ❗)
     const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
 
-    const { sessionId } = await createCheckoutSession({
+    const { sessionId } = await initiateHostedCheckout({
       amount,
       orderId,
     });
@@ -66,10 +63,11 @@ async function initPayment(req, res) {
       mpgs_order_id: orderId,
       mpgs_session_id: sessionId,
     });
+    const checkoutUrl = `https://rakbankpay-nam.gateway.mastercard.com/checkout/pay/${sessionId}`;
 
     return res.status(200).json({
       paymentId: payment_id,
-      sessionId,
+      checkoutUrl,
     });
   } catch (e) {
     console.error("[initPayment] ERROR", e.message);
@@ -124,42 +122,6 @@ async function verifyPayment(req, res) {
 
 /**
  * ----------------------------------------------------
- * SERVE CHECKOUT PAGE (inject returnUrl)
- * ----------------------------------------------------
- * GET /payment/checkout
- */
-async function serveCheckoutPage(req, res) {
-  try {
-    const { sessionId, instance_svc_id } = req.query;
-
-    console.log("🧪 /payment/checkout called");
-    console.log("🧪 sessionId:", sessionId);
-
-    // 🔴 FORCE HTTPS RETURN URL
-    const returnUrl =
-      `https://ameryon.com/payments/return?instance_svc_id=${instance_svc_id}`;
-
-    console.log("🧪 FORCED returnUrl:", returnUrl);
-
-    const filePath = path.join(__dirname, "../views/mpgs-checkout.html");
-    let html = fs.readFileSync(filePath, "utf8");
-
-    html = html
-      .replace(/{{SESSION_ID}}/g, sessionId)
-      .replace(/{{RETURN_URL}}/g, returnUrl)
-      .replace(/{{AMOUNT}}/g, "10.00"); // temp hardcode if needed
-
-    res.setHeader("Content-Type", "text/html");
-    res.send(html);
-  } catch (err) {
-    console.error("[serveCheckoutPage] ERROR", err);
-    res.status(500).send("Unable to load payment page");
-  }
-}
-
-
-/**
- * ----------------------------------------------------
  * PAYMENT RETURN (browser → app)
  * ----------------------------------------------------
  * GET /payments/return
@@ -185,6 +147,5 @@ async function paymentReturn(req, res) {
 module.exports = {
   initPayment,
   verifyPayment,
-  serveCheckoutPage,
   paymentReturn,
 };
