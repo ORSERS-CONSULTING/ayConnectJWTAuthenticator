@@ -184,11 +184,8 @@ function getClientEmail({ client_code }) {
     params: { client_code },
   });
 }
-async function ordsGetServices() {
-  const ordsToken = await getOrdsToken();
-  return callGateway("GET", "getServices", {
-    headers: { "X-Ords-Authorization": `Bearer ${ordsToken}` },
-  });
+function ordsGetServices() {
+  return callGateway("GET", "getServices");
 
 }
 function ordsGetDepartments() {
