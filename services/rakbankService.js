@@ -51,7 +51,7 @@ async function initiateHostedCheckout({ amount, orderId }) {
         name: "AY Connect",
         url: "https://ameryon.com",
       },
-      returnUrl: "https://ameryon.com/payments/return",
+      returnUrl: "https://ameryon.com/payment/return",
     },
     order: {
       id: orderId,
