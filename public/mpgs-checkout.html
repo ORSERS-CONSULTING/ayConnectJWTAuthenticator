@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>Secure Payment</title>
 
-    <!-- ✅ CORRECT MPGS SCRIPT -->
+    <!-- ✅ MPGS Hosted Checkout (v67+) -->
     <script
       src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"
       data-error="onError"
@@ -25,21 +25,15 @@
       function onError(err) {
         console.error("MPGS error:", err);
         document.body.innerHTML =
-          "<h3>Payment error. Check console.</h3>";
+          "<h3>Payment error occurred. Please try again.</h3>";
       }
 
       function onCancel() {
-        console.warn("Payment cancelled");
+        console.warn("Payment cancelled by user");
       }
-
       Checkout.configure({
         session: {
           id: sessionId,
-        },
-        interaction: {
-          redirect: {
-            returnUrl: "https://ameryon.com/payment/return",
-          },
         },
       });
 
