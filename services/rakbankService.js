@@ -56,7 +56,7 @@ async function initiateHostedCheckout({ amount, orderId }) {
 
     order: {
       id: orderId,
-      amount: Number(amount),
+      amount: Number(amount).toFixed(2),
       currency: currency,
       description: "AY Connect Service Payment",
     },
