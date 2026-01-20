@@ -99,7 +99,7 @@ async function verifyPayment(req, res) {
     if (payment.status === "PAID" || payment.status === "FAILED") {
       return res.json({ status: payment.status });
     }
-
+    console.log("🟢 Verifying payment:", paymentId, payment.mpgs_order_id);
     // MPGS verification
     const order = await retrieveOrder(payment.mpgs_order_id);
 
