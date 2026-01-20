@@ -91,7 +91,7 @@ console.log("🟢 Verifying payment request:", paymentId);
     }
 
     const payment = await ordsGetPayment(paymentId);
-console.log("🟢 Fetched payment:", paymentId, payment?.status);
+console.log("🟢 Fetched payment:", payment);
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
