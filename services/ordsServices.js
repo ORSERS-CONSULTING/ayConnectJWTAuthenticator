@@ -8,7 +8,6 @@ const { getOrdsToken } = require("./ordsOAuthService");
 // function mask(s) {
 //   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
 // }
- const ordsToken = await getOrdsToken();
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -42,6 +41,7 @@ async function callGatewayBinary(
 async function callGateway(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
+ const ordsToken = await getOrdsToken();
   const res = await axios({
     url,
     method,
