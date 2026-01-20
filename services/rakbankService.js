@@ -53,7 +53,6 @@ async function initiateHostedCheckout({ amount, orderId }) {
       },
       returnUrl: "https://ameryon.com/payments/return",
     },
-
     order: {
       id: orderId,
       amount: Number(amount).toFixed(2),
