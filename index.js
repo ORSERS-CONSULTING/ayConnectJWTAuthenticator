@@ -10,6 +10,9 @@ const ayRoutes = require("./routes/ayconnectRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
+const path = require("path");
+
+app.use(express.static(path.join(__dirname, "public")));
 
 // If behind proxy/API Gateway, trust all proxy hops so X-Forwarded-For works correctly
 app.set("trust proxy", 1);
