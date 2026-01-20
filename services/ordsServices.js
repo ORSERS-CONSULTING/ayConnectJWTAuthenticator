@@ -458,7 +458,7 @@ async function ordsUpdatePaymentStatus({
 async function ordsGetPayment(payment_id) {
   if (!payment_id) throw new Error("payment_id is required");
 
-  const res = await callGatewayJson("GET", "getPaymentStatus", {
+  const res = await callGateway("GET", "getPaymentStatus", {
     params: { payment_id: Number(payment_id) },
   });
 console.log("🟢 ordsGetPayment response:", res);
