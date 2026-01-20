@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <title>Secure Payment</title>
-    <script src="https://rakbankpay-nam.gateway.mastercard.com/checkout/version/61/checkout.js"></script>
+
+    <!-- ✅ CORRECT MPGS SCRIPT -->
+    <script
+      src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"
+      data-error="onError"
+      data-cancel="onCancel"
+    ></script>
   </head>
 
   <body>
@@ -16,12 +22,24 @@
         throw new Error("Missing sessionId");
       }
 
+      function onError(err) {
+        console.error("MPGS error:", err);
+        document.body.innerHTML =
+          "<h3>Payment error. Check console.</h3>";
+      }
+
+      function onCancel() {
+        console.warn("Payment cancelled");
+      }
+
       Checkout.configure({
         session: {
           id: sessionId,
         },
         interaction: {
-          returnUrl: "https://ameryon.com/payments/return",
+          redirect: {
+            returnUrl: "https://ameryon.com/payment/return",
+          },
         },
       });
 
