@@ -474,7 +474,7 @@ async function ordsGetPayment(payment_id) {
 function ordsClearPushToken({ token }) {
   if (!token) throw new Error("token is required");
 console.log("🟢 ordsClearPushToken called with token:", token);
-  return callGateway("POST", "clearPushToken", {
+  return callGateway("POST", "deletePushToken", {
     params: {
       token: String(token),
     },
