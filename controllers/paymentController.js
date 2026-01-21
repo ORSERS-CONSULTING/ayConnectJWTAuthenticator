@@ -108,14 +108,15 @@ async function verifyPayment(req, res) {
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",
-        mpgs_transaction_id: order?.transaction?.[0]?.id ?? null,
+        mpgs_transaction_id:
+          order?.authentication?.["3ds"]?.transactionId || null,
         result_reason: "Payment successful",
       });
       console.log(
         "🟢 Payment PAID:",
         paymentId,
         "transaction id:",
-        order?.transaction?.[0]?.id
+        order?.authentication?.["3ds"]?.transactionId
       );
 
       return res.json({ status: "PAID" });
