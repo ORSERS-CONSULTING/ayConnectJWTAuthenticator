@@ -441,6 +441,12 @@ async function ordsUpdatePaymentStatus({
   mpgs_transaction_id,
   result_reason,
 }) {
+  console.log("🟢 ordsUpdatePaymentStatus called with:", {
+    payment_id,
+    status,
+    mpgs_transaction_id,
+    result_reason,
+  });
   if (!payment_id || !status) {
     throw new Error("payment_id and status are required");
   }
