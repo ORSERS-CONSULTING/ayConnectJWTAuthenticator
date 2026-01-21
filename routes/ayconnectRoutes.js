@@ -33,5 +33,5 @@ router.post("/initiateService", authUser, express.json(), ctrl.initiateService);
 router.get("/getServiceStatus", authUser, ctrl.getServiceStatus);
 router.post("/registerPushToken", authUser, ctrl.registerPushToken);
 router.get("/getNotifications", authUser, ctrl.getNotifications);
-
+router.post("/clearPushToken", authUser, ctrl.clearPushToken);
 module.exports = router;

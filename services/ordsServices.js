@@ -471,6 +471,16 @@ async function ordsGetPayment(payment_id) {
   return res?.items?.[0] || null;
 }
 
+function ordsClearPushToken({ token }) {
+  if (!token) throw new Error("token is required");
+
+  return callGateway("POST", "clearPushToken", {
+    params: {
+      token: String(token),
+    },
+  });
+}
+
 module.exports = {
   callGateway,
   ordsGetActiveRuns,
@@ -509,4 +519,5 @@ module.exports = {
   ordsUpdatePaymentSession,
   ordsUpdatePaymentStatus,
   ordsGetPayment,
+  ordsClearPushToken,
 };

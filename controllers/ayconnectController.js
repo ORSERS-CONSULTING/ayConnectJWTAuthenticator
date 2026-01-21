@@ -20,6 +20,7 @@ const {
   ordsGetServiceStatus,
   ordsRegisterPushToken,
   ordsGetNotifications,
+  ordsClearPushToken
 } = require("../services/ordsServices");
 
 async function getServices(_req, res) {
@@ -804,6 +805,47 @@ async function getNotifications(req, res) {
   }
 }
 
+async function clearPushToken(req, res) {
+  try {
+    const token = req.query?.token;
+
+    if (!token) {
+      return res.status(400).json({ message: "token query param is required" });
+    }
+
+    console.log("[clearPushToken] →", { token });
+
+    const data = await ordsClearPushToken({ token });
+
+    // ORDS usually returns 204 No Content
+    if (!data || data.status === 204) {
+      return res.status(204).send();
+    }
+
+    let parsed = data;
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {
+        console.warn("[clearPushToken] Could not parse response_body JSON");
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Push token cleared",
+      upstream: parsed,
+    });
+  } catch (e) {
+    console.error("[clearPushToken] ERROR", e.message);
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(
+      e.response?.data ?? { message: e.message }
+    );
+  }
+}
+
+
 module.exports = {
   getServices,
   ensureRun,
@@ -824,4 +866,5 @@ module.exports = {
   getServiceStatus,
   registerPushToken,
   getNotifications,
+  clearPushToken
 };
