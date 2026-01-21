@@ -823,6 +823,7 @@ async function clearPushToken(req, res) {
     }
 
     let parsed = data;
+    console.log("[clearPushToken] raw response:", data);
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
