@@ -9,20 +9,14 @@ const {
   paymentReturn,
 } = require("../controllers/paymentController");
 
-// 1️⃣ Init payment (ORDS + MPGS session)
-router.post("/init", express.json(), authUser, initPayment);
-
-// 2️⃣ Verify payment
-router.post("/verify", express.json(), verifyPayment);
-
-// 3️⃣ MPGS return URL (browser → app)
+// paymentRoutes.js
+router.post("/init", authUser, initPayment);
+router.post("/verify", verifyPayment);
 router.get("/return", paymentReturn);
 
 // 4️⃣ Hosted Checkout UI (browser loads Checkout.js)
 router.get("/checkout", (req, res) => {
-  res.sendFile(
-    path.join(__dirname, "../public/mpgs-checkout.html")
-  );
+  res.sendFile(path.join(__dirname, "../public/mpgs-checkout.html"));
 });
 
 module.exports = router;
