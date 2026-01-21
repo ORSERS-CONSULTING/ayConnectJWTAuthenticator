@@ -82,11 +82,8 @@ async function initPayment(req, res) {
  * POST /payment/ver
  */
 async function verifyPayment(req, res) {
-  console.log("🧪 RAW BODY:", req.body);
-
   try {
     const { paymentId } = req.body;
-    console.log("🟢 Verifying payment request:", paymentId);
     if (!paymentId) {
       return res.status(400).json({ message: "paymentId is required" });
     }
@@ -101,7 +98,6 @@ async function verifyPayment(req, res) {
     if (payment.status === "PAID" || payment.status === "FAILED") {
       return res.json({ status: payment.status });
     }
-    console.log("🟢 Verifying payment:", paymentId, payment.mpgs_order_id);
     // MPGS verification
     const order = await retrieveOrder(payment.mpgs_order_id);
     console.log("🟢 Retrieved MPGS order:", order);
@@ -115,6 +111,12 @@ async function verifyPayment(req, res) {
         mpgs_transaction_id: order?.transaction?.[0]?.id ?? null,
         result_reason: "Payment successful",
       });
+      console.log(
+        "🟢 Payment PAID:",
+        paymentId,
+        "transaction id:",
+        order?.transaction?.[0]?.id
+      );
 
       return res.json({ status: "PAID" });
     }
