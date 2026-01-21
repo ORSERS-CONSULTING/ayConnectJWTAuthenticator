@@ -82,6 +82,8 @@ async function initPayment(req, res) {
  * POST /payment/ver
  */
 async function verifyPayment(req, res) {
+  console.log("🧪 RAW BODY:", req.body);
+
   try {
     const { paymentId } = req.body;
     console.log("🟢 Verifying payment request:", paymentId);

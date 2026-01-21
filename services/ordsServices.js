@@ -47,7 +47,7 @@ async function callGateway(method, path, { params, data } = {}) {
     params,
     data,
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${token}`
     },
   });
   return res.data;
@@ -461,11 +461,8 @@ async function ordsGetPayment(payment_id) {
   const res = await callGateway("GET", "getPaymentStatus", {
     params: { payment_id: Number(payment_id) },
   });
-  console.log("🟢 ordsGetPayment response:", res);
-  if (!res || !Array.isArray(res.items) || res.items.length === 0) {
-    return null;
-  }
-  return res.items[0];
+console.log("🟢 ordsGetPayment response:", res);
+  return res?.data?.items?.[0] || null;
 }
 
 module.exports = {
