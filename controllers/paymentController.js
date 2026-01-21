@@ -105,11 +105,15 @@ async function verifyPayment(req, res) {
     // MPGS verification
     const order = await retrieveOrder(payment.mpgs_order_id);
     console.log("🟢 Retrieved MPGS order:", order);
-    if (order?.status === "CAPTURED" || order?.status === "AUTHORIZED") {
+    if (
+      order?.result === "SUCCESS" &&
+      (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
+    ) {
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",
         mpgs_transaction_id: order?.transaction?.[0]?.id ?? null,
+        result_reason: "Payment successful",
       });
 
       return res.json({ status: "PAID" });
