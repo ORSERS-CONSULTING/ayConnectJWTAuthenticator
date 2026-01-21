@@ -816,6 +816,7 @@ async function clearPushToken(req, res) {
     console.log("[clearPushToken] →", { token });
 
     const data = await ordsClearPushToken({ token });
+    console.log("[clearPushToken] raw response:", data);
 
     // ORDS usually returns 204 No Content
     if (!data || data.status === 204) {
