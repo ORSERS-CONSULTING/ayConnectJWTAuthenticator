@@ -20,15 +20,12 @@ const {
   ordsGetServiceStatus,
   ordsRegisterPushToken,
   ordsGetNotifications,
-<<<<<<< HEAD
   ordsUpdateBeneficiary,
   ordsDownloadUserDoc,
   ordsMedia,
   ordsGetRequests,
   ordsMarkNotificationRead,
-=======
   ordsClearPushToken
->>>>>>> 38e8ef4b59c7069baaabade2678c704eaeea36a6
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -992,13 +989,10 @@ module.exports = {
   getServiceStatus,
   registerPushToken,
   getNotifications,
-<<<<<<< HEAD
   updateBeneficiary,
   downloadUserDoc,
   getRequests,
   media,
   markNotificationRead,
-=======
   clearPushToken
->>>>>>> 38e8ef4b59c7069baaabade2678c704eaeea36a6
 };
