@@ -41,22 +41,55 @@ async function initiateHostedCheckout({ amount, orderId }) {
   });
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
+  // const payload = {
+  //   apiOperation: "INITIATE_CHECKOUT",
+  //   checkoutMode: "WEBSITE",
+
+  //   interaction: {
+  //     operation: "PURCHASE",
+  //     merchant: {
+  //       name: "AY Connect",
+  //       url: "https://ameryon.com",
+  //     },
+  //     returnUrl: "https://ameryon.com/payment/return",
+  //   },
+  //   order: {
+  //     id: orderId,
+  //     amount: Number(amount).toFixed(2),
+  //     currency: currency,
+  //     description: "AY Connect Service Payment",
+  //   },
+  // };
+
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
     checkoutMode: "WEBSITE",
 
     interaction: {
       operation: "PURCHASE",
+
       merchant: {
         name: "AY Connect",
         url: "https://ameryon.com",
+        logo: "https://ameryon.com/assets/yalayis_logo.png",
       },
+
+      // Optional but recommended
+      locale: "en_US",
+
+      displayControl: {
+        billingAddress: "HIDE",
+        customerEmail: "HIDE",
+        shipping: "HIDE",
+      },
+
       returnUrl: "https://ameryon.com/payment/return",
     },
+
     order: {
       id: orderId,
       amount: Number(amount).toFixed(2),
-      currency: currency,
+      currency,
       description: "AY Connect Service Payment",
     },
   };
