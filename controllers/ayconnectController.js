@@ -20,7 +20,128 @@ const {
   ordsGetServiceStatus,
   ordsRegisterPushToken,
   ordsGetNotifications,
+  ordsUpdateBeneficiary,
+  ordsDownloadUserDoc,
+  ordsMedia,
+  ordsGetRequests,
+  ordsMarkNotificationRead,
 } = require("../services/ordsServices");
+
+// PUT /ayconnect/beneficiaries/update
+// Body: { beneficiary_id, user_id? }  (user_id defaults from token)
+async function updateBeneficiary(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const b = req.body || req.query || {};
+
+    const user_id = String(b.user_id || fromToken);
+    const beneficiary_id = Number(b.beneficiary_id);
+
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!beneficiary_id)
+      return res.status(400).json({ message: "beneficiary_id is required" });
+
+    const data = await ordsUpdateBeneficiary({ beneficiary_id, user_id });
+    return res.status(200).json(data);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+// GET /ayconnect/docs/download?doc_id=...
+async function downloadUserDoc(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.query || req.body || {};
+
+    const user_id = String(q.user_id || fromToken);
+    const doc_id = Number(q.doc_id);
+
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!doc_id) return res.status(400).json({ message: "doc_id is required" });
+
+    const upstream = await ordsDownloadUserDoc({ doc_id, user_id });
+
+    // If your ordsDownloadUserDoc returns a normal JSON (via callGateway),
+    // just return it:
+    return res.status(200).json(upstream);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+// GET /ayconnect/requests?instance_svc_id=...
+async function getRequests(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.query || req.body || {};
+
+    const user_id = String(q.user_id || fromToken);
+    const instance_svc_id = Number(q.instance_svc_id);
+
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!instance_svc_id)
+      return res.status(400).json({ message: "instance_svc_id is required" });
+
+    const data = await ordsGetRequests({ instance_svc_id, user_id });
+
+    // normalize optional: ORDS sometimes returns { items: [...] }
+    const items = Array.isArray(data) ? data : data.items ?? data;
+    return res.status(200).json({ items });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+// GET /ayconnect/media?path=...
+async function media(req, res) {
+  try {
+    const path = String(req.query?.path || "");
+    if (!path) return res.status(400).json({ message: "path is required" });
+
+    const upstream = await ordsMedia({ path });
+
+    // If ordsMedia returns binary/stream in future, we can proxy headers + pipe.
+    // For now, if it's JSON, return JSON:
+    return res.status(200).json(upstream);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+// POST /ayconnect/notifications/mark-read
+// Body: { notif_id, user_id? } (user_id defaults from token)
+async function markNotificationRead(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(b.user_id || fromToken);
+    const notif_id = String(req.query?.notif_id || "");
+
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
+    if (!notif_id)
+      return res.status(400).json({ message: "notif_id is required" });
+
+    const data = await ordsMarkNotificationRead({ user_id, notif_id });
+
+    // ORDS may send response_body wrapper sometimes
+    let parsed = data;
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch { }
+    }
+
+    return res.status(200).json(parsed);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
 
 async function getServices(_req, res) {
   try {
@@ -297,7 +418,7 @@ async function uploadUserAvatar(req, res) {
     let out = upstream.data;
     try {
       out = typeof out === "string" && out ? JSON.parse(out) : out;
-    } catch {}
+    } catch { }
     return res.status(ok ? 200 : upstream.status).json(
       out ?? {
         message: ok ? "Avatar uploaded successfully" : "Upload failed",
@@ -824,4 +945,9 @@ module.exports = {
   getServiceStatus,
   registerPushToken,
   getNotifications,
+  updateBeneficiary,
+  downloadUserDoc,
+  getRequests,
+  media,
+  markNotificationRead,
 };

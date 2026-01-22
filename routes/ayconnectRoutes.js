@@ -26,6 +26,7 @@ router.get("/user/details", authUser, ctrl.getUserDetails);
 router.post("/user/details", authUser, express.json(), ctrl.updateUserDetails);
 router.get("/beneficiaries", authUser, ctrl.getBeneficiaries);
 router.post("/beneficiaries", authUser, ctrl.createBeneficiary);
+router.put("/beneficiaries", authUser, ctrl.updateBeneficiary);
 router.get("/runs/active", authUser, ctrl.getActiveRuns);
 router.get("/procedure-instances/current-step", authUser, ctrl.getCurrentStep);
 router.post("/procedures", authUser, express.json(), ctrl.ensureRun);
@@ -33,5 +34,9 @@ router.post("/initiateService", authUser, express.json(), ctrl.initiateService);
 router.get("/getServiceStatus", authUser, ctrl.getServiceStatus);
 router.post("/registerPushToken", authUser, ctrl.registerPushToken);
 router.get("/getNotifications", authUser, ctrl.getNotifications);
+router.get("/downloadUserDoc", authUser, ctrl.downloadUserDoc);
+router.get("/getRequests", authUser, ctrl.getRequests);
+router.get("/media", authUser, ctrl.media);
+router.post("/markNotificationRead", authUser, ctrl.markNotificationRead);
 
 module.exports = router;

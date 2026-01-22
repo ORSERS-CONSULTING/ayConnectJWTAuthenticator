@@ -285,6 +285,51 @@ function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
   return callGateway("POST", "beneficiaries", { params });
 }
 
+function ordsUpdateBeneficiary({ beneficiary_id, user_id }) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!beneficiary_id) throw new Error("beneficiary_id is required");
+
+  const params = { beneficiary_id, user_id };
+
+  return callGateway("PUT", "beneficiaries", { params });
+}
+
+function ordsDownloadUserDoc({ doc_id, user_id }) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!doc_id) throw new Error("doc_id is required");
+
+  const params = { doc_id, user_id };
+
+  return callGateway("GET", "downloadUserDoc", { params });
+}
+
+function ordsGetRequests({ instance_svc_id, user_id }) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!instance_svc_id) throw new Error("instance_svc_id is required");
+
+  const params = { instance_svc_id, user_id };
+
+  return callGateway("GET", "getRequests", { params });
+}
+
+function ordsMedia({ path }) {
+  if (!path) throw new Error("path is required");
+
+  const params = { path };
+
+  return callGateway("GET", "media", { params });
+}
+
+function ordsMarkNotificationRead({ user_id, notif_id }) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!notif_id) throw new Error("notif_id is required");
+
+  const params = { user_id, notif_id };
+
+  return callGateway("POST", "markNotificationRead", { params });
+}
+
+
 function ordsGetActiveRuns(user_id) {
   if (!user_id) throw new Error("user_id is required");
   return callGateway("GET", "procedures", {
@@ -476,7 +521,11 @@ module.exports = {
   ordsUploadUserAvatar,
   ordsGetUserDetails,
   ordsUpdateUserDetails,
-  ordsGetUserDetails,
+  ordsUpdateBeneficiary,
+  ordsDownloadUserDoc,
+  ordsMedia,
+  ordsGetRequests,
+  ordsMarkNotificationRead,
   resendClientCode,
   getClientEmail,
   sendMobileOtp,
