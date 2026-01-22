@@ -47,7 +47,7 @@ async function callGateway(method, path, { params, data } = {}) {
     params,
     data,
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     },
   });
   return res.data;
@@ -486,6 +486,12 @@ async function ordsUpdatePaymentStatus({
   mpgs_transaction_id,
   result_reason,
 }) {
+  console.log("🟢 ordsUpdatePaymentStatus called with:", {
+    payment_id,
+    status,
+    mpgs_transaction_id,
+    result_reason,
+  });
   if (!payment_id || !status) {
     throw new Error("payment_id and status are required");
   }
@@ -503,11 +509,21 @@ async function ordsUpdatePaymentStatus({
 async function ordsGetPayment(payment_id) {
   if (!payment_id) throw new Error("payment_id is required");
 
-  const res = await callGatewayJson("GET", "getPaymentStatus", {
+  const res = await callGateway("GET", "getPaymentStatus", {
     params: { payment_id: Number(payment_id) },
   });
+  console.log("🟢 ordsGetPayment response:", res);
+  return res?.items?.[0] || null;
+}
 
-  return res?.data?.items?.[0] || null;
+function ordsClearPushToken({ token }) {
+  if (!token) throw new Error("token is required");
+console.log("🟢 ordsClearPushToken called with token:", token);
+  return callGateway("POST", "deletePushToken", {
+    params: {
+      token: String(token),
+    },
+  });
 }
 
 module.exports = {
@@ -552,4 +568,5 @@ module.exports = {
   ordsUpdatePaymentSession,
   ordsUpdatePaymentStatus,
   ordsGetPayment,
+  ordsClearPushToken,
 };

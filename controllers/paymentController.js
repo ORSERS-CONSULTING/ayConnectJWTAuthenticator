@@ -63,11 +63,11 @@ async function initPayment(req, res) {
       mpgs_order_id: orderId,
       mpgs_session_id: sessionId,
     });
-    const checkoutUrl = `https://rakbankpay-nam.gateway.mastercard.com/checkout/pay/${sessionId}`;
+    // const checkoutUrl = `https://rakbankpay-nam.gateway.mastercard.com/checkout/pay/${sessionId}`;
 
     return res.status(200).json({
       paymentId: payment_id,
-      checkoutUrl,
+      sessionId,
     });
   } catch (e) {
     console.error("[initPayment] ERROR", e.message);
@@ -79,18 +79,17 @@ async function initPayment(req, res) {
  * ----------------------------------------------------
  * VERIFY PAYMENT (after return)
  * ----------------------------------------------------
- * POST /payment/verify
+ * POST /payment/ver
  */
 async function verifyPayment(req, res) {
   try {
     const { paymentId } = req.body;
-
     if (!paymentId) {
       return res.status(400).json({ message: "paymentId is required" });
     }
 
     const payment = await ordsGetPayment(paymentId);
-
+    console.log("🟢 Fetched payment:", payment);
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -99,16 +98,26 @@ async function verifyPayment(req, res) {
     if (payment.status === "PAID" || payment.status === "FAILED") {
       return res.json({ status: payment.status });
     }
-
     // MPGS verification
     const order = await retrieveOrder(payment.mpgs_order_id);
-
-    if (order?.status === "CAPTURED") {
+    console.log("🟢 Retrieved MPGS order:", order);
+    if (
+      order?.result === "SUCCESS" &&
+      (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
+    ) {
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",
-        mpgs_transaction_id: order?.transaction?.[0]?.id ?? null,
+        mpgs_transaction_id:
+          order?.authentication?.["3ds"]?.transactionId || null,
+        result_reason: "Payment successful",
       });
+      console.log(
+        "🟢 Payment PAID:",
+        paymentId,
+        "transaction id:",
+        order?.authentication?.["3ds"]?.transactionId
+      );
 
       return res.json({ status: "PAID" });
     }
@@ -128,14 +137,14 @@ async function verifyPayment(req, res) {
  */
 async function paymentReturn(req, res) {
   try {
-    const { instance_svc_id } = req.query;
+    // const { instance_svc_id } = req.query;
 
-    if (!instance_svc_id) {
-      return res.status(400).send("Missing instance_svc_id");
-    }
+    // if (!instance_svc_id) {
+    //   return res.status(400).send("Missing instance_svc_id");
+    // }
 
     // ✅ Expo Router–correct deep link
-    const deepLink = `ayconnect://requests?instance_svc_id=${instance_svc_id}`;
+    const deepLink = `ayconnect://requests`;
 
     return res.redirect(deepLink);
   } catch (err) {

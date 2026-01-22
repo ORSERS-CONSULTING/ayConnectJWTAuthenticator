@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Secure Payment</title>
+
+    <!-- ✅ MPGS Hosted Checkout (v67+) -->
+    <script
+      src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"
+      data-error="onError"
+      data-cancel="onCancel"
+    ></script>
+  </head>
+
+  <body>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get("sessionId");
+
+      if (!sessionId) {
+        document.body.innerHTML = "<h3>Missing sessionId</h3>";
+        throw new Error("Missing sessionId");
+      }
+
+      function onError(err) {
+        console.error("MPGS error:", err);
+        document.body.innerHTML =
+          "<h3>Payment error occurred. Please try again.</h3>";
+      }
+
+      function onCancel() {
+        console.warn("Payment cancelled by user");
+      }
+      Checkout.configure({
+        session: {
+          id: sessionId,
+        },
+      });
+
+      Checkout.showPaymentPage();
+    </script>
+  </body>
+</html>

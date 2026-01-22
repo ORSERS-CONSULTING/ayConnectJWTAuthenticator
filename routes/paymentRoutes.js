@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const express = require("express");
+const path = require("path");
 const { authUser } = require("../middleware/authUser");
 
 const {
@@ -8,12 +9,14 @@ const {
   paymentReturn,
 } = require("../controllers/paymentController");
 
-// Init payment (create ORDS + MPGS session)
-router.post("/init", express.json(), authUser, initPayment);
+// paymentRoutes.js
+router.post("/init", authUser, initPayment);
+router.post("/verify", verifyPayment);
+router.get("/return", paymentReturn);
 
-// Verify payment after checkout
-router.post("/verify", express.json(), verifyPayment);
+// 4️⃣ Hosted Checkout UI (browser loads Checkout.js)
+router.get("/checkout", (req, res) => {
+  res.sendFile(path.join(__dirname, "../public/mpgs-checkout.html"));
+});
 
-// ✅ Hosted Checkout Page (NO AUTH, NO JSON)
-router.get("/payments/return", paymentReturn);
 module.exports = router;

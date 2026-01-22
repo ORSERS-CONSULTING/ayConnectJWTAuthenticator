@@ -10,6 +10,9 @@ const ayRoutes = require("./routes/ayconnectRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
+const path = require("path");
+
+app.use(express.static(path.join(__dirname, "public")));
 
 // If behind proxy/API Gateway, trust all proxy hops so X-Forwarded-For works correctly
 app.set("trust proxy", 1);
@@ -37,16 +40,25 @@ app.use((req, res, next) => {
 });
 
 // === Payment route first (with its own parsers) ===
-app.use(
-  "/payment",
-  express.urlencoded({ extended: true, limit: "25mb" }),
-  paymentRoutes
-);
+// app.use(
+//   "/payment",
+//   express.urlencoded({ extended: true, limit: "25mb" }),
+//   paymentRoutes
+// );
 
-// === Global middleware for the rest of the app ===
+// // === Global middleware for the rest of the app ===
+// app.use(express.json({ limit: "25mb" }));
+// app.use(express.urlencoded({ extended: true, limit: "25mb" }));
+// app.use(cors());
+// === Global middleware FIRST ===
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 app.use(cors());
+
+// === Routes ===
+app.use("/payment", paymentRoutes);
+app.use("/auth", authRoutes);
+app.use("/ayconnect", ayRoutes);
 
 // === Rate Limiting ===
 const generalLimiter = rateLimit({
@@ -78,10 +90,6 @@ const heavyUseLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use("/ayconnect", heavyUseLimiter);
-
-// === Routes ===
-app.use("/auth", authRoutes);
-app.use("/ayconnect", ayRoutes);
 
 // === Health and Debug Routes ===
 app.get("/health", (_req, res) => res.json({ ok: true }));
