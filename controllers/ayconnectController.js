@@ -25,7 +25,7 @@ const {
   ordsMedia,
   ordsGetRequests,
   ordsMarkNotificationRead,
-  ordsClearPushToken
+  ordsClearPushToken,
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -39,10 +39,19 @@ async function updateBeneficiary(req, res) {
     const beneficiary_id = Number(b.beneficiary_id);
 
     if (!user_id) return res.status(401).json({ message: "No user in token" });
-    if (!beneficiary_id)
+    if (!beneficiary_id) {
       return res.status(400).json({ message: "beneficiary_id is required" });
+    }
 
-    const data = await ordsUpdateBeneficiary({ beneficiary_id, user_id });
+    const updateBody = {};
+    if (b.full_name != null) updateBody.full_name = b.full_name;
+    if (b.relationship != null) updateBody.relationship = b.relationship;
+
+    const data = await ordsUpdateBeneficiary(
+      { beneficiary_id, user_id },
+      updateBody
+    );
+
     return res.status(200).json(data);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -50,7 +59,9 @@ async function updateBeneficiary(req, res) {
   }
 }
 
+
 // GET /ayconnect/docs/download?doc_id=...
+// GET /ayconnect/downloadUserDoc?doc_id=...
 async function downloadUserDoc(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
@@ -59,37 +70,77 @@ async function downloadUserDoc(req, res) {
     const user_id = String(q.user_id || fromToken);
     const doc_id = Number(q.doc_id);
 
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
-    if (!doc_id) return res.status(400).json({ message: "doc_id is required" });
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
+    if (!doc_id) {
+      return res.status(400).json({ message: "doc_id is required" });
+    }
 
+    // 🔹 Call ORDS (this MUST return a stream / arraybuffer)
     const upstream = await ordsDownloadUserDoc({ doc_id, user_id });
 
-    // If your ordsDownloadUserDoc returns a normal JSON (via callGateway),
-    // just return it:
-    return res.status(200).json(upstream);
+    // 🔹 Forward status if ORDS failed
+    if (upstream.status >= 400) {
+      return res.status(upstream.status).json({
+        message: "Failed to download document",
+      });
+    }
+
+    // 🔹 Forward headers
+    const headers = upstream.headers || {};
+    if (headers["content-type"]) {
+      res.setHeader("Content-Type", headers["content-type"]);
+    } else {
+      res.setHeader("Content-Type", "application/octet-stream");
+    }
+
+    if (headers["content-length"]) {
+      res.setHeader("Content-Length", headers["content-length"]);
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      headers["content-disposition"] || "inline"
+    );
+
+    // 🔹 STREAM THE FILE (THIS IS THE IMPORTANT LINE)
+    upstream.data.pipe(res);
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
 
-// GET /ayconnect/requests?instance_svc_id=...
+// GET /ayconnect/requests
+// Optional: ?instance_svc_id=...
 async function getRequests(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const q = req.query || req.body || {};
 
     const user_id = String(q.user_id || fromToken);
-    const instance_svc_id = Number(q.instance_svc_id);
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
 
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
-    if (!instance_svc_id)
-      return res.status(400).json({ message: "instance_svc_id is required" });
+    // ✅ instance_svc_id is OPTIONAL
+    let instance_svc_id = null;
+    if (q.instance_svc_id != null) {
+      instance_svc_id = Number(q.instance_svc_id);
+      if (Number.isNaN(instance_svc_id)) {
+        return res.status(400).json({ message: "invalid instance_svc_id" });
+      }
+    }
 
-    const data = await ordsGetRequests({ instance_svc_id, user_id });
+    const data = await ordsGetRequests({
+      user_id,
+      instance_svc_id, // may be null
+    });
 
     // normalize optional: ORDS sometimes returns { items: [...] }
     const items = Array.isArray(data) ? data : data.items ?? data;
+
     return res.status(200).json({ items });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -116,33 +167,51 @@ async function media(req, res) {
 
 // POST /ayconnect/notifications/mark-read
 // Body: { notif_id, user_id? } (user_id defaults from token)
+// POST /ayconnect/notifications/mark-read
+// Body: { notif_id? , user_id? }
+// - notif_id present  → mark one
+// - notif_id missing  → mark all
 async function markNotificationRead(req, res) {
   try {
     const fromToken = String(req.user?.id || req.user?.sub || "");
+    const b = req.body || req.query || {};
+
     const user_id = String(b.user_id || fromToken);
-    const notif_id = String(req.query?.notif_id || "");
+    const notif_id = b.notif_id != null ? String(b.notif_id) : null;
 
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
-    if (!notif_id)
-      return res.status(400).json({ message: "notif_id is required" });
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
 
-    const data = await ordsMarkNotificationRead({ user_id, notif_id });
+    let data;
 
-    // ORDS may send response_body wrapper sometimes
+    if (notif_id) {
+      // ✅ mark single notification
+      data = await ordsMarkNotificationRead({ user_id, notif_id });
+    } else {
+      // ✅ mark ALL notifications
+      data = await ordsMarkNotificationRead({ user_id });
+      // OR (better if you split it):
+      // data = await ordsMarkAllNotificationsRead({ user_id });
+    }
+
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch { }
+      } catch {}
     }
 
-    return res.status(200).json(parsed);
+    return res.status(200).json({
+      success: true,
+      mode: notif_id ? "single" : "all",
+      result: parsed,
+    });
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 
 async function getServices(_req, res) {
   try {
@@ -419,7 +488,7 @@ async function uploadUserAvatar(req, res) {
     let out = upstream.data;
     try {
       out = typeof out === "string" && out ? JSON.parse(out) : out;
-    } catch { }
+    } catch {}
     return res.status(ok ? 200 : upstream.status).json(
       out ?? {
         message: ok ? "Avatar uploaded successfully" : "Upload failed",
@@ -962,12 +1031,9 @@ async function clearPushToken(req, res) {
   } catch (e) {
     console.error("[clearPushToken] ERROR", e.message);
     const code = e.response?.status ?? 500;
-    return res.status(code).json(
-      e.response?.data ?? { message: e.message }
-    );
+    return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 
 module.exports = {
   getServices,
@@ -994,5 +1060,5 @@ module.exports = {
   getRequests,
   media,
   markNotificationRead,
-  clearPushToken
+  clearPushToken,
 };

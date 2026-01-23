@@ -284,30 +284,51 @@ function ordsCreateBeneficiary({ user_id, type, full_name, relationship }) {
   // use callGateway, not callGatewayJson
   return callGateway("POST", "beneficiaries", { params });
 }
-
-function ordsUpdateBeneficiary({ beneficiary_id, user_id }) {
+function ordsUpdateBeneficiary({ beneficiary_id, user_id }, body = {}) {
   if (!user_id) throw new Error("user_id is required");
   if (!beneficiary_id) throw new Error("beneficiary_id is required");
 
   const params = { beneficiary_id, user_id };
 
-  return callGateway("PUT", "beneficiaries", { params });
+  // 🔥 IMPORTANT: send update fields as BODY
+  return callGateway("PUT", "beneficiaries", {
+    params,
+    data: body,
+  });
 }
 
-function ordsDownloadUserDoc({ doc_id, user_id }) {
+async function ordsDownloadUserDoc({ doc_id, user_id }) {
   if (!user_id) throw new Error("user_id is required");
   if (!doc_id) throw new Error("doc_id is required");
 
-  const params = { doc_id, user_id };
+  const PATH = "downloadUserDoc";
+  const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
+  const token = await getIdcsToken(url);
 
-  return callGateway("GET", "downloadUserDoc", { params });
+  return axios({
+    method: "GET",
+    url,
+    params: {
+      doc_id: Number(doc_id),
+      user_id: Number(user_id),
+    },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    responseType: "stream", // ✅ CRITICAL
+    validateStatus: () => true, // let caller decide
+  });
 }
 
 function ordsGetRequests({ instance_svc_id, user_id }) {
   if (!user_id) throw new Error("user_id is required");
-  if (!instance_svc_id) throw new Error("instance_svc_id is required");
 
-  const params = { instance_svc_id, user_id };
+  const params = { user_id };
+
+  // ✅ only include instance_svc_id if provided
+  if (instance_svc_id != null) {
+    params.instance_svc_id = instance_svc_id;
+  }
 
   return callGateway("GET", "getRequests", { params });
 }
@@ -322,13 +343,16 @@ function ordsMedia({ path }) {
 
 function ordsMarkNotificationRead({ user_id, notif_id }) {
   if (!user_id) throw new Error("user_id is required");
-  if (!notif_id) throw new Error("notif_id is required");
 
-  const params = { user_id, notif_id };
+  const params = { user_id };
+
+  // ✅ only include notif_id if provided
+  if (notif_id != null) {
+    params.notif_id = notif_id;
+  }
 
   return callGateway("POST", "markNotificationRead", { params });
 }
-
 
 function ordsGetActiveRuns(user_id) {
   if (!user_id) throw new Error("user_id is required");
@@ -518,7 +542,7 @@ async function ordsGetPayment(payment_id) {
 
 function ordsClearPushToken({ token }) {
   if (!token) throw new Error("token is required");
-console.log("🟢 ordsClearPushToken called with token:", token);
+  console.log("🟢 ordsClearPushToken called with token:", token);
   return callGateway("POST", "deletePushToken", {
     params: {
       token: String(token),
