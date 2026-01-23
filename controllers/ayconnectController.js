@@ -64,23 +64,20 @@ async function updateBeneficiary(req, res) {
 // GET /ayconnect/downloadUserDoc?doc_id=...
 async function downloadUserDoc(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const q = req.query || req.body || {};
-
-    const user_id = String(q.user_id || fromToken);
-    const doc_id = Number(q.doc_id);
+    // 🔐 MUST come from auth middleware
+    const user_id = String(req.user?.id || req.user?.sub || "");
+    const doc_id = Number(req.query?.doc_id);
 
     if (!user_id) {
-      return res.status(401).json({ message: "No user in token" });
+      return res.status(401).json({ message: "Unauthorized" });
     }
     if (!doc_id) {
       return res.status(400).json({ message: "doc_id is required" });
     }
 
-    // 🔹 Call ORDS (this MUST return a stream / arraybuffer)
+    // 🔹 Call ORDS (returns stream)
     const upstream = await ordsDownloadUserDoc({ doc_id, user_id });
 
-    // 🔹 Forward status if ORDS failed
     if (upstream.status >= 400) {
       return res.status(upstream.status).json({
         message: "Failed to download document",
@@ -88,29 +85,28 @@ async function downloadUserDoc(req, res) {
     }
 
     // 🔹 Forward headers
-    const headers = upstream.headers || {};
-    if (headers["content-type"]) {
-      res.setHeader("Content-Type", headers["content-type"]);
-    } else {
-      res.setHeader("Content-Type", "application/octet-stream");
-    }
+    res.setHeader(
+      "Content-Type",
+      upstream.headers["content-type"] || "application/octet-stream"
+    );
 
-    if (headers["content-length"]) {
-      res.setHeader("Content-Length", headers["content-length"]);
+    if (upstream.headers["content-length"]) {
+      res.setHeader("Content-Length", upstream.headers["content-length"]);
     }
 
     res.setHeader(
       "Content-Disposition",
-      headers["content-disposition"] || "inline"
+      upstream.headers["content-disposition"] || "inline"
     );
 
-    // 🔹 STREAM THE FILE (THIS IS THE IMPORTANT LINE)
+    // 🔥 STREAM
     upstream.data.pipe(res);
   } catch (e) {
     const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    return res.status(code).json({ message: e.message });
   }
 }
+
 
 // GET /ayconnect/requests
 // Optional: ?instance_svc_id=...
