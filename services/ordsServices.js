@@ -333,13 +333,24 @@ function ordsGetRequests({ instance_svc_id, user_id }) {
   return callGateway("GET", "getRequests", { params });
 }
 
-function ordsMedia({ path }) {
+async function ordsMedia({ path }) {
   if (!path) throw new Error("path is required");
 
-  const params = { path };
+  const url = `${process.env.GATEWAY_BASE_URL}/media`;
+  const token = await getIdcsToken(url);
 
-  return callGateway("GET", "media", { params });
+  return axios({
+    method: "GET",
+    url,
+    params: { path },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    responseType: "stream", // 🔥 IMPORTANT
+    validateStatus: () => true,
+  });
 }
+
 
 function ordsMarkNotificationRead({ user_id, notif_id }) {
   if (!user_id) throw new Error("user_id is required");
