@@ -1,12 +1,34 @@
 const crypto = require('crypto');
 const { signAccessToken } = require('../utils/jwt');
-const store = require('../store/refreshStore');
+
 const {
-  sendMobileOtp, verifyMobileOtp, sendEmailOtp, verifyEmailOtp, ordsLogin, getClientEmail, registerClient, checkClientCode, registerUser, registerExistingClient, resendClientCode
+  sendMobileOtp,
+  verifyMobileOtp,
+  sendEmailOtp,
+  verifyEmailOtp,
+  ordsLogin,
+  getClientEmail,
+  registerClient,
+  checkClientCode,
+  registerUser,
+  registerExistingClient,
+  resendClientCode,
+  authTokensCreate,
+  authTokensValidate,
+  authTokensRevoke,
 } = require('../services/ordsServices');
+
 const { sendSms } = require('../services/etisalatServices');
 
+const REFRESH_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 30);
 
+async function persistRefreshToken(userId, refresh_token) {
+  await authTokensCreate({
+    user_id: Number(userId),
+    refresh_token,
+    days: REFRESH_DAYS,
+  });
+}
 
 async function sendOtp(req, res) {
   const { channel, target } = req.body || {};
@@ -16,9 +38,7 @@ async function sendOtp(req, res) {
     if (channel === 'mobile') {
       const data = await sendMobileOtp(target);
 
-      const otp =
-        data.generated_otp ??
-        null;
+      const otp = data.generated_otp ?? null;
 
       if (otp) {
         const msg = `Your OTP is ${otp}`;
@@ -26,16 +46,12 @@ async function sendOtp(req, res) {
           await sendSms({ to: String(target), message: msg });
         } catch (err) {
           console.error('Etisalat SMS failed:', err?.message || err);
-          // If you want to fail hard when SMS fails, uncomment:
-          // return res.status(502).json({ message: 'SMS delivery failed' });
         }
       }
 
-      // Don't echo OTP back
       return res.json({ sent: true });
     }
 
-    // Email channel (ORDS handles email send)
     const data = await sendEmailOtp(target);
     return res.json({ sent: true, ...data });
 
@@ -44,7 +60,8 @@ async function sendOtp(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-/** Public: verify OTP -> issue App JWT + refresh */
+
+/** Public: verify OTP */
 async function verifyOtp(req, res) {
   const { channel, target, otp } = req.body || {};
   if (!channel || !target || !otp) {
@@ -63,11 +80,9 @@ async function verifyOtp(req, res) {
     const verified = OK.has(status);
 
     if (!verified) {
-      // 401 for invalid/expired/etc.
       return res.status(401).json({ verified: false, status });
     }
 
-    // success
     return res.json({ verified: true, status });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -82,26 +97,56 @@ async function issueToken(req, res) {
 
   const access_token = signAccessToken({ sub: String(user_id), role, email });
   const refresh_token = crypto.randomBytes(64).toString('hex');
-  store.put(refresh_token, String(user_id));
+
+  await persistRefreshToken(user_id, refresh_token);
 
   return res.json({ access_token, refresh_token });
 }
 
+/** ✅ UPDATED: refresh now validates from DB via ORDS */
 async function refresh(req, res) {
   const { refresh_token } = req.body || {};
-    console.log("🔁 /auth/refresh", {
+
+  console.log("🔁 /auth/refresh", {
     pid: process.pid,
     hasToken: !!refresh_token,
     starts: refresh_token ? refresh_token.slice(0, 10) : null,
-    storeHit: !!(refresh_token && store.get(refresh_token)),
   });
 
-  const userId = refresh_token && store.get(refresh_token);
-  if (!userId) return res.status(401).json({ message: 'Invalid refresh token' });
+  if (!refresh_token) {
+    return res.status(400).json({ message: "refresh_token required" });
+  }
 
-  const access_token = signAccessToken({ sub: userId, role: 'user' });
-  return res.json({ access_token });
+  try {
+    const data = await authTokensValidate({ refresh_token });
+
+    const userId = Number(data?.user_id);
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+
+    const access_token = signAccessToken({ sub: String(userId), role: 'user' });
+    return res.json({ access_token });
+
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
 }
+
+async function logout(req, res) {
+  const { refresh_token } = req.body || {};
+  if (!refresh_token) return res.status(400).json({ message: "refresh_token required" });
+
+  try {
+    await authTokensRevoke({ refresh_token });   // ✅ marks it revoked in DB
+    return res.json({ ok: true });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
 
 async function login(req, res) {
   try {
@@ -127,13 +172,16 @@ async function login(req, res) {
       return res.status(401).json({ message: response_message });
     }
 
-    // Issue your app tokens
-    const access_token = signAccessToken({ sub: String(out_user_id), role: 'user', email: out_email }, '30m');
+    const access_token = signAccessToken(
+      { sub: String(out_user_id), role: 'user', email: out_email },
+      '30m'
+    );
+
     const refresh_token = crypto.randomBytes(64).toString('hex');
-    store.put(refresh_token, String(out_user_id));
+    await persistRefreshToken(out_user_id, refresh_token); // ✅ UPDATED
 
     return res.json({
-      message: response_message, // ← backend-driven message
+      message: response_message,
       access_token,
       refresh_token,
       profile: {
@@ -169,17 +217,21 @@ async function register(req, res) {
       data.response_message ??
       data.RESPONSE_MESSAGE ??
       'Registration failed';
+
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
 
-    // Issue your app tokens
-    const access_token = signAccessToken({ sub: String(out_user_id), role: 'user', email: out_email }, '30m');
+    const access_token = signAccessToken(
+      { sub: String(out_user_id), role: 'user', email: out_email },
+      '30m'
+    );
+
     const refresh_token = crypto.randomBytes(64).toString('hex');
-    store.put(refresh_token, String(out_user_id));
+    await persistRefreshToken(out_user_id, refresh_token); // ✅ UPDATED
 
     return res.json({
-      message: response_message, // ← backend-driven message
+      message: response_message,
       access_token,
       refresh_token,
       profile: {
@@ -213,18 +265,21 @@ async function loginClient(req, res) {
       data.response_message ??
       data.RESPONSE_MESSAGE ??
       'Client does not exist';
+
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
 
+    const access_token = signAccessToken(
+      { sub: String(out_user_id), role: 'user', email: out_email },
+      '30m'
+    );
 
-    // Issue your app tokens
-    const access_token = signAccessToken({ sub: String(out_user_id), role: 'user', email: out_email }, '30m');
     const refresh_token = crypto.randomBytes(64).toString('hex');
-    store.put(refresh_token, String(out_user_id));
+    await persistRefreshToken(out_user_id, refresh_token); // ✅ UPDATED
 
     return res.json({
-      message: response_message, // ← backend-driven message
+      message: response_message,
       access_token,
       refresh_token,
       profile: {
@@ -254,12 +309,11 @@ async function getLoginClientEmail(req, res) {
       data.response_message ??
       data.RESPONSE_MESSAGE ??
       'Invalid client code.';
-    if (!out_user_id) {
-      return res.status(401).json({ message: response_message });
-    }
-    // ORDS returns OUT params: { out_email, out_mobile_number }
+
+    // ✅ FIXED: removed invalid out_user_id check (it wasn't defined here)
+
     return res.json({
-      message: response_message, // ← backend-driven message
+      message: response_message,
       email: data?.out_email ?? null,
       mobile: data?.out_mobile_number ?? null,
     });
@@ -270,7 +324,6 @@ async function getLoginClientEmail(req, res) {
   }
 }
 
-
 async function getClientCode(req, res) {
   try {
     let { email } = req.body || {};
@@ -279,12 +332,11 @@ async function getClientCode(req, res) {
     }
 
     const data = await resendClientCode({ email });
-
     return res.json(data);
   } catch (e) {
     const code = e.response?.status ?? 500;
     const payload = e.response?.data ?? { message: e.message };
-    return res.status(code).json(payload);  // <-- don’t swallow errors
+    return res.status(code).json(payload);
   }
 }
 
@@ -303,12 +355,13 @@ async function registerExistingClientFromMainDB(req, res) {
       data.response_message ??
       data.RESPONSE_MESSAGE ??
       'Client does not exist';
+
     if (!out_email) {
       return res.status(404).json({ message: 'Login failed' });
     }
 
     return res.json({
-      message: response_message, // ← backend-driven message
+      message: response_message,
       profile: {
         email: out_email,
         full_name: out_name,
@@ -319,6 +372,7 @@ async function registerExistingClientFromMainDB(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+
 async function clienCodeExist(req, res) {
   try {
     let { client_code } = req.body || {};
@@ -327,10 +381,7 @@ async function clienCodeExist(req, res) {
     }
 
     const chk = await checkClientCode({ client_code });
-
-    // Try the direct field first
     let status = chk?.status;
-
 
     if (!status) {
       return res.status(500).json({ ok: false, message: "Invalid ORDS response." });
@@ -354,6 +405,17 @@ async function clienCodeExist(req, res) {
   }
 }
 
-
-
-module.exports = { sendOtp, verifyOtp, getLoginClientEmail, getClientCode, issueToken, refresh, login, loginClient, clienCodeExist, register, registerExistingClientFromMainDB };
+module.exports = {
+  sendOtp,
+  verifyOtp,
+  getLoginClientEmail,
+  getClientCode,
+  issueToken,
+  refresh,
+  login,
+  loginClient,
+  clienCodeExist,
+  register,
+  registerExistingClientFromMainDB,
+  logout
+};

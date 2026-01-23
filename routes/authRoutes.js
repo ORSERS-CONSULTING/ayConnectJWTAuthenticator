@@ -12,4 +12,6 @@ router.post('/loginClient', ctrl.loginClient);
 router.post('/clienCodeExist', ctrl.clienCodeExist);
 router.post('/register', ctrl.register);
 router.post('/registerExistingClient', ctrl.registerExistingClientFromMainDB);
+router.post("/logout", ctrl.logout);
+
 module.exports = router;
