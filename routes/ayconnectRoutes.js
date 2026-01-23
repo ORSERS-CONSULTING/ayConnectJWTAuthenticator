@@ -36,7 +36,7 @@ router.post("/registerPushToken", authUser, ctrl.registerPushToken);
 router.get("/getNotifications", authUser, ctrl.getNotifications);
 router.get("/downloadUserDoc", authUser, ctrl.downloadUserDoc);
 router.get("/getRequests", authUser, ctrl.getRequests);
-router.get("/media", authUser, ctrl.media);
+router.get("/media", ctrl.media);
 router.post("/markNotificationRead", authUser, ctrl.markNotificationRead);
 router.post("/clearPushToken", authUser, ctrl.clearPushToken);
 module.exports = router;
