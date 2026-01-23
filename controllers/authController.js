@@ -80,7 +80,7 @@ async function issueToken(req, res) {
   const { user_id, role = 'user', email } = req.body || {};
   if (!user_id) return res.status(400).json({ message: 'user_id required' });
 
-  const access_token = signAccessToken({ sub: String(user_id), role, email }, '30m');
+  const access_token = signAccessToken({ sub: String(user_id), role, email });
   const refresh_token = crypto.randomBytes(64).toString('hex');
   store.put(refresh_token, String(user_id));
 
@@ -89,10 +89,17 @@ async function issueToken(req, res) {
 
 async function refresh(req, res) {
   const { refresh_token } = req.body || {};
+    console.log("🔁 /auth/refresh", {
+    pid: process.pid,
+    hasToken: !!refresh_token,
+    starts: refresh_token ? refresh_token.slice(0, 10) : null,
+    storeHit: !!(refresh_token && store.get(refresh_token)),
+  });
+
   const userId = refresh_token && store.get(refresh_token);
   if (!userId) return res.status(401).json({ message: 'Invalid refresh token' });
 
-  const access_token = signAccessToken({ sub: userId, role: 'user' }, '30m');
+  const access_token = signAccessToken({ sub: userId, role: 'user' });
   return res.json({ access_token });
 }
 
