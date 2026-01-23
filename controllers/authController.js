@@ -22,10 +22,11 @@ const { sendSms } = require('../services/etisalatServices');
 
 const REFRESH_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 30);
 
-async function persistRefreshToken(userId, refresh_token) {
+async function persistRefreshToken(userId, refresh_token, device_id) {
   await authTokensCreate({
     user_id: Number(userId),
     refresh_token,
+    device_id,
     days: REFRESH_DAYS,
   });
 }
@@ -92,42 +93,40 @@ async function verifyOtp(req, res) {
 
 /** Optional: keep these if you still want them */
 async function issueToken(req, res) {
-  const { user_id, role = 'user', email } = req.body || {};
-  if (!user_id) return res.status(400).json({ message: 'user_id required' });
+  const { user_id, role = "user", email, device_id } = req.body || {};
+  if (!user_id) return res.status(400).json({ message: "user_id required" });
+  if (!device_id) return res.status(400).json({ message: "device_id required" });
 
   const access_token = signAccessToken({ sub: String(user_id), role, email });
-  const refresh_token = crypto.randomBytes(64).toString('hex');
+  const refresh_token = crypto.randomBytes(64).toString("hex");
 
-  await persistRefreshToken(user_id, refresh_token);
+  await persistRefreshToken(user_id, refresh_token, device_id);
 
   return res.json({ access_token, refresh_token });
 }
 
 /** ✅ UPDATED: refresh now validates from DB via ORDS */
 async function refresh(req, res) {
-  const { refresh_token } = req.body || {};
+  const { refresh_token, device_id } = req.body || {};
 
   console.log("🔁 /auth/refresh", {
     pid: process.pid,
     hasToken: !!refresh_token,
+    hasDevice: !!device_id,
     starts: refresh_token ? refresh_token.slice(0, 10) : null,
   });
 
-  if (!refresh_token) {
-    return res.status(400).json({ message: "refresh_token required" });
-  }
+  if (!refresh_token) return res.status(400).json({ message: "refresh_token required" });
+  if (!device_id) return res.status(400).json({ message: "device_id required" });
 
   try {
-    const data = await authTokensValidate({ refresh_token });
+    const data = await authTokensValidate({ refresh_token, device_id });
 
     const userId = Number(data?.user_id);
-    if (!userId) {
-      return res.status(401).json({ message: "Invalid refresh token" });
-    }
+    if (!userId) return res.status(401).json({ message: "Invalid refresh token" });
 
-    const access_token = signAccessToken({ sub: String(userId), role: 'user' });
+    const access_token = signAccessToken({ sub: String(userId), role: "user" });
     return res.json({ access_token });
-
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
@@ -135,11 +134,12 @@ async function refresh(req, res) {
 }
 
 async function logout(req, res) {
-  const { refresh_token } = req.body || {};
+  const { refresh_token, device_id } = req.body || {};
   if (!refresh_token) return res.status(400).json({ message: "refresh_token required" });
+  if (!device_id) return res.status(400).json({ message: "device_id required" });
 
   try {
-    await authTokensRevoke({ refresh_token });   // ✅ marks it revoked in DB
+    await authTokensRevoke({ refresh_token, device_id });
     return res.json({ ok: true });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -148,12 +148,18 @@ async function logout(req, res) {
 }
 
 
+
 async function login(req, res) {
   try {
-    let { email, mobile_number, channel, target } = req.body || {};
+    let { email, mobile_number, channel, target, device_id } = req.body || {};
+
+    if (!device_id) {
+      return res.status(400).json({ message: "device_id required" });
+    }
+
     if (!email && !mobile_number && channel && target) {
-      if (String(channel).toLowerCase() === 'email') email = target;
-      if (String(channel).toLowerCase() === 'mobile') mobile_number = target;
+      if (String(channel).toLowerCase() === "email") email = target;
+      if (String(channel).toLowerCase() === "mobile") mobile_number = target;
     }
 
     const data = await ordsLogin({ email, mobile_number });
@@ -164,21 +170,19 @@ async function login(req, res) {
     const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
     const response_message =
-      data.response_message ??
-      data.RESPONSE_MESSAGE ??
-      'Login failed';
+      data.response_message ?? data.RESPONSE_MESSAGE ?? "Login failed";
 
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
 
     const access_token = signAccessToken(
-      { sub: String(out_user_id), role: 'user', email: out_email },
-      '30m'
+      { sub: String(out_user_id), role: "user", email: out_email },
+      "30m"
     );
 
-    const refresh_token = crypto.randomBytes(64).toString('hex');
-    await persistRefreshToken(out_user_id, refresh_token); // ✅ UPDATED
+    const refresh_token = crypto.randomBytes(64).toString("hex");
+    await persistRefreshToken(out_user_id, refresh_token, device_id); // ✅ FIXED
 
     return res.json({
       message: response_message,
@@ -190,7 +194,7 @@ async function login(req, res) {
         email: out_email,
         client_code: out_client_code,
         full_name: out_name,
-      }
+      },
     });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -200,10 +204,14 @@ async function login(req, res) {
 
 async function register(req, res) {
   try {
-    let { email, mobile_number, full_name } = req.body || {}
+    let { email, mobile_number, full_name, device_id } = req.body || {};
+
+    if (!device_id) {
+      return res.status(400).json({ message: "device_id required" });
+    }
 
     if (!email || !mobile_number || !full_name) {
-      return res.status(400).json({ message: 'Please fill all the fileds' });
+      return res.status(400).json({ message: "Please fill all the fileds" });
     }
 
     const data = await registerUser({ email, mobile_number, full_name });
@@ -214,21 +222,19 @@ async function register(req, res) {
     const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
     const response_message =
-      data.response_message ??
-      data.RESPONSE_MESSAGE ??
-      'Registration failed';
+      data.response_message ?? data.RESPONSE_MESSAGE ?? "Registration failed";
 
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
 
     const access_token = signAccessToken(
-      { sub: String(out_user_id), role: 'user', email: out_email },
-      '30m'
+      { sub: String(out_user_id), role: "user", email: out_email },
+      "30m"
     );
 
-    const refresh_token = crypto.randomBytes(64).toString('hex');
-    await persistRefreshToken(out_user_id, refresh_token); // ✅ UPDATED
+    const refresh_token = crypto.randomBytes(64).toString("hex");
+    await persistRefreshToken(out_user_id, refresh_token, device_id); // ✅ FIXED
 
     return res.json({
       message: response_message,
@@ -240,7 +246,7 @@ async function register(req, res) {
         email: out_email,
         client_code: out_client_code,
         full_name: out_name,
-      }
+      },
     });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -248,12 +254,19 @@ async function register(req, res) {
   }
 }
 
+
 async function loginClient(req, res) {
   try {
-    let { client_code } = req.body || {};
-    if (!client_code) {
-      return res.status(400).json({ message: 'Provide client code please.' });
+    let { client_code, device_id } = req.body || {};
+
+    if (!device_id) {
+      return res.status(400).json({ message: "device_id required" });
     }
+
+    if (!client_code) {
+      return res.status(400).json({ message: "Provide client code please." });
+    }
+
     const data = await registerClient({ client_code });
 
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
@@ -262,21 +275,19 @@ async function loginClient(req, res) {
     const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
     const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
     const response_message =
-      data.response_message ??
-      data.RESPONSE_MESSAGE ??
-      'Client does not exist';
+      data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
 
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
 
     const access_token = signAccessToken(
-      { sub: String(out_user_id), role: 'user', email: out_email },
-      '30m'
+      { sub: String(out_user_id), role: "user", email: out_email },
+      "30m"
     );
 
-    const refresh_token = crypto.randomBytes(64).toString('hex');
-    await persistRefreshToken(out_user_id, refresh_token); // ✅ UPDATED
+    const refresh_token = crypto.randomBytes(64).toString("hex");
+    await persistRefreshToken(out_user_id, refresh_token, device_id); // ✅ FIXED
 
     return res.json({
       message: response_message,
@@ -288,13 +299,14 @@ async function loginClient(req, res) {
         email: out_email,
         client_code: out_client_code,
         full_name: out_name,
-      }
+      },
     });
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+
 
 async function getLoginClientEmail(req, res) {
   try {

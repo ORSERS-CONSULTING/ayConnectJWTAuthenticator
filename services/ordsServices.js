@@ -124,26 +124,44 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   };
 }
 
-function authTokensCreate({ user_id, refresh_token, days = 30 }) {
+function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
+  if (!device_id) throw new Error("device_id is required");
+
   const token_hash = sha256Hex(refresh_token);
   return callGateway("POST", "authTokens/create", {
-    params: { user_id: Number(user_id), token_hash, days: Number(days) },
+    params: {
+      user_id: Number(user_id),
+      token_hash,
+      device_id: String(device_id),
+      days: Number(days),
+    },
   });
 }
 
-function authTokensValidate({ refresh_token }) {
+function authTokensValidate({ refresh_token, device_id }) {
+  if (!device_id) throw new Error("device_id is required");
+
   const token_hash = sha256Hex(refresh_token);
   return callGateway("POST", "authTokens/validate", {
-    params: { token_hash },
+    params: {
+      token_hash,
+      device_id: String(device_id),
+    },
   });
 }
 
-function authTokensRevoke({ refresh_token }) {
+function authTokensRevoke({ refresh_token, device_id }) {
+  if (!device_id) throw new Error("device_id is required");
+
   const token_hash = sha256Hex(refresh_token);
   return callGateway("POST", "authTokens/revoke", {
-    params: { token_hash },
+    params: {
+      token_hash,
+      device_id: String(device_id),
+    },
   });
 }
+
 
 function sendMobileOtp(mobile_number) {
   return callGateway("POST", "sendMobileOtp", { params: { mobile_number } });
