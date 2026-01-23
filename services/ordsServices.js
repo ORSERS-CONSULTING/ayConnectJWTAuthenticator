@@ -1,13 +1,12 @@
 const axios = require("axios");
 const { getIdcsToken } = require("./idcsServices");
 const { getOrdsToken } = require("./ordsOAuthService");
+const crypto = require("crypto");
 
-// function peek(s, n = 200) {
-//   return s && s.length > n ? s.slice(0, n) + "…(truncated)" : s || "";
-// }
-// function mask(s) {
-//   return s && s.length > 24 ? `${s.slice(0, 10)}…${s.slice(-6)}` : s || "";
-// }
+function sha256Hex(str) {
+  return crypto.createHash("sha256").update(String(str)).digest("hex");
+}
+
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -125,6 +124,27 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   };
 }
 
+function authTokensCreate({ user_id, refresh_token, days = 30 }) {
+  const token_hash = sha256Hex(refresh_token);
+  return callGateway("POST", "authTokens/create", {
+    params: { user_id: Number(user_id), token_hash, days: Number(days) },
+  });
+}
+
+function authTokensValidate({ refresh_token }) {
+  const token_hash = sha256Hex(refresh_token);
+  return callGateway("POST", "authTokens/validate", {
+    params: { token_hash },
+  });
+}
+
+function authTokensRevoke({ refresh_token }) {
+  const token_hash = sha256Hex(refresh_token);
+  return callGateway("POST", "authTokens/revoke", {
+    params: { token_hash },
+  });
+}
+
 function sendMobileOtp(mobile_number) {
   return callGateway("POST", "sendMobileOtp", { params: { mobile_number } });
 }
@@ -141,6 +161,8 @@ function verifyEmailOtp(email, otp) {
     params: { email, otp_code: otp },
   });
 }
+
+
 function ordsLogin({ email, mobile_number }) {
   const params = {};
   if (email) params.email = email;
@@ -564,6 +586,9 @@ module.exports = {
   ordsUpdateBeneficiary,
   ordsDownloadUserDoc,
   ordsMedia,
+  authTokensCreate,
+  authTokensValidate,
+  authTokensRevoke,
   ordsGetRequests,
   ordsMarkNotificationRead,
   resendClientCode,
