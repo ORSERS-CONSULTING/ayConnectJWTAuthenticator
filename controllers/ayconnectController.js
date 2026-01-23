@@ -148,16 +148,37 @@ async function getRequests(req, res) {
 async function media(req, res) {
   try {
     const path = String(req.query?.path || "");
-    if (!path) return res.status(400).json({ message: "path is required" });
+    if (!path) {
+      return res.status(400).json({ message: "path is required" });
+    }
 
     const upstream = await ordsMedia({ path });
 
-    // If ordsMedia returns binary/stream in future, we can proxy headers + pipe.
-    // For now, if it's JSON, return JSON:
-    return res.status(200).json(upstream);
+    if (upstream.status >= 400) {
+      return res.status(upstream.status).end();
+    }
+
+    // 🔹 Forward headers
+    const headers = upstream.headers || {};
+
+    if (headers["content-type"]) {
+      res.setHeader("Content-Type", headers["content-type"]);
+    }
+
+    if (headers["content-length"]) {
+      res.setHeader("Content-Length", headers["content-length"]);
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      headers["content-disposition"] || "inline"
+    );
+
+    // 🔹 STREAM, DO NOT JSON
+    upstream.data.pipe(res);
   } catch (e) {
     const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
 
