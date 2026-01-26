@@ -26,6 +26,7 @@ const {
   ordsGetRequests,
   ordsMarkNotificationRead,
   ordsClearPushToken,
+  ordsDownloadInvoicePdf
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -1052,6 +1053,58 @@ async function clearPushToken(req, res) {
   }
 }
 
+// GET /ayconnect/invoices/download?request_id=...
+// GET /ayconnect/getInvoicePdf?request_id=...
+async function downloadInvoicePdf(req, res) {
+  try {
+    // 🔐 MUST come from auth middleware
+    const user_id = String(req.user?.id || req.user?.sub || "");
+    const request_id = Number(req.query?.request_id);
+
+    if (!user_id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (!request_id) {
+      return res.status(400).json({ message: "request_id is required" });
+    }
+
+    // 🔹 Call ORDS (returns stream)
+    const upstream = await ordsDownloadInvoicePdf({
+      request_id,
+      user_id,
+    });
+
+    if (upstream.status >= 400) {
+      return res.status(upstream.status).json({
+        message: "Failed to download invoice",
+      });
+    }
+
+    // 🔹 Forward headers
+    res.setHeader(
+      "Content-Type",
+      upstream.headers["content-type"] || "application/pdf"
+    );
+
+    if (upstream.headers["content-length"]) {
+      res.setHeader("Content-Length", upstream.headers["content-length"]);
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      upstream.headers["content-disposition"] ||
+        'inline; filename="invoice.pdf"'
+    );
+
+    // 🔥 STREAM
+    upstream.data.pipe(res);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json({ message: e.message });
+  }
+}
+
+
 module.exports = {
   getServices,
   ensureRun,
@@ -1078,4 +1131,5 @@ module.exports = {
   media,
   markNotificationRead,
   clearPushToken,
+  downloadInvoicePdf
 };

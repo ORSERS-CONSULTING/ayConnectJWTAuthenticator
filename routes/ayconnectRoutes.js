@@ -39,4 +39,5 @@ router.get("/getRequests", authUser, ctrl.getRequests);
 router.get("/media", ctrl.media);
 router.post("/markNotificationRead", authUser, ctrl.markNotificationRead);
 router.post("/clearPushToken", authUser, ctrl.clearPushToken);
+router.get("/downloadInvoicePdf", authUser, ctrl.downloadInvoicePdf);
 module.exports = router;
