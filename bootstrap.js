@@ -18,7 +18,7 @@ const loadConfig = require('./config/env');
   process.env.MERCHANT_PASSWORD = config.MERCHANT_PASSWORD,
   process.env.ORDS_CLIENT_ID_OCID = config.ORDS_CLIENT_ID_OCID,
   process.env.ORDS_CLIENT_SECRET_OCID = config.ORDS_CLIENT_SECRET_OCID,
-
+  process.env.REFRESH_TOKEN_PEPPER_OCID = config.REFRESH_TOKEN_PEPPER_OCID,
   require('./index'); // start your express app
 })();
 

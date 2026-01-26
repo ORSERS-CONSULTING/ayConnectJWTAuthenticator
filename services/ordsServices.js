@@ -2,9 +2,12 @@ const axios = require("axios");
 const { getIdcsToken } = require("./idcsServices");
 const { getOrdsToken } = require("./ordsOAuthService");
 const crypto = require("crypto");
-
+const REFRESH_PEPPER = process.env.REFRESH_TOKEN_PEPPER_OCID;
+if (!REFRESH_PEPPER) {
+  throw new Error("REFRESH_TOKEN_PEPPER_OCID is missing");
+}
 function sha256Hex(str) {
-  return crypto.createHash("sha256").update(String(str)).digest("hex");
+  return crypto.createHash("sha256").update(String(str) + REFRESH_PEPPER).digest("hex");
 }
 
 function sleep(ms) {
