@@ -481,16 +481,7 @@ function ordsGetNotifications(user_id) {
   });
 }
 
-/**
- * ----------------------------------------------------
- * PAYMENTS (RAKBANK / MPGS)
- * ----------------------------------------------------
- */
 
-/**
- * Create payment record (PENDING)
- * ORDS: POST /payments/init
- */
 async function ordsInitPayment({
   user_id,
   payment_type,
@@ -511,10 +502,7 @@ async function ordsInitPayment({
   });
 }
 
-/**
- * Attach MPGS order + session
- * ORDS: POST /payments/update-session
- */
+
 async function ordsUpdatePaymentSession({
   payment_id,
   mpgs_order_id,
