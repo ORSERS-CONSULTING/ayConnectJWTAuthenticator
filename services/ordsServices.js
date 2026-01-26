@@ -605,6 +605,17 @@ async function ordsGetPayment(payment_id) {
   console.log("🟢 ordsGetPayment response:", res);
   return res?.items?.[0] || null;
 }
+function ordsGetInvoices({ user_id, request_id }) {
+  if (!user_id) throw new Error("user_id is required");
+
+  const params = { user_id: Number(user_id) };
+
+  if (request_id != null) {
+    params.request_id = Number(request_id);
+  }
+
+  return callGateway("GET", "getInvoices", { params });
+}
 
 function ordsClearPushToken({ token }) {
   if (!token) throw new Error("token is required");
@@ -663,4 +674,5 @@ module.exports = {
   ordsGetPayment,
   ordsClearPushToken,
   ordsDownloadInvoicePdf,
+  ordsGetInvoices
 };

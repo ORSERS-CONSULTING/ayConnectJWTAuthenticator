@@ -26,7 +26,8 @@ const {
   ordsGetRequests,
   ordsMarkNotificationRead,
   ordsClearPushToken,
-  ordsDownloadInvoicePdf
+  ordsDownloadInvoicePdf,
+  ordsGetInvoices
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -678,6 +679,50 @@ async function getCurrentStep(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+// GET /ayconnect/getInvoices
+// Optional: ?request_id=...
+async function getInvoices(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.query || {};
+
+    const user_id = String(q.user_id || fromToken);
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
+
+    let request_id = null;
+    if (q.request_id != null) {
+      request_id = Number(q.request_id);
+      if (Number.isNaN(request_id)) {
+        return res.status(400).json({ message: "invalid request_id" });
+      }
+    }
+
+    const data = await ordsGetInvoices({
+      user_id,
+      request_id,
+    });
+
+    // ORDS may return { response_body: "[]" } or direct array
+    let parsed = data;
+
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {
+        parsed = [];
+      }
+    }
+
+    return res.status(200).json({
+      items: Array.isArray(parsed) ? parsed : [],
+    });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
 
 // GET /ayconnect/runs/active?user_id=...
 async function getActiveRuns(req, res) {
@@ -1131,5 +1176,6 @@ module.exports = {
   media,
   markNotificationRead,
   clearPushToken,
-  downloadInvoicePdf
+  downloadInvoicePdf,
+  getInvoices
 };
