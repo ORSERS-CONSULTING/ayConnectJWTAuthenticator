@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { getIdcsToken, getPriavateIdcsToken } = require("./idcsServices");
+const { getIdcsToken } = require("./idcsServices");
 const crypto = require("crypto");
 const REFRESH_PEPPER = process.env.REFRESH_TOKEN_PEPPER_OCID;
 if (!REFRESH_PEPPER) {
@@ -134,16 +134,7 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   };
 }
 
-async function ordsPriavteGetServices() {
-  const url = `https://gqc6k3v25hc5v3pnak4yrznetq.apigateway.me-dubai-1.oci.customer-oci.com/api/getServices`;
-  const token = await getPriavateIdcsToken(url);
-  console.log('[API] Token starts with:', token.slice(0, 20));
-  const res = await axios.get(url, {
-    headers: { Authorization: `Bearer ${token}` },
-    validateStatus: () => true,
-  });
-  return res.data;
-}
+
 function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
   if (!device_id) throw new Error("device_id is required");
 
@@ -690,7 +681,6 @@ module.exports = {
   ordsUpdatePaymentStatus,
   ordsGetPayment,
   ordsClearPushToken,
-  ordsPriavteGetServices,
   ordsDownloadInvoicePdf,
   ordsGetInvoices
 };
