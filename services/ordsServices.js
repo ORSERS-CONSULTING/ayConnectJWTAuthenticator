@@ -137,6 +137,7 @@ async function callGatewayJson(method, path, { params, data } = {}) {
 async function ordsPriavteGetServices() {
   const url = `https://gqc6k3v25hc5v3pnak4yrznetq.apigateway.me-dubai-1.oci.customer-oci.com/api/getServices`;
   const token = await getPriavateIdcsToken(url);
+  console.log('[API] Token starts with:', token.slice(0, 20));
   const res = await axios.get(url, {
     headers: { Authorization: `Bearer ${token}` },
     validateStatus: () => true,
