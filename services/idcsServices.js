@@ -43,7 +43,7 @@ async function getPriavateIdcsToken(scope) {
     const { data } = await axios.post(url, body, {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: `Basic ${base64.encode(`${process.env.IDCS_CLIENT_ID}:${process.env.IDCS_CLIENT_SECRET}`)}`
+            Authorization: `Basic ${base64.encode(`${process.env.TEST_CLEINT}:${process.env.TEST_RESOURCE}`)}`
         },
     });
 

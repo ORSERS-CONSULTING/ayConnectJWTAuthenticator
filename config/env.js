@@ -18,6 +18,8 @@ async function loadConfig() {
   return {
     PORT: process.env.PORT || 3000,
     ACCESS_TOKEN_TTL: process.env.ACCESS_TOKEN_TTL,  // <— add this line
+    TEST_RESOURCE: process.env.TEST_RESOURCE,  // <— add this line
+    TEST_CLEINT: process.env.TEST_CLEINT,  // <— add this line
     JWT_SECRET: await required("JWT_SECRET", "JWT_SECRET_OCID"),
     ORDS_CLIENT_ID_OCID: await required("ORDS_CLIENT_ID", "ORDS_CLIENT_ID_OCID"),
     ORDS_CLIENT_SECRET_OCID: await required("ORDS_CLIENT_SECRET", "ORDS_CLIENT_SECRET_OCID"),
