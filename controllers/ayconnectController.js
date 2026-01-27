@@ -26,6 +26,7 @@ const {
   ordsGetRequests,
   ordsMarkNotificationRead,
   ordsClearPushToken,
+  ordPriavteGetServices
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -239,6 +240,17 @@ async function getServices(_req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+
+async function getPrivateServices(_req, res) {
+  try {
+    const data = await ordPriavteGetServices();
+    return res.json(data);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
 
 async function getDocumentTypes(_req, res) {
   try {
@@ -1078,4 +1090,5 @@ module.exports = {
   media,
   markNotificationRead,
   clearPushToken,
+  getPrivateServices
 };

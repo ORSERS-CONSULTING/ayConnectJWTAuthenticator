@@ -29,4 +29,27 @@ async function getIdcsToken(scope) {
     return cached.token;
 }
 
-module.exports = { getIdcsToken };
+async function getPriavateIdcsToken(scope) {
+    if (!scope) throw new Error('scope required');
+    const now = Math.floor(Date.now() / 1000);
+    if (cached.token && now < cached.exp - 30) return cached.token;
+
+    const url = `https://${process.env.IDCS_TENANT}/oauth2/v1/token`;
+    const body = new URLSearchParams({
+        grant_type: 'client_credentials',
+        scope: scope
+    }).toString();
+
+    const { data } = await axios.post(url, body, {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Basic ${base64.encode(`${process.env.IDCS_CLIENT_ID}:${process.env.IDCS_CLIENT_SECRET}`)}`
+        },
+    });
+
+    cached.token = data.access_token;
+    cached.exp = now + data.expires_in;
+    return cached.token;
+}
+
+module.exports = { getIdcsToken, getPriavateIdcsToken };

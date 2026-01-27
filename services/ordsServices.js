@@ -1,6 +1,5 @@
 const axios = require("axios");
-const { getIdcsToken } = require("./idcsServices");
-const { getOrdsToken } = require("./ordsOAuthService");
+const { getIdcsToken, getPriavateIdcsToken } = require("./idcsServices");
 const crypto = require("crypto");
 const REFRESH_PEPPER = process.env.REFRESH_TOKEN_PEPPER_OCID;
 if (!REFRESH_PEPPER) {
@@ -9,6 +8,14 @@ if (!REFRESH_PEPPER) {
 function sha256Hex(str) {
   return crypto.createHash("sha256").update(String(str) + REFRESH_PEPPER).digest("hex");
 }
+
+// ✅ Standard: peppered verifier via HMAC
+// function refreshDigest(refresh_token) {
+//   return crypto
+//     .createHmac("sha256", String(REFRESH_PEPPER))
+//     .update(String(refresh_token))
+//     .digest("hex");
+// }
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -127,6 +134,20 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   };
 }
 
+async function ordPriavteGetServices() {
+  const url = `https://gqc6k3v25hc5v3pnak4yrznetq.apigateway.me-dubai-1.oci.customer-oci.com/api/getServices`;
+  const token = await getPriavateIdcsToken(url);
+  const res = await axios({
+    url,
+    method,
+    params,
+    data,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data;
+}
 function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
   if (!device_id) throw new Error("device_id is required");
 
@@ -638,4 +659,5 @@ module.exports = {
   ordsUpdatePaymentStatus,
   ordsGetPayment,
   ordsClearPushToken,
+  ordPriavteGetServices
 };
