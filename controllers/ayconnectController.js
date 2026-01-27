@@ -27,6 +27,8 @@ const {
   ordsMarkNotificationRead,
   ordsClearPushToken,
   ordPriavteGetServices
+  ordsDownloadInvoicePdf,
+  ordsGetInvoices
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -689,6 +691,50 @@ async function getCurrentStep(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+// GET /ayconnect/getInvoices
+// Optional: ?request_id=...
+async function getInvoices(req, res) {
+  try {
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.query || {};
+
+    const user_id = String(q.user_id || fromToken);
+    if (!user_id) {
+      return res.status(401).json({ message: "No user in token" });
+    }
+
+    let request_id = null;
+    if (q.request_id != null) {
+      request_id = Number(q.request_id);
+      if (Number.isNaN(request_id)) {
+        return res.status(400).json({ message: "invalid request_id" });
+      }
+    }
+
+    const data = await ordsGetInvoices({
+      user_id,
+      request_id,
+    });
+
+    // ORDS may return { response_body: "[]" } or direct array
+    let parsed = data;
+
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {
+        parsed = [];
+      }
+    }
+
+    return res.status(200).json({
+      items: Array.isArray(parsed) ? parsed : [],
+    });
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
 
 // GET /ayconnect/runs/active?user_id=...
 async function getActiveRuns(req, res) {
@@ -1064,6 +1110,58 @@ async function clearPushToken(req, res) {
   }
 }
 
+// GET /ayconnect/invoices/download?request_id=...
+// GET /ayconnect/getInvoicePdf?request_id=...
+async function downloadInvoicePdf(req, res) {
+  try {
+    // 🔐 MUST come from auth middleware
+    const user_id = String(req.user?.id || req.user?.sub || "");
+    const request_id = Number(req.query?.request_id);
+
+    if (!user_id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    if (!request_id) {
+      return res.status(400).json({ message: "request_id is required" });
+    }
+
+    // 🔹 Call ORDS (returns stream)
+    const upstream = await ordsDownloadInvoicePdf({
+      request_id,
+      user_id,
+    });
+
+    if (upstream.status >= 400) {
+      return res.status(upstream.status).json({
+        message: "Failed to download invoice",
+      });
+    }
+
+    // 🔹 Forward headers
+    res.setHeader(
+      "Content-Type",
+      upstream.headers["content-type"] || "application/pdf"
+    );
+
+    if (upstream.headers["content-length"]) {
+      res.setHeader("Content-Length", upstream.headers["content-length"]);
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      upstream.headers["content-disposition"] ||
+        'inline; filename="invoice.pdf"'
+    );
+
+    // 🔥 STREAM
+    upstream.data.pipe(res);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json({ message: e.message });
+  }
+}
+
+
 module.exports = {
   getServices,
   ensureRun,
@@ -1091,4 +1189,6 @@ module.exports = {
   markNotificationRead,
   clearPushToken,
   getPrivateServices
+  downloadInvoicePdf,
+  getInvoices
 };

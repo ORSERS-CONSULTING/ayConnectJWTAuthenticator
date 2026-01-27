@@ -563,6 +563,30 @@ async function ordsUpdatePaymentSession({
   });
 }
 
+async function ordsDownloadInvoicePdf({ request_id, user_id }) {
+  if (!user_id) throw new Error("user_id is required");
+  if (!request_id) throw new Error("request_id is required");
+
+  const PATH = "getInvoicePdf";
+  const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
+  const token = await getIdcsToken(url);
+
+  return axios({
+    method: "GET",
+    url,
+    params: {
+      request_id: Number(request_id),
+      user_id: Number(user_id),
+    },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    responseType: "stream", // ✅ REQUIRED for PDF
+    validateStatus: () => true, // caller handles status
+  });
+}
+
+
 /**
  * Update final payment status
  * ORDS: POST /payments/update-status
@@ -601,6 +625,17 @@ async function ordsGetPayment(payment_id) {
   });
   console.log("🟢 ordsGetPayment response:", res);
   return res?.items?.[0] || null;
+}
+function ordsGetInvoices({ user_id, request_id }) {
+  if (!user_id) throw new Error("user_id is required");
+
+  const params = { user_id: Number(user_id) };
+
+  if (request_id != null) {
+    params.request_id = Number(request_id);
+  }
+
+  return callGateway("GET", "getInvoices", { params });
 }
 
 function ordsClearPushToken({ token }) {
@@ -660,4 +695,6 @@ module.exports = {
   ordsGetPayment,
   ordsClearPushToken,
   ordPriavteGetServices
+  ordsDownloadInvoicePdf,
+  ordsGetInvoices
 };

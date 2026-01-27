@@ -41,4 +41,6 @@ router.post("/markNotificationRead", authUser, ctrl.markNotificationRead);
 router.post("/clearPushToken", authUser, ctrl.clearPushToken);
 router.get("/privateServices", ctrl.getPrivateServices);
 
+router.get("/downloadInvoicePdf", authUser, ctrl.downloadInvoicePdf);
+router.get("/getInvoices", authUser, ctrl.getInvoices);
 module.exports = router;
