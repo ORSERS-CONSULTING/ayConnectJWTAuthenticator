@@ -134,17 +134,12 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   };
 }
 
-async function ordPriavteGetServices() {
+async function ordsPriavteGetServices() {
   const url = `https://gqc6k3v25hc5v3pnak4yrznetq.apigateway.me-dubai-1.oci.customer-oci.com/api/getServices`;
   const token = await getPriavateIdcsToken(url);
-  const res = await axios({
-    url,
-    method,
-    params,
-    data,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const res = await axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    validateStatus: () => true,
   });
   return res.data;
 }
@@ -694,7 +689,7 @@ module.exports = {
   ordsUpdatePaymentStatus,
   ordsGetPayment,
   ordsClearPushToken,
-  ordPriavteGetServices
+  ordsPriavteGetServices,
   ordsDownloadInvoicePdf,
   ordsGetInvoices
 };

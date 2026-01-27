@@ -26,7 +26,7 @@ const {
   ordsGetRequests,
   ordsMarkNotificationRead,
   ordsClearPushToken,
-  ordPriavteGetServices
+  ordsPriavteGetServices,
   ordsDownloadInvoicePdf,
   ordsGetInvoices
 } = require("../services/ordsServices");
@@ -245,7 +245,7 @@ async function getServices(_req, res) {
 
 async function getPrivateServices(_req, res) {
   try {
-    const data = await ordPriavteGetServices();
+    const data = await ordsPriavteGetServices();
     return res.json(data);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -1188,7 +1188,7 @@ module.exports = {
   media,
   markNotificationRead,
   clearPushToken,
-  getPrivateServices
+  getPrivateServices,
   downloadInvoicePdf,
   getInvoices
 };
