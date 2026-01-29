@@ -584,12 +584,7 @@ async function ordsUpdatePaymentStatus({
   mpgs_transaction_id,
   result_reason,
 }) {
-  console.log("🟢 ordsUpdatePaymentStatus called with:", {
-    payment_id,
-    status,
-    mpgs_transaction_id,
-    result_reason,
-  });
+  
   if (!payment_id || !status) {
     throw new Error("payment_id and status are required");
   }
@@ -610,7 +605,6 @@ async function ordsGetPayment(payment_id) {
   const res = await callGateway("GET", "getPaymentStatus", {
     params: { payment_id: Number(payment_id) },
   });
-  console.log("🟢 ordsGetPayment response:", res);
   return res?.items?.[0] || null;
 }
 function ordsGetInvoices({ user_id, request_id }) {
@@ -627,7 +621,6 @@ function ordsGetInvoices({ user_id, request_id }) {
 
 function ordsClearPushToken({ token }) {
   if (!token) throw new Error("token is required");
-  console.log("🟢 ordsClearPushToken called with token:", token);
   return callGateway("POST", "deletePushToken", {
     params: {
       token: String(token),

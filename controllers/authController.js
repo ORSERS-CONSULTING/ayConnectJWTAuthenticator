@@ -110,12 +110,7 @@ async function issueToken(req, res) {
 async function refresh(req, res) {
   const { refresh_token, device_id } = req.body || {};
 
-  console.log("🔁 /auth/refresh", {
-    pid: process.pid,
-    hasToken: !!refresh_token,
-    hasDevice: !!device_id,
-    starts: refresh_token ? refresh_token.slice(0, 10) : null,
-  });
+ 
 
   if (!refresh_token) return res.status(400).json({ message: "refresh_token required" });
   if (!device_id) return res.status(400).json({ message: "device_id required" });

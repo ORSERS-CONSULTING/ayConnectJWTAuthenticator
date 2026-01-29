@@ -31,26 +31,6 @@ function isOffice(req) {
   return getClientIp(req) === OFFICE_IP;
 }
 
-// Debug log (optional – for testing IP detection)
-app.use((req, res, next) => {
-  if (!isOffice(req)) {
-    console.log("[RATE DEBUG - Non-office IP]", getClientIp(req));
-  }
-  next();
-});
-
-// === Payment route first (with its own parsers) ===
-// app.use(
-//   "/payment",
-//   express.urlencoded({ extended: true, limit: "25mb" }),
-//   paymentRoutes
-// );
-
-// // === Global middleware for the rest of the app ===
-// app.use(express.json({ limit: "25mb" }));
-// app.use(express.urlencoded({ extended: true, limit: "25mb" }));
-// app.use(cors());
-// === Global middleware FIRST ===
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 app.use(cors());
@@ -119,12 +99,10 @@ const io = new Server(server, {
 //  🔥 LIVE CHAT WEBSOCKET HANDLERS
 // -----------------------------------------------------
 io.on("connection", (socket) => {
-  console.log("⚡ WebSocket client connected:", socket.id);
 
   // join chat room
   socket.on("join", ({ ticketId }) => {
     socket.join(`ticket:${ticketId}`);
-    console.log(`Joined room: ticket:${ticketId}`);
   });
 
   // typing indicator
@@ -182,5 +160,4 @@ const PORT = process.env.PORT || 3000;
 const HOST = "127.0.0.1";
 
 server.listen(PORT, HOST, () => {
-  console.log(`✅ API + WebSocket running on http://${HOST}:${PORT}`);
 });

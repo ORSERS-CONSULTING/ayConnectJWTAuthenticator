@@ -59,7 +59,6 @@ module.exports = {
         if (keys.current) {
           this._state.keys = keys;
           if (process.env.NODE_ENV !== 'production') {
-            console.log('[jwtKeyring] loaded keys current.kid=', keys.current?.kid, ' prev.kid=', keys.previous?.kid, 'currentVer=', keys.currentVersion);
           }
         } else {
           throw new Error('No current JWT key could be loaded');

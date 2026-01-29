@@ -89,7 +89,6 @@ async function verifyPayment(req, res) {
     }
 
     const payment = await ordsGetPayment(paymentId);
-    console.log("🟢 Fetched payment:", payment);
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -100,7 +99,6 @@ async function verifyPayment(req, res) {
     }
     // MPGS verification
     const order = await retrieveOrder(payment.mpgs_order_id);
-    console.log("🟢 Retrieved MPGS order:", order);
     if (
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
@@ -112,12 +110,7 @@ async function verifyPayment(req, res) {
           order?.authentication?.["3ds"]?.transactionId || null,
         result_reason: "Payment successful",
       });
-      console.log(
-        "🟢 Payment PAID:",
-        paymentId,
-        "transaction id:",
-        order?.authentication?.["3ds"]?.transactionId
-      );
+     
 
       return res.json({ status: "PAID" });
     }
