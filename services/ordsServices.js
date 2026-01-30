@@ -5,17 +5,17 @@ const REFRESH_PEPPER = process.env.REFRESH_TOKEN_PEPPER_OCID;
 if (!REFRESH_PEPPER) {
   throw new Error("REFRESH_TOKEN_PEPPER_OCID is missing");
 }
-function sha256Hex(str) {
-  return crypto.createHash("sha256").update(String(str) + REFRESH_PEPPER).digest("hex");
-}
+// function sha256Hex(str) {
+//   return crypto.createHash("sha256").update(String(str) + REFRESH_PEPPER).digest("hex");
+// }
 
 // ✅ Standard: peppered verifier via HMAC
-// function refreshDigest(refresh_token) {
-//   return crypto
-//     .createHmac("sha256", String(REFRESH_PEPPER))
-//     .update(String(refresh_token))
-//     .digest("hex");
-// }
+function refreshDigest(refresh_token) {
+  return crypto
+    .createHmac("sha256", String(REFRESH_PEPPER))
+    .update(String(refresh_token))
+    .digest("hex");
+}
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -139,7 +139,7 @@ async function callGatewayJson(method, path, { params, data } = {}) {
 function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
   if (!device_id) throw new Error("device_id is required");
 
-  const token_hash = sha256Hex(refresh_token);
+  const token_hash = refreshDigest(refresh_token);
   return callGateway("POST", "authTokens/create", {
     params: {
       user_id: Number(user_id),
@@ -153,7 +153,7 @@ function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
 function authTokensValidate({ refresh_token, device_id }) {
   if (!device_id) throw new Error("device_id is required");
 
-  const token_hash = sha256Hex(refresh_token);
+  const token_hash = refreshDigest(refresh_token);
   return callGateway("POST", "authTokens/validate", {
     params: {
       token_hash,
@@ -165,7 +165,7 @@ function authTokensValidate({ refresh_token, device_id }) {
 function authTokensRevoke({ refresh_token, device_id }) {
   if (!device_id) throw new Error("device_id is required");
 
-  const token_hash = sha256Hex(refresh_token);
+  const token_hash = refreshDigest(refresh_token);
   return callGateway("POST", "authTokens/revoke", {
     params: {
       token_hash,
