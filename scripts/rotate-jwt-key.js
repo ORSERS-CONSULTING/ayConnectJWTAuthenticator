@@ -16,17 +16,13 @@ async function run() {
     process.exit(2);
   }
  
-  console.log('Fetching current to learn version...');
   const { plaintext: curPlain, versionNumber: curVer } = await getSecretBundleWithMeta(secretOcId);
-  console.log('Current version:', curVer);
 
   // (No external PREVIOUS secret required — previous will be the bundle with version curVer)
-  console.log('Generating new key and creating new bundle (this becomes version', curVer + 1, ')...');
   const newJson = makeNewKeyJson();
   const parsed = JSON.parse(newJson);
   await createSecretBundle(secretOcId, newJson);
-  console.log('Rotation done. New kid:', parsed.kid);
-  console.log('Old key remains available as version', curVer, '— jwtKeyring fetches curVer-1 automatically as previous.');
+ 
 }
 
 run().catch(e => { console.error('Rotation failed:', e && e.message || e); process.exit(1); });

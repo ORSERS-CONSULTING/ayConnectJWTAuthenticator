@@ -34,32 +34,8 @@ async function initiateHostedCheckout({ amount, orderId }) {
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
   const currency = process.env.CURRENCY || "AED";
-  console.log("🧪 MPGS CONFIG", {
-    merchantId,
-    currency,
-    baseUrl,
-  });
+
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
-
-  // const payload = {
-  //   apiOperation: "INITIATE_CHECKOUT",
-  //   checkoutMode: "WEBSITE",
-
-  //   interaction: {
-  //     operation: "PURCHASE",
-  //     merchant: {
-  //       name: "AY Connect",
-  //       url: "https://ameryon.com",
-  //     },
-  //     returnUrl: "https://ameryon.com/payment/return",
-  //   },
-  //   order: {
-  //     id: orderId,
-  //     amount: Number(amount).toFixed(2),
-  //     currency: currency,
-  //     description: "AY Connect Service Payment",
-  //   },
-  // };
 
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
@@ -94,7 +70,6 @@ async function initiateHostedCheckout({ amount, orderId }) {
     },
   };
 
-  console.log("🟣 MPGS PAYLOAD:", JSON.stringify(payload, null, 2));
 
   let res;
   try {
@@ -105,7 +80,6 @@ async function initiateHostedCheckout({ amount, orderId }) {
       },
       timeout: 15000,
     });
-    console.log("🧪 MPGS RESPONSE:", JSON.stringify(res.data, null, 2));
   } catch (err) {
     const msg =
       err.response?.data || err.message || "Failed to create MPGS session";

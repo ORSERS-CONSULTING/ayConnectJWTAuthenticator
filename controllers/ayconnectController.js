@@ -734,18 +734,12 @@ async function getActiveRuns(req, res) {
       return res.status(401).json({ message: "No user in token" });
     }
 
-    console.log("[active-runs] user_id=", user_id);
 
     const data = await ordsGetActiveRuns(user_id);
 
     // ORDS may return { items: [...] } or an array
     const items = Array.isArray(data) ? data : data?.items ?? [];
-    console.log("[active-runs] raw items length from ORDS:", items.length);
 
-    // Map to a clean, consistent shape that matches the mobile type expectations:
-    // - ensure top-level `id`
-    // - pass through `service_id`/`procedure_id`
-    // - prefer `progress_pct` if present
     const normalized = items.map((x) => ({
       run_type: x.run_type, // "PROCEDURE" | "SERVICE"
       id: x.id ?? x.proc_instance_id ?? null, // <— ensure id
@@ -761,15 +755,7 @@ async function getActiveRuns(req, res) {
     }));
 
     // quick visibility log (first few)
-    console.log(
-      "[active-runs] normalized sample:",
-      normalized.slice(0, 3).map((r) => ({
-        run_type: r.run_type,
-        id: r.id,
-        service_id: r.service_id,
-        status: r.status,
-      }))
-    );
+    
 
     return res.status(200).json({ items: normalized });
   } catch (e) {
@@ -859,12 +845,7 @@ async function initiateService(req, res) {
         .status(400)
         .json({ success: false, message: "beneficiary_id is required" });
 
-    console.log("[initiateService] Starting →", {
-      user_id,
-      service_id,
-      beneficiary_id,
-      procedure_id,
-    });
+ 
 
     // 🔹 Call ORDS backend
     const data = await ordsInitiateService(
@@ -874,7 +855,6 @@ async function initiateService(req, res) {
       procedure_id
     );
 
-    console.log("[initiateService] Upstream raw:", data);
 
     // 🔹 Parse ORDS JSON wrapper
     let parsed = data;
@@ -886,7 +866,6 @@ async function initiateService(req, res) {
       }
     }
 
-    console.log("[initiateService] Parsed:", parsed);
 
     // 🔹 SUCCESS → return fields from PL/SQL EXACTLY AS THEY ARE
     if (parsed?.success === true) {
@@ -934,7 +913,6 @@ async function getServiceStatus(req, res) {
     if (!service_id)
       return res.status(400).json({ message: "service_id is required" });
 
-    console.log("[getServiceStatus] Starting →", { user_id, service_id });
 
     const data = await ordsGetServiceStatus(user_id, service_id);
 
@@ -989,7 +967,6 @@ async function registerPushToken(req, res) {
       return res.status(400).json({ message: "expo_push_token is required" });
     }
 
-    console.log("[registerPushToken] →", { user_id, expo_push_token });
 
     const data = await ordsRegisterPushToken({ user_id, expo_push_token });
 
@@ -1066,10 +1043,8 @@ async function clearPushToken(req, res) {
       return res.status(400).json({ message: "token query param is required" });
     }
 
-    console.log("[clearPushToken] →", { token });
 
     const data = await ordsClearPushToken({ token });
-    console.log("[clearPushToken] raw response:", data);
 
     // ORDS usually returns 204 No Content
     if (!data || data.status === 204) {
@@ -1077,7 +1052,6 @@ async function clearPushToken(req, res) {
     }
 
     let parsed = data;
-    console.log("[clearPushToken] raw response:", data);
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
