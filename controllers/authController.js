@@ -45,7 +45,7 @@ async function sendOtp(req, res) {
       if (otp) {
         const msg = `Your OTP is ${otp}`;
         try {
-          await sendSms({ to: String(target), message: msg });
+          await sendSms({ opts: { to: String(target), message: msg } });
         } catch (err) {
           console.error('Etisalat SMS failed:', err?.message || err);
         }
