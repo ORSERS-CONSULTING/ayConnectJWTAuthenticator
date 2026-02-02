@@ -21,6 +21,7 @@ const loadConfig = require('./config/env');
   process.env.REFRESH_TOKEN_PEPPER_OCID = config.REFRESH_TOKEN_PEPPER_OCID,
   process.env.TEST_RESOURCE = config.TEST_RESOURCE,
   process.env.TEST_CLEINT = config.TEST_CLEINT,
+  process.env.REFRESH_TOKEN_DAYS = config.REFRESH_TOKEN_DAYS,
   require('./index'); // start your express app
 })();
 
