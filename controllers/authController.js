@@ -21,8 +21,8 @@ const {
 
 const { sendSms } = require('../services/etisalatServices');
 
-const TTL_MINUTES = Number(process.env.REFRESH_TOKEN_DAYS); // 30 days default in minutes
-const days = TTL_MINUTES / 1440;
+
+const days = process.env.REFRESH_TOKEN_DAYS;
 async function persistRefreshToken(userId, refresh_token, device_id) {
 console.log(days);
   await authTokensCreate({
