@@ -1133,7 +1133,6 @@ module.exports = {
   getBeneficiaries,
   getDocumentTypes,
   uploadUserDocuments,
-  getProcedures,
   getDepartments,
   getUserAvatar,
   uploadUserAvatar,
