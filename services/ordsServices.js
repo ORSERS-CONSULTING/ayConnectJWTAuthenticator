@@ -25,7 +25,7 @@ async function callGatewayBinary(
   path,
   rawBuffer,
   contentType,
-  { params } = {}
+  { params } = {},
 ) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
@@ -134,7 +134,6 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   };
 }
 
-
 function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
   if (!device_id) throw new Error("device_id is required");
 
@@ -173,7 +172,6 @@ function authTokensRevoke({ refresh_token, device_id }) {
   });
 }
 
-
 function sendMobileOtp(mobile_number) {
   return callGateway("POST", "sendMobileOtp", { params: { mobile_number } });
 }
@@ -190,7 +188,6 @@ function verifyEmailOtp(email, otp) {
     params: { email, otp_code: otp },
   });
 }
-
 
 function ordsLogin({ email, mobile_number }) {
   const params = {};
@@ -240,9 +237,9 @@ function ordsGetServices() {
 function ordsGetDepartments() {
   return callGateway("GET", "getDepartments");
 }
-function ordsGetProcedures() {
-  return callGateway("GET", "getProcedures");
-}
+// function ordsGetProcedures() {
+//   return callGateway("GET", "getProcedures");
+// }
 function ordsGetUserDocs(user_id) {
   return callGateway("GET", "showUserDocuments", {
     params: { user_id: Number(user_id) },
@@ -402,7 +399,6 @@ async function ordsMedia({ path }) {
   });
 }
 
-
 function ordsMarkNotificationRead({ user_id, notif_id }) {
   if (!user_id) throw new Error("user_id is required");
 
@@ -416,45 +412,45 @@ function ordsMarkNotificationRead({ user_id, notif_id }) {
   return callGateway("POST", "markNotificationRead", { params });
 }
 
-function ordsGetActiveRuns(user_id) {
-  if (!user_id) throw new Error("user_id is required");
-  return callGateway("GET", "procedures", {
-    params: { user_id: Number(user_id) },
-  });
-}
+// function ordsGetActiveRuns(user_id) {
+//   if (!user_id) throw new Error("user_id is required");
+//   return callGateway("GET", "procedures", {
+//     params: { user_id: Number(user_id) },
+//   });
+// }
 
 // Current step for a specific procedure instance
-function ordsGetCurrentStep(procInstanceId) {
-  if (!procInstanceId) throw new Error("procInstanceId is required");
-  // ORDS expects ?id=...
-  return callGateway("GET", "procedureInstancesCurrentStep", {
-    params: { id: Number(procInstanceId) },
-  });
-}
+// function ordsGetCurrentStep(procInstanceId) {
+//   if (!procInstanceId) throw new Error("procInstanceId is required");
+//   // ORDS expects ?id=...
+//   return callGateway("GET", "procedureInstancesCurrentStep", {
+//     params: { id: Number(procInstanceId) },
+//   });
+// }
 
-function ordsEnsureRun({
-  user_id,
-  procedure_id,
-  service_id,
-  order_ref,
-  beneficiary_id,
-}) {
-  if (!user_id) throw new Error("user_id is required");
+// function ordsEnsureRun({
+//   user_id,
+//   procedure_id,
+//   service_id,
+//   order_ref,
+//   beneficiary_id,
+// }) {
+//   if (!user_id) throw new Error("user_id is required");
 
-  const params = { user_id: Number(user_id) };
-  if (procedure_id != null) params.procedure_id = Number(procedure_id);
-  if (service_id != null) params.service_id = Number(service_id);
-  if (beneficiary_id != null) params.beneficiary_id = Number(beneficiary_id);
-  if (order_ref) params.order_ref = String(order_ref);
+//   const params = { user_id: Number(user_id) };
+//   if (procedure_id != null) params.procedure_id = Number(procedure_id);
+//   if (service_id != null) params.service_id = Number(service_id);
+//   if (beneficiary_id != null) params.beneficiary_id = Number(beneficiary_id);
+//   if (order_ref) params.order_ref = String(order_ref);
 
-  // ORDS handler is PL/SQL with IN params via URI
-  return callGateway("POST", "procedures", { params });
-}
+//   // ORDS handler is PL/SQL with IN params via URI
+//   // return callGateway("POST", "procedures", { params });
+// }
 function ordsInitiateService(
   service_id,
   user_id,
   beneficiary_id,
-  procedure_id = null
+  procedure_id = null,
 ) {
   if (!service_id || !user_id || !beneficiary_id)
     throw new Error("service_id, user_id, and beneficiary_id are required");
@@ -510,7 +506,6 @@ function ordsGetNotifications(user_id) {
   });
 }
 
-
 async function ordsInitPayment({
   user_id,
   payment_type,
@@ -530,7 +525,6 @@ async function ordsInitPayment({
     },
   });
 }
-
 
 async function ordsUpdatePaymentSession({
   payment_id,
@@ -573,7 +567,6 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
   });
 }
 
-
 /**
  * Update final payment status
  * ORDS: POST /payments/update-status
@@ -584,7 +577,6 @@ async function ordsUpdatePaymentStatus({
   mpgs_transaction_id,
   result_reason,
 }) {
-  
   if (!payment_id || !status) {
     throw new Error("payment_id and status are required");
   }
@@ -630,9 +622,9 @@ function ordsClearPushToken({ token }) {
 
 module.exports = {
   callGateway,
-  ordsGetActiveRuns,
-  ordsEnsureRun,
-  ordsGetCurrentStep,
+  // ordsGetActiveRuns,
+  // ordsEnsureRun,
+  // ordsGetCurrentStep,
   ordsGetUserAvatar,
   ordsGetBeneficiaries,
   ordsCreateBeneficiary,
@@ -662,11 +654,9 @@ module.exports = {
   ordsGetUserDocs,
   ordsGetDocumentTypes,
   uploadDocuments,
-  ordsGetProcedures,
   ordsGetDepartments,
   ordsInitiateService,
   ordsGetServiceStatus,
-  ordsProcessPayment,
   ordsRegisterPushToken,
   ordsGetNotifications,
   ordsInitPayment,
@@ -675,5 +665,5 @@ module.exports = {
   ordsGetPayment,
   ordsClearPushToken,
   ordsDownloadInvoicePdf,
-  ordsGetInvoices
+  ordsGetInvoices,
 };

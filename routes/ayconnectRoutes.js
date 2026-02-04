@@ -11,7 +11,7 @@ const rawImages = express.raw({
 router.get("/services", authUser, ctrl.getServices);
 router.get("/user-docs", authUser, ctrl.getUserDocs);
 router.get("/document-types", authUser, ctrl.getDocumentTypes);
-router.get("/getProcedures", authUser, ctrl.getProcedures);
+// router.get("/getProcedures", authUser, ctrl.getProcedures);
 router.get("/getDepartments", authUser, ctrl.getDepartments);
 router.post("/uploadUserDocuments", authUser, ctrl.uploadUserDocuments);
 router.get("/user/avatar", authUser, ctrl.getUserAvatar);
@@ -29,7 +29,7 @@ router.post("/beneficiaries", authUser, ctrl.createBeneficiary);
 router.put("/beneficiaries", authUser, ctrl.updateBeneficiary);
 router.get("/runs/active", authUser, ctrl.getActiveRuns);
 router.get("/procedure-instances/current-step", authUser, ctrl.getCurrentStep);
-router.post("/procedures", authUser, express.json(), ctrl.ensureRun);
+// router.post("/procedures", authUser, express.json(), ctrl.ensureRun);
 router.post("/initiateService", authUser, express.json(), ctrl.initiateService);
 router.get("/getServiceStatus", authUser, ctrl.getServiceStatus);
 router.post("/registerPushToken", authUser, ctrl.registerPushToken);

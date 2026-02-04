@@ -254,17 +254,17 @@ async function getDocumentTypes(_req, res) {
   }
 }
 
-async function getProcedures(_req, res) {
-  try {
-    const data = await ordsGetProcedures();
-    // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
-    const items = Array.isArray(data) ? data : data.items ?? data;
-    return res.json({ items });
-  } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
-  }
-}
+// async function getProcedures(_req, res) {
+//   try {
+//     const data = await ordsGetProcedures();
+//     // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
+//     const items = Array.isArray(data) ? data : data.items ?? data;
+//     return res.json({ items });
+//   } catch (e) {
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json(e.response?.data ?? { message: e.message });
+//   }
+// }
 
 async function getDepartments(_req, res) {
   try {
