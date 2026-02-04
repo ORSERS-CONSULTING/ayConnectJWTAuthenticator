@@ -567,10 +567,7 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
   });
 }
 
-/**
- * Update final payment status
- * ORDS: POST /payments/update-status
- */
+
 async function ordsUpdatePaymentStatus({
   payment_id,
   status,

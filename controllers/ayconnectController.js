@@ -10,7 +10,6 @@ const {
   ordsCreateBeneficiary,
   ordsGetDocumentTypes,
   uploadDocuments,
-  ordsGetProcedures,
   ordsGetDepartments,
   ordsGetUserAvatar,
   ordsUploadUserAvatar,
