@@ -46,8 +46,8 @@ async function initiateHostedCheckout({ amount, orderId }) {
 
       merchant: {
         name: "AY Connect",
-        url: "https://ameryon.com",
-        logo: "https://ameryon.com/assets/yalayis_logo.png",
+        url: "https://ayconnect.yalayis.ai",
+        logo: "https://ayconnect.yalayis.ai/assets/yalayis_logo.png",
       },
 
       // Optional but recommended
@@ -59,7 +59,7 @@ async function initiateHostedCheckout({ amount, orderId }) {
         shipping: "HIDE",
       },
 
-      returnUrl: "https://ameryon.com/payment/return",
+      returnUrl: "https://ayconnect.yalayis.ai/payment/return",
     },
 
     order: {
@@ -69,7 +69,6 @@ async function initiateHostedCheckout({ amount, orderId }) {
       description: "AY Connect Service Payment",
     },
   };
-
 
   let res;
   try {
@@ -94,11 +93,6 @@ async function initiateHostedCheckout({ amount, orderId }) {
   return { sessionId };
 }
 
-/**
- * ----------------------------------------------------
- * Retrieve Order (Verification)
- * ----------------------------------------------------
- */
 async function retrieveOrder(orderId) {
   if (!orderId) {
     throw new Error("orderId is required");
