@@ -13,7 +13,8 @@ router.get("/services", ctrl.getServices);
 router.get("/user-docs", authUser, ctrl.getUserDocs);
 router.get("/document-types", authUser, ctrl.getDocumentTypes);
 // router.get("/getProcedures", authUser, ctrl.getProcedures);
-router.get("/getDepartments", authUser, ctrl.getDepartments);
+// router.get("/getDepartments", authUser, ctrl.getDepartments);
+router.get("/getDepartments", ctrl.getDepartments);
 router.post("/uploadUserDocuments", authUser, ctrl.uploadUserDocuments);
 router.get("/user/avatar", authUser, ctrl.getUserAvatar);
 router.put(
