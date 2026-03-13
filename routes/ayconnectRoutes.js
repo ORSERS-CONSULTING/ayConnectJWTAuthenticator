@@ -8,7 +8,8 @@ const rawImages = express.raw({
   type: ["image/*", "application/octet-stream"],
   limit: "20mb",
 });
-router.get("/services", authUser, ctrl.getServices);
+// router.get("/services", authUser, ctrl.getServices);
+router.get("/services", ctrl.getServices);
 router.get("/user-docs", authUser, ctrl.getUserDocs);
 router.get("/document-types", authUser, ctrl.getDocumentTypes);
 // router.get("/getProcedures", authUser, ctrl.getProcedures);
