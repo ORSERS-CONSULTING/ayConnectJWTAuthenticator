@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-function formatExpiryDubai(minutes = 10) {
+function formatExpiryDubai(minutes = 5) {
   const d = new Date(Date.now() + minutes * 60 * 1000);
 
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -41,7 +41,7 @@ async function sendSms({ opts }) {
   }
 
   const recipient = normalizeUaeMobile(to);
-  const expiry = formatExpiryDubai(10);
+  const expiry = formatExpiryDubai(5);
 
   const query =
     `msgCategory=4.2` +
@@ -60,15 +60,6 @@ async function sendSms({ opts }) {
 
   try {
     const { data, status } = await axios.get(url, { timeout: 15000 });
-
-    console.log('Etisalat success:', {
-      status,
-      recipient,
-      expiry,
-      sender: process.env.ETISALAT_SENDER,
-      data,
-    });
-
     return { ok: true, raw: data };
   } catch (err) {
     console.error('Etisalat SMS failed:', {
