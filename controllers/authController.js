@@ -93,19 +93,6 @@ async function verifyOtp(req, res) {
   }
 }
 
-/** Optional: keep these if you still want them */
-async function issueToken(req, res) {
-  const { user_id, role = "user", email, device_id } = req.body || {};
-  if (!user_id) return res.status(400).json({ message: "user_id required" });
-  if (!device_id) return res.status(400).json({ message: "device_id required" });
-
-  const access_token = signAccessToken({ sub: String(user_id), role, email });
-  const refresh_token = crypto.randomBytes(64).toString("hex");
-
-  await persistRefreshToken(user_id, refresh_token, device_id);
-
-  return res.json({ access_token, refresh_token });
-}
 
 /** ✅ UPDATED: refresh now validates from DB via ORDS */
 async function refresh(req, res) {
@@ -419,7 +406,6 @@ module.exports = {
   verifyOtp,
   getLoginClientEmail,
   getClientCode,
-  issueToken,
   refresh,
   login,
   loginClient,

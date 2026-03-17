@@ -1,7 +1,5 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/authController');
-
-router.post('/issue-token', ctrl.issueToken);
 router.post('/refresh', ctrl.refresh);
 router.post('/login', ctrl.login); // optional placeholder
 router.post('/send-otp',   ctrl.sendOtp);     // public
