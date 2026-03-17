@@ -43,4 +43,6 @@ router.post("/markNotificationRead", authUser, ctrl.markNotificationRead);
 router.post("/clearPushToken", authUser, ctrl.clearPushToken);
 router.get("/downloadInvoicePdf", authUser, ctrl.downloadInvoicePdf);
 router.get("/getInvoices", authUser, ctrl.getInvoices);
+router.get("/getParkingInfo", ctrl.getParkingInfo);
+
 module.exports = router;

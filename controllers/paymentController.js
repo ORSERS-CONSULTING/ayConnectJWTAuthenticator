@@ -3,6 +3,9 @@ const {
   ordsUpdatePaymentSession,
   ordsUpdatePaymentStatus,
   ordsGetPayment,
+   ordsInitiateParkingPayment,
+  ordsUpdateParkingSession,
+  ordsUpdateParkingStatus,
 } = require("../services/ordsServices");
 
 const {
@@ -18,31 +21,44 @@ const {
  */
 async function initPayment(req, res) {
   try {
-    const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
-    if (!user_id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
+    // const user_id = req.user?.user_id || req.user?.id || req.user?.sub;
+    // if (!user_id) {
+    //   return res.status(401).json({ message: "Unauthorized" });
+    // }
+    const user_id = req.user?.user_id || req.user?.id || req.user?.sub || null;
     const { payment_type, reference_id, amount } = req.body;
 
-    if (!payment_type || !reference_id || amount == null) {
+    if (!payment_type || amount == null) {
       return res.status(400).json({
-        message: "payment_type, reference_id and amount are required",
+        message: "payment_type and amount are required",
       });
     }
 
-    // 1️⃣ Create payment record in ORDS
-    const ordsRes = await ordsInitPayment({
-      user_id,
-      payment_type,
-      reference_id,
-      amount,
-    });
+    if (payment_type === "PARKING" && !reference_id) {
+      return res.status(400).json({
+        message: "entry_guid (reference_id) is required for parking",
+      });
+    }
 
+    let ordsRes;
+
+    if (payment_type === "PARKING") {
+      ordsRes = await ordsInitiateParkingPayment({
+        entry_guid: reference_id,
+        amount,
+      });
+    } else {
+      ordsRes = await ordsInitPayment({
+        user_id,
+        payment_type,
+        reference_id,
+        amount,
+      });
+    }
     const payment_id = Number(
       ordsRes?.payment_id ??
         ordsRes?.data?.payment_id ??
-        ordsRes?.data?.response_body?.payment_id
+        ordsRes?.data?.response_body?.payment_id,
     );
 
     if (!Number.isFinite(payment_id)) {
@@ -57,14 +73,19 @@ async function initPayment(req, res) {
       orderId,
     });
 
-    // 3️⃣ Store MPGS identifiers
-    await ordsUpdatePaymentSession({
-      payment_id,
-      mpgs_order_id: orderId,
-      mpgs_session_id: sessionId,
-    });
-    // const checkoutUrl = `https://rakbankpay-nam.gateway.mastercard.com/checkout/pay/${sessionId}`;
-
+    if (payment_type === "PARKING") {
+      await ordsUpdateParkingSession({
+        payment_id,
+        mpgs_order_id: orderId,
+        mpgs_session_id: sessionId,
+      });
+    } else {
+      await ordsUpdatePaymentSession({
+        payment_id,
+        mpgs_order_id: orderId,
+        mpgs_session_id: sessionId,
+      });
+    }
     return res.status(200).json({
       paymentId: payment_id,
       sessionId,
@@ -83,12 +104,22 @@ async function initPayment(req, res) {
  */
 async function verifyPayment(req, res) {
   try {
-    const { paymentId } = req.body;
-    if (!paymentId) {
-      return res.status(400).json({ message: "paymentId is required" });
+    const { paymentId, payment_type } = req.body;
+
+    if (!paymentId || !payment_type) {
+      return res.status(400).json({
+        message: "paymentId and payment_type are required",
+      });
     }
 
-    const payment = await ordsGetPayment(paymentId);
+    let payment;
+
+    if (payment_type === "PARKING") {
+      payment = await ordsGetParkingPayment(paymentId);
+    } else {
+      payment = await ordsGetPayment(paymentId);
+    }
+
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -97,20 +128,30 @@ async function verifyPayment(req, res) {
     if (payment.status === "PAID" || payment.status === "FAILED") {
       return res.json({ status: payment.status });
     }
-    // MPGS verification
+
     const order = await retrieveOrder(payment.mpgs_order_id);
+
     if (
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
     ) {
-      await ordsUpdatePaymentStatus({
-        payment_id: paymentId,
-        status: "PAID",
-        mpgs_transaction_id:
-          order?.authentication?.["3ds"]?.transactionId || null,
-        result_reason: "Payment successful",
-      });
-     
+      if (payment_type === "PARKING") {
+        await ordsUpdateParkingStatus({
+          payment_id: paymentId,
+          payment_status: "PAID",
+          amount_paid: payment.amount_paid || payment.amount,
+          mpgs_txn_id:
+            order?.authentication?.["3ds"]?.transactionId || null,
+          deadline_to_leave: null,
+        });
+      } else {
+        await ordsUpdatePaymentStatus({
+          payment_id: paymentId,
+          status: "PAID",
+          mpgs_transaction_id:
+            order?.authentication?.["3ds"]?.transactionId || null,
+        });
+      }
 
       return res.json({ status: "PAID" });
     }

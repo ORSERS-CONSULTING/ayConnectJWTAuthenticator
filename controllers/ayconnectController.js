@@ -26,7 +26,9 @@ const {
   ordsMarkNotificationRead,
   ordsClearPushToken,
   ordsDownloadInvoicePdf,
-  ordsGetInvoices
+  ordsGetInvoices,
+    ordsGetParkingInfo, 
+   
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -1122,7 +1124,107 @@ async function downloadInvoicePdf(req, res) {
   }
 }
 
+// GET /ayconnect/parking/info?plate_number=...
+async function getParkingInfo(req, res) {
+  try {
+    const plate_number = String(req.query?.plate_number || "");
 
+    if (!plate_number) {
+      return res.status(400).json({ message: "plate_number is required" });
+    }
+
+    const data = await ordsGetParkingInfo({ plate_number });
+
+    return res.status(200).json(data);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+    return res.status(code).json(e.response?.data ?? { message: e.message });
+  }
+}
+
+// // POST /ayconnect/parking/pay
+// async function initiateParkingPayment(req, res) {
+//   try {
+//     const b = req.body || {};
+
+//     const entry_guid = b.entry_guid;
+//     const amount = Number(b.amount);
+
+//     if (!entry_guid || amount == null) {
+//       return res.status(400).json({
+//         message: "entry_guid and amount are required",
+//       });
+//     }
+
+//     const data = await ordsInitiateParkingPayment({
+//       entry_guid,
+//       amount,
+//     });
+
+//     return res.status(200).json(data);
+//   } catch (e) {
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json(e.response?.data ?? { message: e.message });
+//   }
+// }
+
+// // POST /ayconnect/parking/update
+// async function updateParkingSession(req, res) {
+//   try {
+//     const b = req.body || {};
+
+//     const payment_id = Number(b.payment_id);
+//     const mpgs_order_id = b.mpgs_order_id;
+//     const mpgs_session_id = b.mpgs_session_id;
+
+//     if (!payment_id || !mpgs_order_id || !mpgs_session_id) {
+//       return res.status(400).json({
+//         message: "payment_id, mpgs_order_id, mpgs_session_id are required",
+//       });
+//     }
+
+//     const data = await ordsUpdateParkingSession({
+//       payment_id,
+//       mpgs_order_id,
+//       mpgs_session_id,
+//     });
+
+//     return res.status(200).json(data);
+//   } catch (e) {
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json(e.response?.data ?? { message: e.message });
+//   }
+// }
+// async function updateParkingStatus(req, res) {
+//   try {
+//     const b = req.body || {};
+
+//     const payment_id = Number(b.payment_id);
+//     const payment_status = b.payment_status;
+//     const amount_paid = Number(b.amount_paid);
+//     const mpgs_txn_id = b.mpgs_txn_id;
+//     const deadline_to_leave = b.deadline_to_leave || null;
+
+//     if (!payment_id || !payment_status) {
+//       return res.status(400).json({
+//         message: "payment_id and payment_status are required",
+//       });
+//     }
+
+//     const data = await ordsUpdateParkingStatus({
+//       payment_id,
+//       payment_status,
+//       amount_paid,
+//       mpgs_txn_id,
+//       deadline_to_leave,
+//     });
+
+//     return res.status(200).json(data);
+//   } catch (e) {
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json(e.response?.data ?? { message: e.message });
+//   }
+// }
 module.exports = {
   getServices,
   ensureRun,
@@ -1149,5 +1251,7 @@ module.exports = {
   markNotificationRead,
   clearPushToken,
   downloadInvoicePdf,
-  getInvoices
+  getInvoices,
+  getParkingInfo,
+ 
 };

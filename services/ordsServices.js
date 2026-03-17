@@ -617,6 +617,62 @@ function ordsClearPushToken({ token }) {
   });
 }
 
+function ordsGetParkingInfo({ plate_number }) {
+  return callGateway("POST", "getParkingInfo", {
+    params: { plate_number },
+  });
+}
+function ordsInitiateParkingPayment({
+  entry_guid,
+  amount,
+}) {
+  if (!entry_guid || amount == null) {
+    throw new Error("entry_guid and amount are required");
+  }
+
+  return callGateway("POST", "initiatePayment", {
+    params: {
+      entry_guid,
+      amount: Number(amount),
+    },
+  });
+}
+function ordsUpdateParkingSession({
+  payment_id,
+  mpgs_order_id,
+  mpgs_session_id,
+}) {
+  if (!payment_id) throw new Error("payment_id is required");
+
+  return callGateway("POST", "updateSession", {
+    params: {
+      payment_id: Number(payment_id),
+      mpgs_order_id,
+      mpgs_session_id,
+    },
+  });
+}
+function ordsUpdateParkingStatus({
+  payment_id,
+  payment_status,
+  amount_paid,
+  mpgs_txn_id,
+  deadline_to_leave,
+}) {
+  if (!payment_id || !payment_status) {
+    throw new Error("payment_id and payment_status are required");
+  }
+
+  return callGateway("POST", "updateStatus", {
+    params: {
+      payment_id: Number(payment_id),
+      payment_status,
+      amount_paid: amount_paid != null ? Number(amount_paid) : null,
+      mpgs_txn_id: mpgs_txn_id || null,
+      deadline_to_leave: deadline_to_leave || null,
+    },
+  });
+}
 module.exports = {
   callGateway,
   // ordsGetActiveRuns,
@@ -663,4 +719,8 @@ module.exports = {
   ordsClearPushToken,
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
+  ordsGetParkingInfo,
+  ordsInitiateParkingPayment,
+  ordsUpdateParkingSession,
+  ordsUpdateParkingStatus
 };
