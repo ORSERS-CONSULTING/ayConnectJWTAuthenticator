@@ -659,7 +659,6 @@ function ordsUpdateParkingStatus({
   if (!payment_id || !payment_status) {
     throw new Error("payment_id and payment_status are required");
   }
-
   return callGateway("POST", "updateParkingStatus", {
     params: {
       payment_id: Number(payment_id),
