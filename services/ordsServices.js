@@ -512,7 +512,21 @@ async function ordsInitPayment({
   reference_id,
   amount,
 }) {
+  console.log("ORDS INIT PAYMENT INPUT:", {
+    user_id,
+    payment_type,
+    reference_id,
+    amount,
+  });
+
   if (!user_id || !payment_type || !reference_id || !amount) {
+    console.error("Missing required payment fields:", {
+      user_id,
+      payment_type,
+      reference_id,
+      amount,
+    });
+
     throw new Error("Missing required payment fields");
   }
 
