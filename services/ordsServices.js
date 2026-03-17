@@ -512,7 +512,7 @@ async function ordsInitPayment({
   reference_id,
   amount,
 }) {
-  if ( !payment_type || !reference_id || !amount) {
+  if (!user_id || !payment_type || !reference_id || !amount) {
     throw new Error("Missing required payment fields");
   }
 
@@ -520,7 +520,7 @@ async function ordsInitPayment({
     params: {
       user_id: Number(user_id),
       payment_type,
-      reference_id: String(reference_id),
+      reference_id: Number(reference_id),
       amount: Number(amount),
     },
   });
