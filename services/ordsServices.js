@@ -616,7 +616,6 @@ function ordsClearPushToken({ token }) {
     },
   });
 }
-
 function ordsGetParkingInfo({ plate_number }) {
   return callGateway("GET", "getParkingInfo", {
     params: { plate_number },
