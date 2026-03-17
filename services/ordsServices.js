@@ -507,6 +507,7 @@ function ordsGetNotifications(user_id) {
 }
 
 async function ordsInitPayment({
+  user_id,
   payment_type,
   reference_id,
   amount,
@@ -517,6 +518,7 @@ async function ordsInitPayment({
 
   return callGateway("POST", "initiatePayment", {
     params: {
+      user_id: Number(user_id),
       payment_type,
       reference_id: String(reference_id),
       amount: Number(amount),
