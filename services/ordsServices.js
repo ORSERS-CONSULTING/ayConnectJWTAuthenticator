@@ -507,7 +507,6 @@ function ordsGetNotifications(user_id) {
 }
 
 async function ordsInitPayment({
-  
   payment_type,
   reference_id,
   amount,

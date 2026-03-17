@@ -50,7 +50,6 @@ async function initPayment(req, res) {
       });
     } else {
       ordsRes = await ordsInitPayment({
-        user_id,
         payment_type,
         reference_id,
         amount,
