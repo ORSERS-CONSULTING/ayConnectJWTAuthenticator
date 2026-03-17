@@ -3,7 +3,8 @@ const {
   ordsUpdatePaymentSession,
   ordsUpdatePaymentStatus,
   ordsGetPayment,
-   ordsInitiateParkingPayment,
+  ordsGetParkingPayment,
+  ordsInitiateParkingPayment,
   ordsUpdateParkingSession,
   ordsUpdateParkingStatus,
 } = require("../services/ordsServices");
@@ -124,9 +125,10 @@ async function verifyPayment(req, res) {
       return res.status(404).json({ message: "Payment not found" });
     }
 
-    // Idempotency
-    if (payment.status === "PAID" || payment.status === "FAILED") {
-      return res.json({ status: payment.status });
+    const currentStatus = payment.status || payment.payment_status;
+
+    if (currentStatus === "PAID" || currentStatus === "FAILED") {
+      return res.json({ status: currentStatus });
     }
 
     const order = await retrieveOrder(payment.mpgs_order_id);
@@ -140,8 +142,7 @@ async function verifyPayment(req, res) {
           payment_id: paymentId,
           payment_status: "PAID",
           amount_paid: payment.amount_paid || payment.amount,
-          mpgs_txn_id:
-            order?.authentication?.["3ds"]?.transactionId || null,
+          mpgs_txn_id: order?.authentication?.["3ds"]?.transactionId || null,
           deadline_to_leave: null,
         });
       } else {
