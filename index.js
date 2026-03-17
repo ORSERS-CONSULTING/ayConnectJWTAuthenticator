@@ -69,7 +69,6 @@ const heavyUseLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use("/ayconnect", heavyUseLimiter);
-
 // === Routes ===
 app.use("/payment", paymentRoutes);
 app.use("/auth", authRoutes);
