@@ -10,7 +10,7 @@ const {
 } = require("../controllers/paymentController");
 
 // paymentRoutes.js
-router.post("/init", initPayment);
+router.post("/init", authUser, initPayment);
 router.post("/verify", verifyPayment);
 router.get("/return", paymentReturn);
 
