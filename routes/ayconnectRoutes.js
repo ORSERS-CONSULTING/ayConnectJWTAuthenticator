@@ -20,7 +20,7 @@ router.get("/user/avatar", authUser, ctrl.getUserAvatar);
 router.put(
   "/user/avatar",
   authUser,
-  rawImages, // handles raw binary uploads
+  rawImages, 
   upload.single("avatar"), // handles multipart form-data (field "avatar")
   ctrl.uploadUserAvatar
 );
