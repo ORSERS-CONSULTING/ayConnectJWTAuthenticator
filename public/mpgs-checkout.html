@@ -1,36 +1,118 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>Secure Payment</title>
 
-    <!-- ✅ MPGS Hosted Checkout (v67+) -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    />
+
+    <!-- MPGS Hosted Checkout -->
     <script
       src="https://rakbankpay-nam.gateway.mastercard.com/static/checkout/checkout.min.js"
       data-error="onError"
       data-cancel="onCancel"
     ></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f5f7fb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 420px;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 24px;
+      }
+
+      .title {
+        text-align: center;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #111827;
+      }
+
+      .subtitle {
+        text-align: center;
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 24px;
+      }
+
+      .status {
+        text-align: center;
+        font-size: 14px;
+        color: #6b7280;
+        margin-top: 16px;
+      }
+
+      .error {
+        color: #b91c1c;
+        background: #fee2e2;
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 14px;
+        margin-top: 16px;
+      }
+    </style>
   </head>
 
   <body>
+    <div class="container">
+      <div class="title">Secure Payment</div>
+      <div class="subtitle">
+        You are being redirected to a secure payment page.
+      <div id="payment-root"></div>
+
+      <div id="status" class="status">Loading payment options…</div>
+      <div id="error" class="error" style="display: none"></div>
+    </div>
+
     <script>
       const params = new URLSearchParams(window.location.search);
       const sessionId = params.get("sessionId");
 
+      const statusEl = document.getElementById("status");
+      const errorEl = document.getElementById("error");
+
       if (!sessionId) {
-        document.body.innerHTML = "<h3>Missing sessionId</h3>";
+        errorEl.textContent = "Invalid payment session. Please try again.";
+        errorEl.style.display = "block";
+        statusEl.style.display = "none";
         throw new Error("Missing sessionId");
       }
 
       function onError(err) {
         console.error("MPGS error:", err);
-        document.body.innerHTML =
-          "<h3>Payment error occurred. Please try again.</h3>";
+        statusEl.style.display = "none";
+        errorEl.textContent =
+          "A payment error occurred. Please refresh the page or try again.";
+        errorEl.style.display = "block";
       }
 
       function onCancel() {
         console.warn("Payment cancelled by user");
+        statusEl.textContent = "Payment cancelled.";
       }
+
       Checkout.configure({
         session: {
           id: sessionId,

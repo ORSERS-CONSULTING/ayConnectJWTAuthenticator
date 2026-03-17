@@ -1,5 +1,5 @@
-const crypto = require('crypto');
-const { signAccessToken } = require('../utils/jwt');
+const crypto = require("crypto");
+const { signAccessToken } = require("../utils/jwt");
 
 const {
   sendMobileOtp,
@@ -16,10 +16,9 @@ const {
   authTokensCreate,
   authTokensValidate,
   authTokensRevoke,
-  
-} = require('../services/ordsServices');
+} = require("../services/ordsServices");
 
-const { sendSms } = require('../services/etisalatServices');
+const { sendSms } = require("../services/etisalatServices");
 
 
 const days = process.env.REFRESH_TOKEN_DAYS;
@@ -35,10 +34,11 @@ async function persistRefreshToken(userId, refresh_token, device_id) {
 
 async function sendOtp(req, res) {
   const { channel, target } = req.body || {};
-  if (!channel || !target) return res.status(400).json({ message: 'channel & target required' });
+  if (!channel || !target)
+    return res.status(400).json({ message: "channel & target required" });
 
   try {
-    if (channel === 'mobile') {
+    if (channel === "mobile") {
       const data = await sendMobileOtp(target);
 
       const otp = data.generated_otp ?? null;
@@ -48,7 +48,7 @@ async function sendOtp(req, res) {
         try {
           await sendSms({ opts: { to: String(target), message: msg } });
         } catch (err) {
-          console.error('Etisalat SMS failed:', err?.message || err);
+          console.error("Etisalat SMS failed:", err?.message || err);
         }
       }
 
@@ -57,29 +57,33 @@ async function sendOtp(req, res) {
 
     const data = await sendEmailOtp(target);
     return res.json({ sent: true, ...data });
-
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
 
-/** Public: verify OTP */
 async function verifyOtp(req, res) {
   const { channel, target, otp } = req.body || {};
   if (!channel || !target || !otp) {
-    return res.status(400).json({ message: 'channel, target, otp required' });
+    return res.status(400).json({ message: "channel, target, otp required" });
   }
 
   try {
-    const data = channel === 'mobile'
-      ? await verifyMobileOtp(target, otp)
-      : await verifyEmailOtp(target, otp);
+    const data =
+      channel === "mobile"
+        ? await verifyMobileOtp(target, otp)
+        : await verifyEmailOtp(target, otp);
 
-    const raw = (data.verification_status ?? data.VERIFICATION_STATUS ?? data.status ?? '').trim();
+    const raw = (
+      data.verification_status ??
+      data.VERIFICATION_STATUS ??
+      data.status ??
+      ""
+    ).trim();
     const status = raw.toUpperCase();
 
-    const OK = new Set(['VERIFIED', 'SUCCESS', 'VALID', 'MATCH']);
+    const OK = new Set(["VERIFIED", "SUCCESS", "VALID", "MATCH"]);
     const verified = OK.has(status);
 
     if (!verified) {
@@ -94,20 +98,19 @@ async function verifyOtp(req, res) {
 }
 
 
-/** ✅ UPDATED: refresh now validates from DB via ORDS */
 async function refresh(req, res) {
   const { refresh_token, device_id } = req.body || {};
-
- 
-
-  if (!refresh_token) return res.status(400).json({ message: "refresh_token required" });
-  if (!device_id) return res.status(400).json({ message: "device_id required" });
+  if (!refresh_token)
+    return res.status(400).json({ message: "refresh_token required" });
+  if (!device_id)
+    return res.status(400).json({ message: "device_id required" });
 
   try {
     const data = await authTokensValidate({ refresh_token, device_id });
 
     const userId = Number(data?.user_id);
-    if (!userId) return res.status(401).json({ message: "Invalid refresh token" });
+    if (!userId)
+      return res.status(401).json({ message: "Invalid refresh token" });
 
     const access_token = signAccessToken({ sub: String(userId), role: "user" });
     return res.json({ access_token });
@@ -119,8 +122,10 @@ async function refresh(req, res) {
 
 async function logout(req, res) {
   const { refresh_token, device_id } = req.body || {};
-  if (!refresh_token) return res.status(400).json({ message: "refresh_token required" });
-  if (!device_id) return res.status(400).json({ message: "device_id required" });
+  if (!refresh_token)
+    return res.status(400).json({ message: "refresh_token required" });
+  if (!device_id)
+    return res.status(400).json({ message: "device_id required" });
 
   try {
     await authTokensRevoke({ refresh_token, device_id });
@@ -130,8 +135,6 @@ async function logout(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
-
 
 async function login(req, res) {
   try {
@@ -149,10 +152,11 @@ async function login(req, res) {
     const data = await ordsLogin({ email, mobile_number });
 
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
-    const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
-    const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
-    const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
-    const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
+    const out_mobile = data.out_mobile ?? data.OUT_MOBILE ?? null;
+    const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
+    const out_client_code =
+      data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
+    const out_name = data.out_name ?? data.OUT_NAME ?? null;
     const response_message =
       data.response_message ?? data.RESPONSE_MESSAGE ?? "Login failed";
 
@@ -162,7 +166,7 @@ async function login(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m"
+      "30m",
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -201,10 +205,11 @@ async function register(req, res) {
     const data = await registerUser({ email, mobile_number, full_name });
 
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
-    const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
-    const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
-    const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
-    const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
+    const out_mobile = data.out_mobile ?? data.OUT_MOBILE ?? null;
+    const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
+    const out_client_code =
+      data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
+    const out_name = data.out_name ?? data.OUT_NAME ?? null;
     const response_message =
       data.response_message ?? data.RESPONSE_MESSAGE ?? "Registration failed";
 
@@ -214,7 +219,7 @@ async function register(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m"
+      "30m",
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -237,7 +242,6 @@ async function register(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 
 async function loginClient(req, res) {
   try {
@@ -254,10 +258,11 @@ async function loginClient(req, res) {
     const data = await registerClient({ client_code });
 
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
-    const out_mobile = (data.out_mobile ?? data.OUT_MOBILE) ?? null;
-    const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
-    const out_client_code = (data.out_client_code ?? data.OUT_CLIENT_CODE) ?? null;
-    const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
+    const out_mobile = data.out_mobile ?? data.OUT_MOBILE ?? null;
+    const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
+    const out_client_code =
+      data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
+    const out_name = data.out_name ?? data.OUT_NAME ?? null;
     const response_message =
       data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
 
@@ -267,7 +272,7 @@ async function loginClient(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m"
+      "30m",
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -291,20 +296,17 @@ async function loginClient(req, res) {
   }
 }
 
-
 async function getLoginClientEmail(req, res) {
   try {
     let { client_code } = req.body || {};
     if (!client_code) {
-      return res.status(400).json({ message: 'Provide client code please.' });
+      return res.status(400).json({ message: "Provide client code please." });
     }
 
     const data = await getClientEmail({ client_code });
 
     const response_message =
-      data.response_message ??
-      data.RESPONSE_MESSAGE ??
-      'Invalid client code.';
+      data.response_message ?? data.RESPONSE_MESSAGE ?? "Invalid client code.";
 
     // ✅ FIXED: removed invalid out_user_id check (it wasn't defined here)
 
@@ -314,7 +316,7 @@ async function getLoginClientEmail(req, res) {
       mobile: data?.out_mobile_number ?? null,
     });
   } catch (e) {
-    console.error('getLoginClientEmail error:', e.response?.data || e.message);
+    console.error("getLoginClientEmail error:", e.response?.data || e.message);
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
@@ -324,7 +326,7 @@ async function getClientCode(req, res) {
   try {
     let { email } = req.body || {};
     if (!email) {
-      return res.status(400).json({ message: 'Please provide email.' });
+      return res.status(400).json({ message: "Please provide email." });
     }
 
     const data = await resendClientCode({ email });
@@ -340,20 +342,18 @@ async function registerExistingClientFromMainDB(req, res) {
   try {
     let { client_code } = req.body || {};
     if (!client_code) {
-      return res.status(400).json({ message: 'Provide client code please.' });
+      return res.status(400).json({ message: "Provide client code please." });
     }
 
     const data = await registerExistingClient({ client_code });
 
-    const out_email = (data.out_email ?? data.OUT_EMAIL) ?? null;
-    const out_name = (data.out_name ?? data.OUT_NAME) ?? null;
+    const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
+    const out_name = data.out_name ?? data.OUT_NAME ?? null;
     const response_message =
-      data.response_message ??
-      data.RESPONSE_MESSAGE ??
-      'Client does not exist';
+      data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
 
     if (!out_email) {
-      return res.status(404).json({ message: 'Login failed' });
+      return res.status(404).json({ message: "Login failed" });
     }
 
     return res.json({
@@ -361,7 +361,7 @@ async function registerExistingClientFromMainDB(req, res) {
       profile: {
         email: out_email,
         full_name: out_name,
-      }
+      },
     });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -373,18 +373,22 @@ async function clienCodeExist(req, res) {
   try {
     let { client_code } = req.body || {};
     if (!client_code) {
-      return res.status(400).json({ message: 'Provide client code please.' });
+      return res.status(400).json({ message: "Provide client code please." });
     }
 
     const chk = await checkClientCode({ client_code });
     let status = chk?.status;
 
     if (!status) {
-      return res.status(500).json({ ok: false, message: "Invalid ORDS response." });
+      return res
+        .status(500)
+        .json({ ok: false, message: "Invalid ORDS response." });
     }
 
     if (status === "NOT_FOUND") {
-      return res.status(404).json({ ok: false, status, message: "Invalid client code." });
+      return res
+        .status(404)
+        .json({ ok: false, status, message: "Invalid client code." });
     }
 
     return res.json({
@@ -397,7 +401,9 @@ async function clienCodeExist(req, res) {
     });
   } catch (e) {
     const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { ok: false, message: e.message });
+    return res
+      .status(code)
+      .json(e.response?.data ?? { ok: false, message: e.message });
   }
 }
 
@@ -412,5 +418,5 @@ module.exports = {
   clienCodeExist,
   register,
   registerExistingClientFromMainDB,
-  logout
+  logout,
 };
