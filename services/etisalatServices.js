@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-function formatExpiry(minutes = 5) {
+function formatExpiry(minutes = 10) {
   const d = new Date(Date.now() + minutes * 60 * 1000);
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -33,7 +33,7 @@ async function sendSms({ opts }) {
   }
 
   const recipient = normalizeUaeMobile(to);
-  const expiry = formatExpiry(5);
+  const expiry = formatExpiry(10);
 
   const params = new URLSearchParams({
     msgCategory: '4.2',

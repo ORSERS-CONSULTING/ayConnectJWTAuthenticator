@@ -15,7 +15,7 @@ const path = require("path");
 app.use(express.static(path.join(__dirname, "public")));
 
 // If behind proxy/API Gateway, trust all proxy hops so X-Forwarded-For works correctly
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
 
 // === Office IP logic ===
 const OFFICE_IP = "94.206.200.125";
