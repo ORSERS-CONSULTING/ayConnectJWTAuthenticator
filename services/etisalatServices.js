@@ -1,14 +1,22 @@
 const axios = require('axios');
 
-function formatExpiry(minutes = 10) {
+function formatExpiryDubai(minutes = 10) {
   const d = new Date(Date.now() + minutes * 60 * 1000);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  const HH = String(d.getHours()).padStart(2, '0');
-  const MM = String(d.getMinutes()).padStart(2, '0');
-  const SS = String(d.getSeconds()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd} ${HH}:${MM}:${SS}`;
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dubai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+
+  return `${map.year}-${map.month}-${map.day} ${map.hour}:${map.minute}:${map.second}`;
 }
 
 function normalizeUaeMobile(input) {
@@ -33,23 +41,22 @@ async function sendSms({ opts }) {
   }
 
   const recipient = normalizeUaeMobile(to);
-  const expiry = formatExpiry(10);
+  const expiry = formatExpiryDubai(10);
 
-  const params = new URLSearchParams({
-    msgCategory: '4.2',
-    channel: '2.1',
-    recipient,
-    contentType: '3.1',
-    dr: 'false',
-    expiryDt: expiry,
-    msg: String(message),
-    user: process.env.ETISALAT_USER,
-    pswd: process.env.ETISALAT_PASSWORD,
-    dndCategory: 'Campaign',
-    sender: process.env.ETISALAT_SENDER,
-  });
+  const query =
+    `msgCategory=4.2` +
+    `&channel=2.1` +
+    `&recipient=${encodeURIComponent(recipient)}` +
+    `&contentType=3.1` +
+    `&dr=false` +
+    `&expiryDt=${encodeURIComponent(expiry)}` +
+    `&msg=${encodeURIComponent(String(message))}` +
+    `&user=${encodeURIComponent(process.env.ETISALAT_USER)}` +
+    `&pswd=${encodeURIComponent(process.env.ETISALAT_PASSWORD)}` +
+    `&dndCategory=Campaign` +
+    `&sender=${encodeURIComponent(process.env.ETISALAT_SENDER)}`;
 
-  const url = `https://smartmessaging.etisalat.ae:9095/campaignService/campaigns/qs?${params.toString()}`;
+  const url = `https://smartmessaging.etisalat.ae:9095/campaignService/campaigns/qs?${query}`;
 
   try {
     const { data, status } = await axios.get(url, { timeout: 15000 });
