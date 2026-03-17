@@ -618,7 +618,7 @@ function ordsClearPushToken({ token }) {
 }
 
 function ordsGetParkingInfo({ plate_number }) {
-  return callGateway("POST", "getParkingInfo", {
+  return callGateway("GET", "getParkingInfo", {
     params: { plate_number },
   });
 }
