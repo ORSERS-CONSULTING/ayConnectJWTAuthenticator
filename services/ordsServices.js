@@ -642,14 +642,12 @@ function ordsInitiateParkingPayment({
     throw new Error("Missing required parking payment fields");
   }
 
-  console.log("🚀 ORDS PARKING FULL PAYLOAD:", {
+  console.log("🚀 ORDS PARKING PAYLOAD:", {
     entry_guid,
     plate_number,
     time_in,
     time_spent_min,
-    amount,
-    center_fees_spent,
-    minutes_free,
+    amount_due: amount,
   });
 
   return callGateway("POST", "initiateParkingPayment", {
@@ -658,7 +656,7 @@ function ordsInitiateParkingPayment({
       plate_number: String(plate_number),
       time_in: String(time_in),
       time_spent_min: String(time_spent_min),
-      amount_due: String(amount),
+      amount_due: String(amount), // ✅ FIX
       center_fees_spent: String(center_fees_spent ?? 0),
       minutes_free: String(minutes_free ?? 0),
     },
