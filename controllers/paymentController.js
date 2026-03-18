@@ -49,7 +49,7 @@ async function initPayment(req, res) {
   plate_number: req.body.plate_number, // IMPORTANT
   time_in: req.body.time_in,
   time_spent_min: req.body.time_spent_min,
-  amount_due: amount,
+  amount: amount,
   center_fees_spent: req.body.center_fees_spent ?? 0,
   minutes_free: req.body.minutes_free ?? 0,
 });
