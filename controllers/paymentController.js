@@ -110,9 +110,15 @@ async function initPayment(req, res) {
  */
 async function verifyPayment(req, res) {
   try {
+    console.log("📥 [VERIFY] Incoming body:", req.body);
+
     const { paymentId, payment_type } = req.body;
 
     if (!paymentId || !payment_type) {
+      console.warn("⚠️ Missing required fields", {
+        paymentId,
+        payment_type,
+      });
       return res.status(400).json({
         message: "paymentId and payment_type are required",
       });
@@ -120,37 +126,59 @@ async function verifyPayment(req, res) {
 
     let payment;
 
+    console.log("🔍 Fetching payment from ORDS...", {
+      paymentId,
+      payment_type,
+    });
+
     if (payment_type === "PARKING") {
       payment = await ordsGetParkingPayment(paymentId);
     } else {
       payment = await ordsGetPayment(paymentId);
     }
 
+    console.log("📦 ORDS PAYMENT RESPONSE:", payment);
+
     if (!payment) {
+      console.warn("❌ Payment not found in ORDS");
       return res.status(404).json({ message: "Payment not found" });
     }
 
     const currentStatus = payment.status || payment.payment_status;
 
+    console.log("📊 Current payment status:", currentStatus);
+
     if (currentStatus === "PAID" || currentStatus === "FAILED") {
+      console.log("✅ Already final status:", currentStatus);
       return res.json({ status: currentStatus });
     }
 
+    console.log("🌐 Fetching MPGS order...", payment.mpgs_order_id);
+
     const order = await retrieveOrder(payment.mpgs_order_id);
+
+    console.log("📦 MPGS ORDER RESPONSE:", order);
 
     if (
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
     ) {
+      console.log("💰 Payment SUCCESS from MPGS");
+
       if (payment_type === "PARKING") {
+        console.log("🚗 Updating parking payment status in ORDS...");
+
         await ordsUpdateParkingStatus({
           payment_id: paymentId,
           payment_status: "PAID",
           amount_paid: payment.amount_paid || payment.amount,
-          mpgs_txn_id: order?.authentication?.["3ds"]?.transactionId || null,
+          mpgs_txn_id:
+            order?.authentication?.["3ds"]?.transactionId || null,
           deadline_to_leave: null,
         });
       } else {
+        console.log("🧾 Updating service payment status in ORDS...");
+
         await ordsUpdatePaymentStatus({
           payment_id: paymentId,
           status: "PAID",
@@ -162,10 +190,20 @@ async function verifyPayment(req, res) {
       return res.json({ status: "PAID" });
     }
 
+    console.log("⏳ Payment still pending");
+
     return res.json({ status: "PENDING" });
   } catch (e) {
-    console.error("[verifyPayment] ERROR", e);
-    return res.status(500).json({ message: e.message });
+    console.error("❌ [verifyPayment] ERROR FULL:", {
+      message: e.message,
+      response: e.response?.data,
+      status: e.response?.status,
+    });
+
+    return res.status(500).json({
+      message: e.message,
+      details: e.response?.data || null,
+    });
   }
 }
 
