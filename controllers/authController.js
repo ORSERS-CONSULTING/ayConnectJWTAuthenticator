@@ -19,9 +19,10 @@ const {
 } = require("../services/ordsServices");
 
 const { sendSms } = require("../services/etisalatServices");
-
+const { normalizeUaeMobile } = require("../utils/normalizeMobile");
 
 const days = process.env.REFRESH_TOKEN_DAYS;
+
 async function persistRefreshToken(userId, refresh_token, device_id) {
   await authTokensCreate({
     user_id: Number(userId),
@@ -31,24 +32,31 @@ async function persistRefreshToken(userId, refresh_token, device_id) {
   });
 }
 
-
 async function sendOtp(req, res) {
   const { channel, target } = req.body || {};
-  if (!channel || !target)
+
+  if (!channel || !target) {
     return res.status(400).json({ message: "channel & target required" });
+  }
 
   try {
     if (channel === "mobile") {
-      const data = await sendMobileOtp(target);
+      const normalized = normalizeUaeMobile(target);
+      const data = await sendMobileOtp(normalized);
 
       const otp = data.generated_otp ?? null;
 
       if (otp) {
         const msg = `Your OTP is ${otp}`;
         try {
-          const smsResult = await sendSms({ opts: { to: String(target), message: msg } });
+          await sendSms({
+            opts: {
+              to: String(normalized),
+              message: msg,
+            },
+          });
         } catch (err) {
-          console.error('Etisalat SMS failed in sendOtp:', {
+          console.error("Etisalat SMS failed in sendOtp:", {
             message: err?.message,
             status: err?.response?.status,
             data: err?.response?.data,
@@ -69,15 +77,19 @@ async function sendOtp(req, res) {
 
 async function verifyOtp(req, res) {
   const { channel, target, otp } = req.body || {};
+
   if (!channel || !target || !otp) {
     return res.status(400).json({ message: "channel, target, otp required" });
   }
 
   try {
+    const normalizedTarget =
+      channel === "mobile" ? normalizeUaeMobile(target) : target;
+
     const data =
       channel === "mobile"
-        ? await verifyMobileOtp(target, otp)
-        : await verifyEmailOtp(target, otp);
+        ? await verifyMobileOtp(normalizedTarget, otp)
+        : await verifyEmailOtp(normalizedTarget, otp);
 
     const raw = (
       data.verification_status ??
@@ -85,8 +97,8 @@ async function verifyOtp(req, res) {
       data.status ??
       ""
     ).trim();
-    const status = raw.toUpperCase();
 
+    const status = raw.toUpperCase();
     const OK = new Set(["VERIFIED", "SUCCESS", "VALID", "MATCH"]);
     const verified = OK.has(status);
 
@@ -101,22 +113,30 @@ async function verifyOtp(req, res) {
   }
 }
 
-
 async function refresh(req, res) {
   const { refresh_token, device_id } = req.body || {};
-  if (!refresh_token)
+
+  if (!refresh_token) {
     return res.status(400).json({ message: "refresh_token required" });
-  if (!device_id)
+  }
+
+  if (!device_id) {
     return res.status(400).json({ message: "device_id required" });
+  }
 
   try {
     const data = await authTokensValidate({ refresh_token, device_id });
 
     const userId = Number(data?.user_id);
-    if (!userId)
+    if (!userId) {
       return res.status(401).json({ message: "Invalid refresh token" });
+    }
 
-    const access_token = signAccessToken({ sub: String(userId), role: "user" });
+    const access_token = signAccessToken({
+      sub: String(userId),
+      role: "user",
+    });
+
     return res.json({ access_token });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -126,10 +146,14 @@ async function refresh(req, res) {
 
 async function logout(req, res) {
   const { refresh_token, device_id } = req.body || {};
-  if (!refresh_token)
+
+  if (!refresh_token) {
     return res.status(400).json({ message: "refresh_token required" });
-  if (!device_id)
+  }
+
+  if (!device_id) {
     return res.status(400).json({ message: "device_id required" });
+  }
 
   try {
     await authTokensRevoke({ refresh_token, device_id });
@@ -149,8 +173,16 @@ async function login(req, res) {
     }
 
     if (!email && !mobile_number && channel && target) {
-      if (String(channel).toLowerCase() === "email") email = target;
-      if (String(channel).toLowerCase() === "mobile") mobile_number = target;
+      if (String(channel).toLowerCase() === "email") {
+        email = target;
+      }
+      if (String(channel).toLowerCase() === "mobile") {
+        mobile_number = target;
+      }
+    }
+
+    if (mobile_number) {
+      mobile_number = normalizeUaeMobile(mobile_number);
     }
 
     const data = await ordsLogin({ email, mobile_number });
@@ -158,8 +190,7 @@ async function login(req, res) {
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = data.out_mobile ?? data.OUT_MOBILE ?? null;
     const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_client_code =
-      data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
+    const out_client_code = data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
     const out_name = data.out_name ?? data.OUT_NAME ?? null;
     const response_message =
       data.response_message ?? data.RESPONSE_MESSAGE ?? "Login failed";
@@ -170,11 +201,11 @@ async function login(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m",
+      "30m"
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
-    await persistRefreshToken(out_user_id, refresh_token, device_id); // ✅ FIXED
+    await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
       message: response_message,
@@ -206,13 +237,14 @@ async function register(req, res) {
       return res.status(400).json({ message: "Please fill all the fileds" });
     }
 
+    mobile_number = normalizeUaeMobile(mobile_number);
+
     const data = await registerUser({ email, mobile_number, full_name });
 
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = data.out_mobile ?? data.OUT_MOBILE ?? null;
     const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_client_code =
-      data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
+    const out_client_code = data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
     const out_name = data.out_name ?? data.OUT_NAME ?? null;
     const response_message =
       data.response_message ?? data.RESPONSE_MESSAGE ?? "Registration failed";
@@ -223,11 +255,11 @@ async function register(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m",
+      "30m"
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
-    await persistRefreshToken(out_user_id, refresh_token, device_id); // ✅ FIXED
+    await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
       message: response_message,
@@ -264,8 +296,7 @@ async function loginClient(req, res) {
     const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
     const out_mobile = data.out_mobile ?? data.OUT_MOBILE ?? null;
     const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_client_code =
-      data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
+    const out_client_code = data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
     const out_name = data.out_name ?? data.OUT_NAME ?? null;
     const response_message =
       data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
@@ -276,11 +307,11 @@ async function loginClient(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m",
+      "30m"
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
-    await persistRefreshToken(out_user_id, refresh_token, device_id); // ✅ FIXED
+    await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
       message: response_message,
@@ -303,6 +334,7 @@ async function loginClient(req, res) {
 async function getLoginClientEmail(req, res) {
   try {
     let { client_code } = req.body || {};
+
     if (!client_code) {
       return res.status(400).json({ message: "Provide client code please." });
     }
@@ -311,8 +343,6 @@ async function getLoginClientEmail(req, res) {
 
     const response_message =
       data.response_message ?? data.RESPONSE_MESSAGE ?? "Invalid client code.";
-
-    // ✅ FIXED: removed invalid out_user_id check (it wasn't defined here)
 
     return res.json({
       message: response_message,
@@ -329,6 +359,7 @@ async function getLoginClientEmail(req, res) {
 async function getClientCode(req, res) {
   try {
     let { email } = req.body || {};
+
     if (!email) {
       return res.status(400).json({ message: "Please provide email." });
     }
@@ -345,6 +376,7 @@ async function getClientCode(req, res) {
 async function registerExistingClientFromMainDB(req, res) {
   try {
     let { client_code } = req.body || {};
+
     if (!client_code) {
       return res.status(400).json({ message: "Provide client code please." });
     }
@@ -376,6 +408,7 @@ async function registerExistingClientFromMainDB(req, res) {
 async function clienCodeExist(req, res) {
   try {
     let { client_code } = req.body || {};
+
     if (!client_code) {
       return res.status(400).json({ message: "Provide client code please." });
     }
