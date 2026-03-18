@@ -629,15 +629,38 @@ function ordsGetParkingInfo({ plate_number }) {
     params: { plate_number },
   });
 }
-function ordsInitiateParkingPayment({ entry_guid, amount }) {
-  if (!entry_guid || amount == null) {
-    throw new Error("entry_guid and amount are required");
+function ordsInitiateParkingPayment({
+  entry_guid,
+  plate_number,
+  time_in,
+  time_spent_min,
+  amount,
+  center_fees_spent,
+  minutes_free,
+}) {
+  if (!entry_guid || !plate_number || amount == null) {
+    throw new Error("Missing required parking payment fields");
   }
+
+  console.log("🚀 ORDS PARKING FULL PAYLOAD:", {
+    entry_guid,
+    plate_number,
+    time_in,
+    time_spent_min,
+    amount,
+    center_fees_spent,
+    minutes_free,
+  });
 
   return callGateway("POST", "initiateParkingPayment", {
     params: {
-      entry_guid,
-      amount: Number(amount),
+      entry_guid: String(entry_guid),
+      plate_number: String(plate_number),
+      time_in: String(time_in),
+      time_spent_min: String(time_spent_min),
+      amount_due: String(amount),
+      center_fees_spent: String(center_fees_spent ?? 0),
+      minutes_free: String(minutes_free ?? 0),
     },
   });
 }

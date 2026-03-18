@@ -45,9 +45,14 @@ async function initPayment(req, res) {
 
     if (payment_type === "PARKING") {
       ordsRes = await ordsInitiateParkingPayment({
-        entry_guid: reference_id,
-        amount,
-      });
+  entry_guid: reference_id,
+  plate_number: req.body.plate_number, // IMPORTANT
+  time_in: req.body.time_in,
+  time_spent_min: req.body.time_spent_min,
+  amount_due: amount,
+  center_fees_spent: req.body.center_fees_spent ?? 0,
+  minutes_free: req.body.minutes_free ?? 0,
+});
     } else {
       ordsRes = await ordsInitPayment({
         user_id,
