@@ -120,7 +120,6 @@ async function verifyPayment(req, res) {
         message: "paymentId is required",
       });
     }
-
     let payment;
 
     console.log("🔍 Fetching payment from ORDS...", {
