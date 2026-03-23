@@ -1128,12 +1128,20 @@ async function downloadInvoicePdf(req, res) {
 async function getParkingInfo(req, res) {
   try {
     const plate_number = String(req.query?.plate_number || "");
+    const plate_category = String(req.query?.plate_category || "");
+    const plate_area_name = String(req.query?.plate_area_name || "");
 
-    if (!plate_number) {
-      return res.status(400).json({ message: "plate_number is required" });
+    if (!plate_number || !plate_category || !plate_area_name) {
+      return res.status(400).json({
+        message: "plate_number, plate_category and plate_area_name are required",
+      });
     }
 
-    const data = await ordsGetParkingInfo({ plate_number });
+    const data = await ordsGetParkingInfo({
+      plate_number,
+      plate_category,
+      plate_area_name,
+    });
 
     return res.status(200).json(data);
   } catch (e) {
@@ -1141,7 +1149,6 @@ async function getParkingInfo(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 // // POST /ayconnect/parking/pay
 // async function initiateParkingPayment(req, res) {
 //   try {

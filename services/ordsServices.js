@@ -622,11 +622,21 @@ function ordsClearPushToken({ token }) {
     },
   });
 }
-function ordsGetParkingInfo({ plate_number }) {
-  if (!plate_number) throw new Error("plate_number is required");
+function ordsGetParkingInfo({
+  plate_number,
+  plate_category,
+  plate_area_name,
+}) {
+  if (!plate_number || !plate_category || !plate_area_name) {
+    throw new Error("plate_number, plate_category and plate_area_name are required");
+  }
 
   return callGateway("GET", "getParkingInfo", {
-    params: { plate_number },
+    params: {
+      plate_number,
+      plate_category,
+      plate_area_name,
+    },
   });
 }
 function ordsInitiateParkingPayment({
