@@ -230,8 +230,8 @@ async function paymentReturn(req, res) {
     let deepLink;
     if (payment_type === "PARKING") {
       deepLink = paymentId
-        ? `ayconnect://parking/page?paymentId=${paymentId}`
-        : `ayconnect://parking/page`;
+        ? `ayconnect://parking/result?paymentId=${paymentId}`
+        : `ayconnect://parking/result`;
     } else {
       deepLink = `ayconnect://requests`;
     }
