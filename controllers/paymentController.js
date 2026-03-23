@@ -218,12 +218,6 @@ async function verifyPayment(req, res) {
     });
   }
 }
-/**
- * ----------------------------------------------------
- * PAYMENT RETURN (browser → app)
- * ----------------------------------------------------
- * GET /payments/return
- */
 async function paymentReturn(req, res) {
   try {
     const { payment_type, paymentId } = req.query;
