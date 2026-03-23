@@ -112,15 +112,12 @@ async function verifyPayment(req, res) {
   try {
     console.log("📥 [VERIFY] Incoming body:", req.body);
 
-    const { paymentId, payment_type } = req.body;
+    let { paymentId, payment_type } = req.body;
 
-    if (!paymentId || !payment_type) {
-      console.warn("⚠️ Missing required fields", {
-        paymentId,
-        payment_type,
-      });
+    if (!paymentId) {
+      console.warn("⚠️ Missing paymentId");
       return res.status(400).json({
-        message: "paymentId and payment_type are required",
+        message: "paymentId is required",
       });
     }
 
@@ -131,10 +128,26 @@ async function verifyPayment(req, res) {
       payment_type,
     });
 
-    if (payment_type === "PARKING") {
-      payment = await ordsGetParkingPayment(paymentId);
-    } else {
+    // 🔥 AUTO-DETECT TYPE IF NOT PROVIDED
+    if (!payment_type) {
+      console.log("🤖 Auto-detecting payment type...");
+
       payment = await ordsGetPayment(paymentId);
+
+      if (payment) {
+        payment_type = "SERVICE";
+      } else {
+        payment = await ordsGetParkingPayment(paymentId);
+        payment_type = "PARKING";
+      }
+
+      console.log("🧠 Detected type:", payment_type);
+    } else {
+      if (payment_type === "PARKING") {
+        payment = await ordsGetParkingPayment(paymentId);
+      } else {
+        payment = await ordsGetPayment(paymentId);
+      }
     }
 
     console.log("📦 ORDS PAYMENT RESPONSE:", payment);
@@ -171,10 +184,9 @@ async function verifyPayment(req, res) {
         await ordsUpdateParkingStatus({
           payment_id: paymentId,
           payment_status: "PAID",
-          amount_paid: payment.amount_paid || payment.amount,
+          amount_paid: Number(payment.amount_paid || payment.amount || 0),
           mpgs_txn_id:
             order?.authentication?.["3ds"]?.transactionId || null,
-          deadline_to_leave: null,
         });
       } else {
         console.log("🧾 Updating service payment status in ORDS...");
@@ -198,6 +210,7 @@ async function verifyPayment(req, res) {
       message: e.message,
       response: e.response?.data,
       status: e.response?.status,
+      stack: e.stack,
     });
 
     return res.status(500).json({
@@ -206,7 +219,6 @@ async function verifyPayment(req, res) {
     });
   }
 }
-
 /**
  * ----------------------------------------------------
  * PAYMENT RETURN (browser → app)
