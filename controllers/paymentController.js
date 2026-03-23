@@ -73,12 +73,12 @@ async function initPayment(req, res) {
 
     // 2️⃣ Create MPGS order + session (NO returnUrl here ❗)
     const orderId = `${payment_type}-${payment_id}-${Date.now()}`;
-
     const { sessionId } = await initiateHostedCheckout({
       amount,
       orderId,
+      payment_type,
+      payment_id,
     });
-
     if (payment_type === "PARKING") {
       await ordsUpdateParkingSession({
         payment_id,
@@ -226,14 +226,17 @@ async function verifyPayment(req, res) {
  */
 async function paymentReturn(req, res) {
   try {
-    // const { instance_svc_id } = req.query;
+    const { payment_type, paymentId } = req.query;
+    let deepLink;
+    if (payment_type === "PARKING") {
+      deepLink = paymentId
+        ? `ayconnect://parking?paymentId=${paymentId}`
+        : `ayconnect://parking`;
+    } else {
+      deepLink = `ayconnect://requests`;
+    }
 
-    // if (!instance_svc_id) {
-    //   return res.status(400).send("Missing instance_svc_id");
-    // }
-
-    // ✅ Expo Router–correct deep link
-    const deepLink = `ayconnect://requests`;
+    console.log("🔁 Redirecting to:", deepLink);
 
     return res.redirect(deepLink);
   } catch (err) {
@@ -241,7 +244,6 @@ async function paymentReturn(req, res) {
     return res.status(500).send("Payment return failed");
   }
 }
-
 module.exports = {
   initPayment,
   verifyPayment,
