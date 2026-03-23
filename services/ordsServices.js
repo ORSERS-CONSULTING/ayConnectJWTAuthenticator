@@ -682,7 +682,6 @@ function ordsUpdateParkingStatus({
   payment_status,
   amount_paid,
   mpgs_txn_id,
-  deadline_to_leave,
 }) {
   if (!payment_id || !payment_status) {
     throw new Error("payment_id and payment_status are required");
@@ -693,7 +692,6 @@ function ordsUpdateParkingStatus({
       payment_status,
       amount_paid: amount_paid != null ? Number(amount_paid) : null,
       mpgs_txn_id: mpgs_txn_id || null,
-      deadline_to_leave: deadline_to_leave || null,
     },
   });
 }
