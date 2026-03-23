@@ -236,7 +236,6 @@ async function paymentReturn(req, res) {
       deepLink = `ayconnect://requests`;
     }
     console.log("🔁 Redirecting to:", deepLink);
-
     return res.redirect(deepLink);
   } catch (err) {
     console.error("[paymentReturn] ERROR", err);
