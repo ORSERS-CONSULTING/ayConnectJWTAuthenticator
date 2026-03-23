@@ -45,14 +45,14 @@ async function initPayment(req, res) {
 
     if (payment_type === "PARKING") {
       ordsRes = await ordsInitiateParkingPayment({
-  entry_guid: reference_id,
-  plate_number: req.body.plate_number, // IMPORTANT
-  time_in: req.body.time_in,
-  time_spent_min: req.body.time_spent_min,
-  amount: amount,
-  center_fees_spent: req.body.center_fees_spent ?? 0,
-  minutes_free: req.body.minutes_free ?? 0,
-});
+        entry_guid: reference_id,
+        plate_number: req.body.plate_number, // IMPORTANT
+        time_in: req.body.time_in,
+        time_spent_min: req.body.time_spent_min,
+        amount: amount,
+        center_fees_spent: req.body.center_fees_spent ?? 0,
+        minutes_free: req.body.minutes_free ?? 0,
+      });
     } else {
       ordsRes = await ordsInitPayment({
         user_id,
@@ -184,8 +184,7 @@ async function verifyPayment(req, res) {
           payment_id: paymentId,
           payment_status: "PAID",
           amount_paid: Number(payment.amount_paid || payment.amount || 0),
-          mpgs_txn_id:
-            order?.authentication?.["3ds"]?.transactionId || null,
+          mpgs_txn_id: order?.authentication?.["3ds"]?.transactionId || null,
         });
       } else {
         console.log("🧾 Updating service payment status in ORDS...");
@@ -195,6 +194,7 @@ async function verifyPayment(req, res) {
           status: "PAID",
           mpgs_transaction_id:
             order?.authentication?.["3ds"]?.transactionId || null,
+          result_reason: order?.result || "UNKNOWN",
         });
       }
 
