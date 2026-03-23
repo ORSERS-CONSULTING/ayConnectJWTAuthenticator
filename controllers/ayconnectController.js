@@ -1123,7 +1123,6 @@ async function downloadInvoicePdf(req, res) {
     return res.status(code).json({ message: e.message });
   }
 }
-
 // GET /ayconnect/parking/info?plate_number=...
 async function getParkingInfo(req, res) {
   try {
