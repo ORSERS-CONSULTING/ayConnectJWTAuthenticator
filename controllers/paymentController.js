@@ -4,12 +4,110 @@ const {
   ordsUpdatePaymentStatus,
   ordsGetParkingInfo,
   ordsInsertParkingPayment,
+  savePaymentMeta
 } = require("../services/ordsServices");
 
 const {
   initiateHostedCheckout,
   retrieveOrder,
 } = require("../services/rakbankService");
+
+async function verifyPaymentInternal(body) {
+  const { orderId, payment_type } = body;
+
+  console.log("🔁 [INTERNAL VERIFY]", body);
+
+  const order = await retrieveOrder(orderId);
+
+  if (
+    order?.result === "SUCCESS" &&
+    (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
+  ) {
+    console.log("💰 Payment SUCCESS from MPGS");
+
+    if (payment_type === "PARKING") {
+      const { plate_number, plate_category, plate_area_name } = body;
+
+      if (!plate_number) {
+        throw new Error("Missing plate_number for parking verification");
+      }
+
+      console.log("🚗 Fetching parking info...");
+
+      const parking = await ordsGetParkingInfo({
+        plate_number,
+        plate_category,
+        plate_area_name,
+      });
+
+      console.log("📦 Parking data:", parking);
+
+      if (!parking?.ticketId) {
+        throw new Error("No active parking session found");
+      }
+
+      // 🔴 IMPORTANT: prevent duplicate insert
+      const alreadyPaid =
+        parking.financials?.amountDue === 0 &&
+        parking.financials?.isPayable === false;
+
+      if (alreadyPaid) {
+        console.log("⚠️ Payment already exists, skipping insert");
+        return { status: "PAID" };
+      }
+
+      console.log("🧾 INSERT PAYLOAD:", {
+        entry_guid: parking.ticketId,
+        time_in: parking.timeEntered,
+        time_spent_min: parking.durationMinutes,
+        amount_paid: parking.financials?.amountDue ?? 0,
+        center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
+        minutes_free: parking.rules?.freeMinutesGranted ?? 0,
+      });
+
+      try {
+        const insertRes = await ordsInsertParkingPayment({
+          entry_guid: parking.ticketId,
+          time_in: parking.timeEntered,
+          time_spent_min: parking.durationMinutes,
+          amount_paid: parking.financials?.amountDue ?? 0,
+          center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
+          minutes_free: parking.rules?.freeMinutesGranted ?? 0,
+        });
+
+        console.log("✅ Parking payment inserted:", insertRes);
+      } catch (err) {
+        console.error("❌ INSERT FAILED:", err.message);
+        console.error("❌ ORDS ERROR:", err.response?.data);
+        throw err; // important so you see failure in response
+      }
+      return { status: "PAID" };
+    }
+
+    /* ========================= */
+    /* ===== SERVICE FLOW ====== */
+    /* ========================= */
+
+    const { paymentId } = body;
+
+    if (!paymentId) {
+      throw new Error("paymentId required for service payments");
+    }
+
+    await ordsUpdatePaymentStatus({
+      payment_id: paymentId,
+      status: "PAID",
+      mpgs_transaction_id:
+        order?.authentication?.["3ds"]?.transactionId || null,
+      result_reason: order?.result || "UNKNOWN",
+    });
+
+    return { status: "PAID" };
+  }
+  console.log("⏳ Payment still pending");
+
+  return { status: "PENDING" };
+}
 
 /**
  * ----------------------------------------------------
@@ -54,7 +152,12 @@ async function initPayment(req, res) {
         payment_type,
         // ❌ no payment_id anymore
       });
-
+   await ordsSaveParkingMeta({
+  order_id: orderId,
+  plate_number,
+  plate_category,
+  plate_area_name,
+});
       // 4️⃣ Return session + orderId (important for verify step)
       return res.status(200).json({
         paymentId: null, // no DB record yet
@@ -94,7 +197,10 @@ async function initPayment(req, res) {
       payment_type,
       payment_id,
     });
-
+ await ordsSaveServiceMeta({
+  order_id: orderId,
+  payment_id,
+});
     await ordsUpdatePaymentSession({
       payment_id,
       mpgs_order_id: orderId,
@@ -122,112 +228,9 @@ async function verifyPayment(req, res) {
   try {
     console.log("📥 [VERIFY] Incoming body:", req.body);
 
-    const { orderId, payment_type } = req.body;
+    const result = await verifyPaymentInternal(req.body);
 
-    if (!orderId) {
-      return res.status(400).json({
-        message: "orderId is required",
-      });
-    }
-
-    console.log("🌐 Fetching MPGS order...", orderId);
-
-    const order = await retrieveOrder(orderId);
-
-    console.log("📦 MPGS ORDER RESPONSE:", order);
-
-    if (
-      order?.result === "SUCCESS" &&
-      (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
-    ) {
-      console.log("💰 Payment SUCCESS from MPGS");
-
-      /* ========================= */
-      /* ===== PARKING FLOW ====== */
-      /* ========================= */
-
-      if (payment_type === "PARKING") {
-        const { plate_number, plate_category, plate_area_name } = req.body;
-
-        if (!plate_number) {
-          throw new Error("Missing plate_number for parking verification");
-        }
-
-        console.log("🚗 Fetching parking info...");
-
-        const parking = await ordsGetParkingInfo({
-          plate_number,
-          plate_category,
-          plate_area_name,
-        });
-
-        console.log("📦 Parking data:", parking);
-
-        if (!parking?.ticketId) {
-          throw new Error("No active parking session found");
-        }
-
-        // 🔴 IMPORTANT: prevent duplicate insert
-        const alreadyPaid =
-          parking.financials?.amountDue === 0 &&
-          parking.financials?.isPayable === false;
-
-        if (alreadyPaid) {
-          console.log("⚠️ Payment already exists, skipping insert");
-          return res.json({ status: "PAID" });
-        }
-
-       console.log("🧾 INSERT PAYLOAD:", {
-  entry_guid: parking.ticketId,
-  time_in: parking.timeEntered,
-  time_spent_min: parking.durationMinutes,
-  amount_paid: parking.financials?.amountDue ?? 0,
-  center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
-  minutes_free: parking.rules?.freeMinutesGranted ?? 0,
-});
-
-try {
-  const insertRes = await ordsInsertParkingPayment({
-    entry_guid: parking.ticketId,
-    time_in: parking.timeEntered,
-    time_spent_min: parking.durationMinutes,
-    amount_paid: parking.financials?.amountDue ?? 0,
-    center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
-    minutes_free: parking.rules?.freeMinutesGranted ?? 0,
-  });
-
-  console.log("✅ Parking payment inserted:", insertRes);
-} catch (err) {
-  console.error("❌ INSERT FAILED:", err.message);
-  console.error("❌ ORDS ERROR:", err.response?.data);
-  throw err; // important so you see failure in response
-}
-        return res.json({ status: "PAID" });
-      }
-
-      /* ========================= */
-      /* ===== SERVICE FLOW ====== */
-      /* ========================= */
-
-      const { paymentId } = req.body;
-
-      if (!paymentId) {
-        throw new Error("paymentId required for service payments");
-      }
-
-      await ordsUpdatePaymentStatus({
-        payment_id: paymentId,
-        status: "PAID",
-        mpgs_transaction_id:
-          order?.authentication?.["3ds"]?.transactionId || null,
-        result_reason: order?.result || "UNKNOWN",
-      });
-
-      return res.json({ status: "PAID" });
-    }
-    console.log("⏳ Payment still pending");
-
-    return res.json({ status: "PENDING" });
+    return res.json(result);
   } catch (e) {
     console.error("❌ [verifyPayment] ERROR:", e);
     return res.status(500).json({
@@ -264,8 +267,78 @@ async function paymentReturn(req, res) {
     return res.status(500).send("Payment return failed");
   }
 }
+app.post("/payment/webhook", async (req, res) => {
+  try {
+    console.log("📩 [WEBHOOK RECEIVED]");
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
+
+    // ✅ 1. Validate secret
+    const secret = req.headers["x-notification-secret"];
+
+    if (secret !== process.env.MPGS_WEBHOOK_SECRET) {
+      console.error("❌ Invalid webhook secret");
+      return res.sendStatus(403);
+    }
+
+    // ✅ 2. Extract orderId
+    const orderId = req.body?.order?.id;
+
+    if (!orderId) {
+      console.error("❌ No orderId in webhook");
+      return res.sendStatus(400);
+    }
+
+    console.log("🔍 Webhook orderId:", orderId);
+
+    // ✅ 3. ALWAYS verify with MPGS (don’t trust webhook alone)
+    const order = await retrieveOrder(orderId);
+
+    console.log("📦 Verified MPGS order:", order);
+
+    if (
+      order?.result === "SUCCESS" &&
+      (order?.status === "CAPTURED" || order?.status === "AUTHORIZED")
+    ) {
+      console.log("💰 Webhook confirmed payment");
+
+      // 🔥 IMPORTANT: fetch stored metadata (plate info)
+      let paymentMeta;
+paymentMeta = await ordsGetParkingMeta(orderId);
+
+   
+if (!paymentMeta) {
+  paymentMeta = await ordsGetServiceMeta(orderId);
+}
+
+if (!paymentMeta) {
+  console.error("❌ No metadata found");
+  return res.sendStatus(200);
+}
+
+console.log("📦 META:", paymentMeta);
+
+      // 🔥 Reuse your existing logic
+      await verifyPaymentInternal({
+        orderId,
+        payment_type: paymentMeta.payment_type,
+        plate_number: paymentMeta.plate_number,
+        plate_category: paymentMeta.plate_category,
+        plate_area_name: paymentMeta.plate_area_name,
+        paymentId: paymentMeta.payment_id,
+      });
+    }
+
+    // ✅ MUST respond 200 FAST
+    return res.sendStatus(200);
+  } catch (err) {
+    console.error("❌ Webhook error:", err);
+    return res.sendStatus(500);
+  }
+});
 module.exports = {
   initPayment,
   verifyPayment,
   paymentReturn,
+  paymentWebhook,
 };

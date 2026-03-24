@@ -747,6 +747,72 @@ function ordsInsertParkingPayment({
     },
   });
 }
+function ordsSaveParkingMeta({
+  order_id,
+  plate_number,
+  plate_category,
+  plate_area_name,
+}) {
+  if (!order_id || !plate_number) {
+    throw new Error("order_id and plate_number are required");
+  }
+
+  console.log("🚀 ORDS PARKING META SAVE:", {
+    order_id,
+    plate_number,
+    plate_category,
+    plate_area_name,
+  });
+
+  return callGateway("POST", "saveParkingMetadata", {
+    params: {
+      order_id: String(order_id),
+      plate_number: String(plate_number),
+      plate_category: plate_category ? String(plate_category) : null,
+      plate_area_name: plate_area_name ? String(plate_area_name) : null,
+    },
+  });
+}
+async function ordsGetParkingMeta(order_id) {
+  if (!order_id) throw new Error("order_id is required");
+
+  const res = await callGateway("GET", "getParkingMetadata", {
+    params: { order_id: String(order_id) },
+  });
+
+  return res?.items?.[0] || null;
+}
+
+function ordsSaveServiceMeta({
+  order_id,
+  payment_id,
+}) {
+  if (!order_id || !payment_id) {
+    throw new Error("order_id and payment_id are required");
+  }
+
+  console.log("🚀 ORDS SERVICE META SAVE:", {
+    order_id,
+    payment_id,
+  });
+
+  return callGateway("POST", "saveServiceMetadata", {
+    params: {
+      order_id: String(order_id),
+      payment_id: Number(payment_id),
+    },
+  });
+}
+
+async function ordsGetServiceMeta(order_id) {
+  if (!order_id) throw new Error("order_id is required");
+
+  const res = await callGateway("GET", "getServiceMetadata", {
+    params: { order_id: String(order_id) },
+  });
+
+  return res?.items?.[0] || null;
+}
 module.exports = {
   callGateway,
   // ordsGetActiveRuns,
@@ -798,5 +864,9 @@ module.exports = {
   ordsUpdateParkingSession,
   ordsUpdateParkingStatus,
   ordsGetParkingPayment,
-  ordsInsertParkingPayment
+  ordsInsertParkingPayment,
+  ordsSaveParkingMeta,
+  ordsGetParkingMeta,
+  ordsSaveServiceMeta,
+  ordsGetServiceMeta,
 };
