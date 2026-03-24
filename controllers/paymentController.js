@@ -2,8 +2,8 @@ const {
   ordsInitPayment,
   ordsUpdatePaymentSession,
   ordsUpdatePaymentStatus,
-ordsGetParkingInfo,
-ordsInsertParkingPayment,
+  ordsGetParkingInfo,
+  ordsInsertParkingPayment,
 } = require("../services/ordsServices");
 
 const {
@@ -43,7 +43,7 @@ async function initPayment(req, res) {
       // ❌ NO DB INSERT HERE
 
       // 1️⃣ Generate temporary reference
-      const tempId = `${reference_id}-${Date.now()}`;
+      const tempId = `${reference_id}`;
 
       // 2️⃣ Create MPGS orderId
       const orderId = `PARKING-${tempId}`;
