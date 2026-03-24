@@ -225,7 +225,6 @@ try {
 
       return res.json({ status: "PAID" });
     }
-
     console.log("⏳ Payment still pending");
 
     return res.json({ status: "PENDING" });
