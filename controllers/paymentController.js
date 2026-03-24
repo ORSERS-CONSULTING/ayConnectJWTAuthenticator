@@ -177,17 +177,31 @@ async function verifyPayment(req, res) {
           return res.json({ status: "PAID" });
         }
 
-        await ordsInsertParkingPayment({
-          entry_guid: parking.ticketId,
-          time_in: parking.timeEntered,
-          time_spent_min: parking.durationMinutes,
-          amount_paid: parking.financials?.amountDue ?? 0,
-          center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
-          minutes_free: parking.rules?.freeMinutesGranted ?? 0,
-        });
+       console.log("🧾 INSERT PAYLOAD:", {
+  entry_guid: parking.ticketId,
+  time_in: parking.timeEntered,
+  time_spent_min: parking.durationMinutes,
+  amount_paid: parking.financials?.amountDue ?? 0,
+  center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
+  minutes_free: parking.rules?.freeMinutesGranted ?? 0,
+});
 
-        console.log("✅ Parking payment inserted");
+try {
+  const insertRes = await ordsInsertParkingPayment({
+    entry_guid: parking.ticketId,
+    time_in: parking.timeEntered,
+    time_spent_min: parking.durationMinutes,
+    amount_paid: parking.financials?.amountDue ?? 0,
+    center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
+    minutes_free: parking.rules?.freeMinutesGranted ?? 0,
+  });
 
+  console.log("✅ Parking payment inserted:", insertRes);
+} catch (err) {
+  console.error("❌ INSERT FAILED:", err.message);
+  console.error("❌ ORDS ERROR:", err.response?.data);
+  throw err; // important so you see failure in response
+}
         return res.json({ status: "PAID" });
       }
 
@@ -225,8 +239,16 @@ async function verifyPayment(req, res) {
 }
 async function paymentReturn(req, res) {
   try {
-    const { payment_type, paymentId } = req.query;
+    const {
+      payment_type,
+      orderId,
+      plate_number,
+      plate_category,
+      plate_area_name,
+    } = req.query;
+
     let deepLink;
+
     if (payment_type === "PARKING") {
       deepLink = orderId
         ? `ayconnect://parking/result?orderId=${orderId}&plate=${plate_number}&plate_category=${plate_category}&plate_area_name=${plate_area_name}`
@@ -234,7 +256,9 @@ async function paymentReturn(req, res) {
     } else {
       deepLink = `ayconnect://requests`;
     }
+
     console.log("🔁 Redirecting to:", deepLink);
+
     return res.redirect(deepLink);
   } catch (err) {
     console.error("[paymentReturn] ERROR", err);
