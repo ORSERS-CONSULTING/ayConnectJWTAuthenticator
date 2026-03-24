@@ -41,7 +41,6 @@ async function initPayment(req, res) {
 
     if (payment_type === "PARKING") {
       // ❌ NO DB INSERT HERE
-
       // 1️⃣ Generate temporary reference
       const tempId = `${reference_id}`;
 
