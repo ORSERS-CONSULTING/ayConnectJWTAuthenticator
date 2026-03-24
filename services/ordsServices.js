@@ -714,6 +714,39 @@ async function ordsGetParkingPayment(payment_id) {
 
   return res?.items?.[0] || null;
 }
+function ordsInsertParkingPayment({
+  entry_guid,
+  time_in,
+  time_spent_min,
+  amount_paid,
+  center_fees_spent,
+  minutes_free,
+}) {
+  // ✅ validation
+  if (!entry_guid || amount_paid == null) {
+    throw new Error("Missing required parking insert fields");
+  }
+
+  console.log("🚀 ORDS INSERT PARKING PAYMENT:", {
+    entry_guid,
+    time_in,
+    time_spent_min,
+    amount_paid,
+    center_fees_spent,
+    minutes_free,
+  });
+
+  return callGateway("POST", "insertParkingPayment", {
+    params: {
+      entry_guid: String(entry_guid),
+      time_in: String(time_in), // must match ORDS param
+      time_spent_min: String(time_spent_min ?? 0),
+      amount_paid: String(amount_paid),
+      center_fees_spent: String(center_fees_spent ?? 0),
+      minutes_free: String(minutes_free ?? 0),
+    },
+  });
+}
 module.exports = {
   callGateway,
   // ordsGetActiveRuns,
@@ -765,4 +798,5 @@ module.exports = {
   ordsUpdateParkingSession,
   ordsUpdateParkingStatus,
   ordsGetParkingPayment,
+  ordsInsertParkingPayment
 };
