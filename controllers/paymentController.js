@@ -4,7 +4,10 @@ const {
   ordsUpdatePaymentStatus,
   ordsGetParkingInfo,
   ordsInsertParkingPayment,
-  savePaymentMeta
+  ordsSaveParkingMeta,
+  ordsGetParkingMeta,
+  ordsSaveServiceMeta,
+  ordsGetServiceMeta,
 } = require("../services/ordsServices");
 
 const {
@@ -119,8 +122,14 @@ async function initPayment(req, res) {
   try {
     const user_id = req.user?.user_id || req.user?.id || req.user?.sub || null;
 
-    const { payment_type, reference_id, amount } = req.body;
-
+const {
+  payment_type,
+  reference_id,
+  amount,
+  plate_number,
+  plate_category,
+  plate_area_name,
+} = req.body;
     if (!payment_type || amount == null) {
       return res.status(400).json({
         message: "payment_type and amount are required",
@@ -267,7 +276,7 @@ async function paymentReturn(req, res) {
     return res.status(500).send("Payment return failed");
   }
 }
-app.post("/payment/webhook", async (req, res) => {
+async function paymentWebhook(req, res) {
   try {
     console.log("📩 [WEBHOOK RECEIVED]");
     console.log("Headers:", req.headers);
@@ -335,7 +344,7 @@ console.log("📦 META:", paymentMeta);
     console.error("❌ Webhook error:", err);
     return res.sendStatus(500);
   }
-});
+};
 module.exports = {
   initPayment,
   verifyPayment,
