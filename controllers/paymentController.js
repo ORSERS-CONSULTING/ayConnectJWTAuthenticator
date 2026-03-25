@@ -265,8 +265,7 @@ async function paymentReturn(req, res) {
         ? `ayconnect://parking/result?orderId=${orderId}&plate=${plate_number}&plate_category=${plate_category}&plate_area_name=${plate_area_name}`
         : `ayconnect://parking/result`;
     } else {
-      deepLink = `ayconnect://requests`;
-    }
+deepLink = `ayconnect://requests?orderId=${orderId}&paymentId=${paymentId}`;    }
 
     console.log("🔁 Redirecting to:", deepLink);
 
