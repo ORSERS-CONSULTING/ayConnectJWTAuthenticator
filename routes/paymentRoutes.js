@@ -7,14 +7,13 @@ const {
   initPayment,
   verifyPayment,
   paymentReturn,
-  paymentWebhook,
 } = require("../controllers/paymentController");
 
 // paymentRoutes.js
 router.post("/init", authUser, initPayment);
 router.post("/verify", verifyPayment);
 router.get("/return", paymentReturn);
-router.post("/webhook", paymentWebhook);
+// router.post("/webhook", paymentWebhook);
 
 // 4️⃣ Hosted Checkout UI (browser loads Checkout.js)
 router.get("/checkout", (req, res) => {
