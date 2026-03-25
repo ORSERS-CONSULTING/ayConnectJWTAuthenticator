@@ -865,8 +865,8 @@ module.exports = {
   ordsUpdateParkingStatus,
   ordsGetParkingPayment,
   ordsInsertParkingPayment,
-  ordsSaveParkingMeta,
-  ordsGetParkingMeta,
-  ordsSaveServiceMeta,
-  ordsGetServiceMeta,
+  // ordsSaveParkingMeta,
+  // ordsGetParkingMeta,
+  // ordsSaveServiceMeta,
+  // ordsGetServiceMeta,
 };
