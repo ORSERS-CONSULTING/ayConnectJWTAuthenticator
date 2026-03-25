@@ -115,33 +115,40 @@ async function downloadUserDoc(req, res) {
 // Optional: ?instance_svc_id=...
 async function getRequests(req, res) {
   try {
+    console.log("➡️ Incoming getRequests");
+
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const q = req.query || req.body || {};
 
     const user_id = String(q.user_id || fromToken);
-    if (!user_id) {
-      return res.status(401).json({ message: "No user in token" });
-    }
+    console.log("👤 user_id:", user_id);
 
-    // ✅ instance_svc_id is OPTIONAL
     let instance_svc_id = null;
     if (q.instance_svc_id != null) {
       instance_svc_id = Number(q.instance_svc_id);
-      if (Number.isNaN(instance_svc_id)) {
-        return res.status(400).json({ message: "invalid instance_svc_id" });
-      }
     }
+
+    console.log("📡 Calling ORDS...");
+
+    const start = Date.now();
 
     const data = await ordsGetRequests({
       user_id,
-      instance_svc_id, // may be null
+      instance_svc_id,
     });
 
-    // normalize optional: ORDS sometimes returns { items: [...] }
+    console.log("✅ ORDS returned in", Date.now() - start, "ms");
+
+    // 🔥 log size
+    const size = JSON.stringify(data).length;
+    console.log("📦 Response size:", size);
+
     const items = Array.isArray(data) ? data : data.items ?? data;
 
     return res.status(200).json({ items });
   } catch (e) {
+    console.error("❌ ERROR:", e.response?.status, e.message);
+
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
