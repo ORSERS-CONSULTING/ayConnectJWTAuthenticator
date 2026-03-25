@@ -24,7 +24,13 @@ function getAuthHeader() {
  * Create Hosted Checkout Session
  * ----------------------------------------------------
  */
-async function initiateHostedCheckout({ amount, orderId, payment_type, payment_id }) {  // ✅ safer validation
+async function initiateHostedCheckout({
+  amount,
+  orderId,
+  payment_type,
+  payment_id,
+}) {
+  // ✅ safer validation
 
   if (amount == null || !orderId) {
     throw new Error("amount, orderId are required");
@@ -58,7 +64,8 @@ async function initiateHostedCheckout({ amount, orderId, payment_type, payment_i
         shipping: "HIDE",
       },
 
-returnUrl: `https://ayconnect.yalayis.ai/payments/return?payment_type=${payment_type}&paymentId=${payment_id}`,    },
+      returnUrl: `https://ayconnect.yalayis.ai/payments/return?payment_type=${payment_type}&paymentId=${payment_id}`,
+    },
 
     order: {
       id: orderId,
