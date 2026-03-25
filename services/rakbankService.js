@@ -64,7 +64,7 @@ async function initiateHostedCheckout({
         shipping: "HIDE",
       },
 
-      returnUrl: `https://ayconnect.yalayis.ai/payment/return?orderId=${order_id}&paymentId=${payment_id}&payment_type=${payment_type}`,
+      returnUrl: `https://ayconnect.yalayis.ai/payment/return?orderId=${orderId}&paymentId=${payment_id}&payment_type=${payment_type}`,
     },
     order: {
       id: orderId,
