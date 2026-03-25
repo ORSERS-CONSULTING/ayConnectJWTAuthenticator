@@ -7,6 +7,7 @@ const {
   initPayment,
   verifyPayment,
   paymentReturn,
+  paymentWebhook,
 } = require("../controllers/paymentController");
 
 // paymentRoutes.js
