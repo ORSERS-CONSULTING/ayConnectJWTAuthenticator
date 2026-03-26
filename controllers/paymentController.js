@@ -131,34 +131,29 @@ async function verifyPayment(req, res) {
       plate_area_name,
     } = req.body;
 
-    if (!orderId) {
-      return res.status(400).json({
-        message: "orderId is required",
-      });
-    }
-
-    console.log("🌐 Fetching MPGS order...", orderId);
-
-    const order = await retrieveOrder(orderId);
-
-    console.log("📦 MPGS ORDER RESPONSE:", order);
-
-    const isSuccess =
-      order?.result === "SUCCESS" &&
-      (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
-
-    if (!isSuccess) {
-      console.log("⏳ Payment still pending");
-      return res.json({ status: "PENDING" });
-    }
-
-    console.log("💰 Payment SUCCESS from MPGS");
-
     /* ========================= */
     /* ===== PARKING FLOW ====== */
     /* ========================= */
 
     if (payment_type === "PARKING") {
+      if (!orderId) {
+        return res.status(400).json({
+          message: "orderId is required for parking",
+        });
+      }
+
+      console.log("🌐 Fetching MPGS order...", orderId);
+
+      const order = await retrieveOrder(orderId);
+
+      const isSuccess =
+        order?.result === "SUCCESS" &&
+        (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
+
+      if (!isSuccess) {
+        return res.json({ status: "PENDING" });
+      }
+
       if (!plate_number) {
         throw new Error("Missing plate_number for parking verification");
       }
@@ -171,23 +166,17 @@ async function verifyPayment(req, res) {
         plate_area_name,
       });
 
-      console.log("📦 Parking data:", parking);
-
       if (!parking?.ticketId) {
         throw new Error("No active parking session found");
       }
 
-      // Prevent duplicate insert
       const alreadyPaid =
         parking.financials?.amountDue === 0 &&
         parking.financials?.isPayable === false;
 
       if (alreadyPaid) {
-        console.log("⚠️ Payment already exists, skipping insert");
         return res.json({ status: "PAID" });
       }
-
-      console.log("🧾 Inserting parking payment...");
 
       await ordsInsertParkingPayment({
         entry_guid: parking.ticketId,
@@ -198,8 +187,6 @@ async function verifyPayment(req, res) {
         minutes_free: parking.rules?.freeMinutesGranted ?? 0,
       });
 
-      console.log("✅ Parking payment inserted");
-
       return res.json({ status: "PAID" });
     }
 
@@ -208,20 +195,45 @@ async function verifyPayment(req, res) {
     /* ========================= */
 
     if (!paymentId) {
-      throw new Error("paymentId required for service payments");
+      return res.status(400).json({
+        message: "paymentId is required for service payments",
+      });
     }
 
-    await ordsUpdatePaymentStatus({
-      payment_id: paymentId,
-      status: "PAID",
-      mpgs_transaction_id:
-        order?.authentication?.["3ds"]?.transactionId || null,
-      result_reason: order?.result || "UNKNOWN",
-    });
+    console.log("🔍 Fetching service payment from ORDS...", paymentId);
 
-    console.log("✅ Service payment updated");
+    const payment = await ordsGetPayment(paymentId);
 
-    return res.json({ status: "PAID" });
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    const currentStatus = payment.status || payment.payment_status;
+
+    if (currentStatus === "PAID" || currentStatus === "FAILED") {
+      return res.json({ status: currentStatus });
+    }
+
+    console.log("🌐 Fetching MPGS order from ORDS...", payment.mpgs_order_id);
+
+    const order = await retrieveOrder(payment.mpgs_order_id);
+
+    const isSuccess =
+      order?.result === "SUCCESS" &&
+      (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
+
+    if (isSuccess) {
+      await ordsUpdatePaymentStatus({
+        payment_id: paymentId,
+        status: "PAID",
+        mpgs_transaction_id:
+          order?.authentication?.["3ds"]?.transactionId || null,
+      });
+
+      return res.json({ status: "PAID" });
+    }
+
+    return res.json({ status: "PENDING" });
   } catch (e) {
     console.error("❌ [verifyPayment] ERROR:", e);
     return res.status(500).json({
