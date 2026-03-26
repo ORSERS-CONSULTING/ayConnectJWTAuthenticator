@@ -222,7 +222,6 @@ async function verifyPayment(req, res) {
     const isSuccess =
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
-
     if (isSuccess) {
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
