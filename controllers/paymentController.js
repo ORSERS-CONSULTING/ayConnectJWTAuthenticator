@@ -229,6 +229,7 @@ async function verifyPayment(req, res) {
         status: "PAID",
         mpgs_transaction_id:
           order?.authentication?.["3ds"]?.transactionId || null,
+        result_reason: order?.result || "UNKNOWN", // ✅ FIX
       });
 
       return res.json({ status: "PAID" });
