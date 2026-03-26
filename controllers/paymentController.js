@@ -41,7 +41,7 @@ async function initPayment(req, res) {
 
     if (payment_type === "PARKING") {
       // ❌ NO DB INSERT HERE
-const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
       // 3️⃣ Create MPGS session
       const { sessionId } = await initiateHostedCheckout({
