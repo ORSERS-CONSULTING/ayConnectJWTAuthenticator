@@ -41,12 +41,7 @@ async function initPayment(req, res) {
 
     if (payment_type === "PARKING") {
       // ❌ NO DB INSERT HERE
-
-      // 1️⃣ Generate temporary reference
-      const tempId = `${reference_id}-${Date.now()}`;
-
-      // 2️⃣ Create MPGS orderId
-      const orderId = `PARKING-${tempId}`;
+const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
       // 3️⃣ Create MPGS session
       const { sessionId } = await initiateHostedCheckout({
