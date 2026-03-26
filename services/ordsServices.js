@@ -551,7 +551,7 @@ async function ordsUpdatePaymentSession({
   });
 }
 
-async function downloadInvoicePdf(req, res) {
+async function ordsDownloadInvoicePdf(req, res) {
   try {
     // 🔐 MUST come from auth middleware
     const user_id = String(req.user?.id || req.user?.sub || "");
