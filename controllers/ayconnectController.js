@@ -27,8 +27,7 @@ const {
   ordsClearPushToken,
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
-    ordsGetParkingInfo, 
-   
+  ordsGetParkingInfo,
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -52,7 +51,7 @@ async function updateBeneficiary(req, res) {
 
     const data = await ordsUpdateBeneficiary(
       { beneficiary_id, user_id },
-      updateBody
+      updateBody,
     );
 
     return res.status(200).json(data);
@@ -61,7 +60,6 @@ async function updateBeneficiary(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 
 // GET /ayconnect/docs/download?doc_id=...
 // GET /ayconnect/downloadUserDoc?doc_id=...
@@ -90,7 +88,7 @@ async function downloadUserDoc(req, res) {
     // 🔹 Forward headers
     res.setHeader(
       "Content-Type",
-      upstream.headers["content-type"] || "application/octet-stream"
+      upstream.headers["content-type"] || "application/octet-stream",
     );
 
     if (upstream.headers["content-length"]) {
@@ -99,7 +97,7 @@ async function downloadUserDoc(req, res) {
 
     res.setHeader(
       "Content-Disposition",
-      upstream.headers["content-disposition"] || "inline"
+      upstream.headers["content-disposition"] || "inline",
     );
 
     // 🔥 STREAM
@@ -109,7 +107,6 @@ async function downloadUserDoc(req, res) {
     return res.status(code).json({ message: e.message });
   }
 }
-
 
 // GET /ayconnect/requests
 // Optional: ?instance_svc_id=...
@@ -143,9 +140,7 @@ async function getRequests(req, res) {
     const size = JSON.stringify(data).length;
     console.log("📦 Response size:", size);
 
-    const items = Array.isArray(data) ? data : data.items ?? data;
-
-    return res.status(200).json({ items });
+    return res.status(200).json(data);
   } catch (e) {
     console.error("❌ ERROR:", e.response?.status, e.message);
 
@@ -181,7 +176,7 @@ async function media(req, res) {
 
     res.setHeader(
       "Content-Disposition",
-      headers["content-disposition"] || "inline"
+      headers["content-disposition"] || "inline",
     );
 
     // 🔹 STREAM, DO NOT JSON
@@ -254,7 +249,7 @@ async function getDocumentTypes(_req, res) {
   try {
     const data = await ordsGetDocumentTypes();
     // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
-    const items = Array.isArray(data) ? data : data.items ?? data;
+    const items = Array.isArray(data) ? data : (data.items ?? data);
     return res.json({ items });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -278,7 +273,7 @@ async function getDepartments(_req, res) {
   try {
     const data = await ordsGetDepartments();
     // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
-    const items = Array.isArray(data) ? data : data.items ?? data;
+    const items = Array.isArray(data) ? data : (data.items ?? data);
     return res.json({ items });
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -338,7 +333,7 @@ async function uploadUserDocuments(req, res) {
     }
 
     const approxBytes = Math.ceil(
-      (body.file_base64.replace(/=+$/, "").length * 3) / 4
+      (body.file_base64.replace(/=+$/, "").length * 3) / 4,
     );
 
     console.info("[uploadUserDocuments] Upload started", {
@@ -508,7 +503,7 @@ async function uploadUserAvatar(req, res) {
     const upstream = await ordsUploadUserAvatar(
       user_id,
       file_buffer,
-      mime_type
+      mime_type,
     );
     const ok = upstream.status >= 200 && upstream.status < 300;
 
@@ -519,7 +514,7 @@ async function uploadUserAvatar(req, res) {
     return res.status(ok ? 200 : upstream.status).json(
       out ?? {
         message: ok ? "Avatar uploaded successfully" : "Upload failed",
-      }
+      },
     );
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -570,7 +565,7 @@ async function updateUserDetails(req, res) {
     return res.status(ok ? 200 : upstream.status).json(
       upstream.data ?? {
         message: ok ? "User details updated successfully" : "Update failed",
-      }
+      },
     );
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -587,7 +582,7 @@ async function getBeneficiaries(req, res) {
 
     const data = await ordsGetBeneficiaries(user_id);
     // ORDS may return {items:[...]} or a raw array
-    const items = Array.isArray(data) ? data : data.items ?? data;
+    const items = Array.isArray(data) ? data : (data.items ?? data);
 
     // Optional: sort SELF first, like your SQL does
     const sorted = Array.isArray(items)
@@ -662,7 +657,7 @@ async function getCurrentStep(req, res) {
     const data = await ordsGetCurrentStep(procInstanceId);
 
     // ORDS returns { items: [ row ] }
-    const row = Array.isArray(data) ? data[0] : data.items?.[0] ?? data;
+    const row = Array.isArray(data) ? data[0] : (data.items?.[0] ?? data);
     if (!row)
       return res
         .status(404)
@@ -742,11 +737,10 @@ async function getActiveRuns(req, res) {
       return res.status(401).json({ message: "No user in token" });
     }
 
-
     const data = await ordsGetActiveRuns(user_id);
 
     // ORDS may return { items: [...] } or an array
-    const items = Array.isArray(data) ? data : data?.items ?? [];
+    const items = Array.isArray(data) ? data : (data?.items ?? []);
 
     const normalized = items.map((x) => ({
       run_type: x.run_type, // "PROCEDURE" | "SERVICE"
@@ -763,7 +757,6 @@ async function getActiveRuns(req, res) {
     }));
 
     // quick visibility log (first few)
-    
 
     return res.status(200).json({ items: normalized });
   } catch (e) {
@@ -853,16 +846,13 @@ async function initiateService(req, res) {
         .status(400)
         .json({ success: false, message: "beneficiary_id is required" });
 
- 
-
     // 🔹 Call ORDS backend
     const data = await ordsInitiateService(
       service_id,
       user_id,
       beneficiary_id,
-      procedure_id
+      procedure_id,
     );
-
 
     // 🔹 Parse ORDS JSON wrapper
     let parsed = data;
@@ -873,7 +863,6 @@ async function initiateService(req, res) {
         console.warn("[initiateService] JSON parse failed for response_body");
       }
     }
-
 
     // 🔹 SUCCESS → return fields from PL/SQL EXACTLY AS THEY ARE
     if (parsed?.success === true) {
@@ -903,7 +892,7 @@ async function initiateService(req, res) {
       e.response?.data ?? {
         success: false,
         message: e.message,
-      }
+      },
     );
   }
 }
@@ -920,7 +909,6 @@ async function getServiceStatus(req, res) {
     if (!user_id) return res.status(401).json({ message: "No user in token" });
     if (!service_id)
       return res.status(400).json({ message: "service_id is required" });
-
 
     const data = await ordsGetServiceStatus(user_id, service_id);
 
@@ -975,7 +963,6 @@ async function registerPushToken(req, res) {
       return res.status(400).json({ message: "expo_push_token is required" });
     }
 
-
     const data = await ordsRegisterPushToken({ user_id, expo_push_token });
 
     let parsed = data;
@@ -1008,7 +995,7 @@ async function registerPushToken(req, res) {
     return res.status(code).json(
       e.response?.data ?? {
         message: e.message,
-      }
+      },
     );
   }
 }
@@ -1050,7 +1037,6 @@ async function clearPushToken(req, res) {
     if (!token) {
       return res.status(400).json({ message: "token query param is required" });
     }
-
 
     const data = await ordsClearPushToken({ token });
 
@@ -1110,7 +1096,7 @@ async function downloadInvoicePdf(req, res) {
     // 🔹 Forward headers
     res.setHeader(
       "Content-Type",
-      upstream.headers["content-type"] || "application/pdf"
+      upstream.headers["content-type"] || "application/pdf",
     );
 
     if (upstream.headers["content-length"]) {
@@ -1120,7 +1106,7 @@ async function downloadInvoicePdf(req, res) {
     res.setHeader(
       "Content-Disposition",
       upstream.headers["content-disposition"] ||
-        'inline; filename="invoice.pdf"'
+        'inline; filename="invoice.pdf"',
     );
 
     // 🔥 STREAM
@@ -1139,7 +1125,8 @@ async function getParkingInfo(req, res) {
 
     if (!plate_number || !plate_category || !plate_area_name) {
       return res.status(400).json({
-        message: "plate_number, plate_category and plate_area_name are required",
+        message:
+          "plate_number, plate_category and plate_area_name are required",
       });
     }
 
@@ -1266,5 +1253,4 @@ module.exports = {
   downloadInvoicePdf,
   getInvoices,
   getParkingInfo,
- 
 };
