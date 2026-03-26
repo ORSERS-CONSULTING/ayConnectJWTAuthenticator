@@ -1069,34 +1069,55 @@ async function clearPushToken(req, res) {
 // GET /ayconnect/invoices/download?request_id=...
 // GET /ayconnect/getInvoicePdf?request_id=...
 async function downloadInvoicePdf(req, res) {
+  const start = Date.now();
+
   try {
-    // 🔐 MUST come from auth middleware
+    console.log("➡️ [API] downloadInvoicePdf called", req.query);
+
     const user_id = String(req.user?.id || req.user?.sub || "");
     const request_id = Number(req.query?.request_id);
 
     if (!user_id) {
+      console.warn("❌ [API] Missing user_id");
       return res.status(401).json({ message: "Unauthorized" });
     }
+
     if (!request_id) {
+      console.warn("❌ [API] Missing request_id");
       return res.status(400).json({ message: "request_id is required" });
     }
 
-    // 🔹 Call ORDS (returns stream)
+    console.log("👤 [API] user_id:", user_id);
+    console.log("📄 [API] request_id:", request_id);
+
+    // 🔥 ORDS CALL
+    console.log("📡 [API] Calling ORDS...");
+    const ordsStart = Date.now();
+
     const upstream = await ordsDownloadInvoicePdf({
       request_id,
       user_id,
     });
 
+    console.log(
+      "✅ [API] ORDS returned",
+      {
+        status: upstream.status,
+        duration: Date.now() - ordsStart + "ms",
+      }
+    );
+
     if (upstream.status >= 400) {
+      console.error("❌ [API] ORDS returned error", upstream.status);
       return res.status(upstream.status).json({
         message: "Failed to download invoice",
       });
     }
 
-    // 🔹 Forward headers
+    // 🔹 Headers
     res.setHeader(
       "Content-Type",
-      upstream.headers["content-type"] || "application/pdf",
+      upstream.headers["content-type"] || "application/pdf"
     );
 
     if (upstream.headers["content-length"]) {
@@ -1106,12 +1127,30 @@ async function downloadInvoicePdf(req, res) {
     res.setHeader(
       "Content-Disposition",
       upstream.headers["content-disposition"] ||
-        'inline; filename="invoice.pdf"',
+        'inline; filename="invoice.pdf"'
     );
 
-    // 🔥 STREAM
+    console.log("📤 [API] Starting stream...");
+
+    upstream.data.on("end", () => {
+      console.log(
+        "✅ [API] Stream completed in",
+        Date.now() - start,
+        "ms"
+      );
+    });
+
+    upstream.data.on("error", (err) => {
+      console.error("❌ [API] Stream error", err.message);
+    });
+
     upstream.data.pipe(res);
   } catch (e) {
+    console.error("❌ [API] downloadInvoicePdf ERROR", {
+      message: e.message,
+      code: e.code,
+    });
+
     const code = e.response?.status ?? 500;
     return res.status(code).json({ message: e.message });
   }
