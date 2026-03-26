@@ -2,6 +2,7 @@ const {
   ordsInitPayment,
   ordsUpdatePaymentSession,
   ordsUpdatePaymentStatus,
+  ordsGetPayment,
   ordsGetParkingInfo,
   ordsInsertParkingPayment,
 } = require("../services/ordsServices");
