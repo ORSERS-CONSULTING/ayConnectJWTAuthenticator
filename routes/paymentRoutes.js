@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const express = require("express");
 const path = require("path");
-const { authUser } = require("../middleware/authUser");
+const { authUser, optionalAuthUser } = require("../middleware/authUser");
 
 const {
   initPayment,
@@ -10,7 +10,7 @@ const {
 } = require("../controllers/paymentController");
 
 // paymentRoutes.js
-router.post("/init", authUser, initPayment);
+router.post("/init", optionalAuthUser, initPayment);
 router.post("/verify", verifyPayment);
 router.get("/return", paymentReturn);
 // router.post("/webhook", paymentWebhook);

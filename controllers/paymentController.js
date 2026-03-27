@@ -62,7 +62,11 @@ async function initPayment(req, res) {
     /* ========================= */
     /* ===== SERVICE FLOW ====== */
     /* ========================= */
-
+    if (payment_type !== "PARKING" && !user_id) {
+      return res.status(401).json({
+        message: "Authentication required for service payments",
+      });
+    }
     let ordsRes;
 
     ordsRes = await ordsInitPayment({

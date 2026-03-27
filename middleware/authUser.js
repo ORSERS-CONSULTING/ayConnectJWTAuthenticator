@@ -13,5 +13,29 @@ function authUser(req, res, next) {
     return res.status(401).json({ message: 'Invalid/expired token' });
   }
 }
+function optionalAuthUser(req, res, next) {
+  try {
+    const h = req.headers.authorization || "";
+    const token = h.startsWith("Bearer ") ? h.slice(7) : "";
 
-module.exports = { authUser };
+    if (!token) {
+      req.user = null; // 👈 important
+      return next();
+    }
+
+    const payload = verifyAccessToken(token);
+
+    req.user = {
+      id: payload.sub || payload.user_id,
+      role: payload.role,
+      email: payload.email,
+    };
+
+    return next();
+  } catch (e) {
+    // ❗ don't block request
+    req.user = null;
+    return next();
+  }
+}
+module.exports = { authUser, optionalAuthUser };
