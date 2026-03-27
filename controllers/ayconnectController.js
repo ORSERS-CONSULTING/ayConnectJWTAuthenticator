@@ -1099,13 +1099,17 @@ async function downloadInvoicePdf(req, res) {
       user_id,
     });
 
-    console.log(
-      "✅ [API] ORDS returned",
-      {
-        status: upstream.status,
-        duration: Date.now() - ordsStart + "ms",
-      }
-    );
+    // 🔥 CRITICAL FIX
+    if (!upstream) {
+      console.error("❌ [API] Upstream is null (ORDS failed)");
+      return res.status(500).json({
+        message: "Failed to fetch invoice from ORDS",
+      });
+    }
+    console.log("✅ [API] ORDS returned", {
+      status: upstream.status,
+      duration: Date.now() - ordsStart + "ms",
+    });
 
     if (upstream.status >= 400) {
       console.error("❌ [API] ORDS returned error", upstream.status);
@@ -1117,7 +1121,7 @@ async function downloadInvoicePdf(req, res) {
     // 🔹 Headers
     res.setHeader(
       "Content-Type",
-      upstream.headers["content-type"] || "application/pdf"
+      upstream.headers["content-type"] || "application/pdf",
     );
 
     if (upstream.headers["content-length"]) {
@@ -1127,17 +1131,13 @@ async function downloadInvoicePdf(req, res) {
     res.setHeader(
       "Content-Disposition",
       upstream.headers["content-disposition"] ||
-        'inline; filename="invoice.pdf"'
+        'inline; filename="invoice.pdf"',
     );
 
     console.log("📤 [API] Starting stream...");
 
     upstream.data.on("end", () => {
-      console.log(
-        "✅ [API] Stream completed in",
-        Date.now() - start,
-        "ms"
-      );
+      console.log("✅ [API] Stream completed in", Date.now() - start, "ms");
     });
 
     upstream.data.on("error", (err) => {

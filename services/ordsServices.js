@@ -551,52 +551,39 @@ async function ordsUpdatePaymentSession({
   });
 }
 
-async function ordsDownloadInvoicePdf(req, res) {
+async function ordsDownloadInvoicePdf({ request_id, user_id }) {
   try {
-    // 🔐 MUST come from auth middleware
-    const user_id = String(req.user?.id || req.user?.sub || "");
-    const request_id = Number(req.query?.request_id);
+    if (!user_id) throw new Error("user_id is required");
+    if (!request_id) throw new Error("request_id is required");
 
-    if (!user_id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    if (!request_id) {
-      return res.status(400).json({ message: "request_id is required" });
-    }
+    const PATH = "getInvoicePdf";
+    const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
 
-    // 🔹 Call ORDS (returns stream)
-    const upstream = await ordsDownloadInvoicePdf({
-      request_id,
-      user_id,
+    const token = await getIdcsToken(url);
+
+    const response = await axios({
+      method: "GET",
+      url,
+      params: {
+        request_id: Number(request_id),
+        user_id: Number(user_id),
+      },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      responseType: "stream",
+      validateStatus: () => true,
     });
 
-    if (upstream.status >= 400) {
-      return res.status(upstream.status).json({
-        message: "Failed to download invoice",
-      });
-    }
-
-    // 🔹 Forward headers
-    res.setHeader(
-      "Content-Type",
-      upstream.headers["content-type"] || "application/pdf",
-    );
-
-    if (upstream.headers["content-length"]) {
-      res.setHeader("Content-Length", upstream.headers["content-length"]);
-    }
-
-    res.setHeader(
-      "Content-Disposition",
-      upstream.headers["content-disposition"] ||
-        'inline; filename="invoice.pdf"',
-    );
-
-    // 🔥 STREAM
-    upstream.data.pipe(res);
+    return response;
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json({ message: e.message });
+    console.error("❌ [ORDS DOWNLOAD ERROR]", {
+      message: e.message,
+      code: e.code,
+      response: e.response?.data,
+    });
+
+    return null; // 🔥 critical
   }
 }
 async function ordsUpdatePaymentStatus({
