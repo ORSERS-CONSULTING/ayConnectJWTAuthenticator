@@ -759,6 +759,59 @@ function ordsInsertParkingPayment({
     },
   });
 }
+function ordsInsertParkingPaymentMeta({
+  order_id,
+  entry_guid,
+  plate_number,
+  plate_category,
+  plate_area_name,
+}) {
+  if (!order_id || !entry_guid || !plate_number) {
+    throw new Error("order_id, entry_guid and plate_number are required");
+  }
+
+  console.log("🚀 ORDS INSERT PARKING META:", {
+    order_id,
+    entry_guid,
+    plate_number,
+    plate_category,
+    plate_area_name,
+  });
+
+  return callGateway("POST", "insertParkingPaymentMeta", {
+    params: {
+      order_id: String(order_id),
+      entry_guid: String(entry_guid),
+      plate_number: String(plate_number),
+      plate_category: plate_category ? String(plate_category) : null,
+      plate_area_name: plate_area_name ? String(plate_area_name) : null,
+    },
+  });
+}
+async function ordsGetParkingPaymentMeta(order_id) {
+  if (!order_id) throw new Error("order_id is required");
+
+  const res = await callGateway("GET", "getParkingMetadata", {
+    params: { order_id: String(order_id) },
+  });
+
+  return res?.items?.[0] || null;
+}
+function ordsUpdateParkingPaymentMetaStatus({
+  order_id,
+  status,
+}) {
+  if (!order_id || !status) {
+    throw new Error("order_id and status are required");
+  }
+
+  return callGateway("POST", "updateParkingPaymentMetaStatus", {
+    params: {
+      order_id: String(order_id),
+      status: String(status),
+    },
+  });
+}
 module.exports = {
   callGateway,
   // ordsGetActiveRuns,
@@ -810,5 +863,8 @@ module.exports = {
   ordsUpdateParkingSession,
   ordsUpdateParkingStatus,
   ordsGetParkingPayment,
-  ordsInsertParkingPayment
+  ordsInsertParkingPayment,
+  ordsInsertParkingPaymentMeta,
+  ordsGetParkingPaymentMeta,
+  ordsUpdateParkingPaymentMetaStatus
 };

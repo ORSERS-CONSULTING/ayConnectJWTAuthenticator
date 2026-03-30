@@ -5,6 +5,9 @@ const {
   ordsGetPayment,
   ordsGetParkingInfo,
   ordsInsertParkingPayment,
+  ordsInsertParkingPaymentMeta,        // ✅ NEW
+  ordsGetParkingPaymentMeta,           // ✅ NEW
+  ordsUpdateParkingPaymentMetaStatus,  // ✅ NEW
 } = require("../services/ordsServices");
 const {
   initiateHostedCheckout,
@@ -40,20 +43,40 @@ async function initPayment(req, res) {
     /* ========================= */
 
     if (payment_type === "PARKING") {
-      // ❌ NO DB INSERT HERE
+      const {
+        plate_number,
+        plate_category,
+        plate_area_name,
+      } = req.body;
+
+      if (!plate_number) {
+        return res.status(400).json({
+          message: "plate_number is required for parking",
+        });
+      }
+
+      // 1️⃣ Generate orderId
       const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      // 2️⃣ INSERT META (🔥 LINK orderId → entry_guid)
+      await ordsInsertParkingPaymentMeta({
+        order_id: orderId,
+        entry_guid: reference_id, // ✅ reference_id = entry_guid
+        plate_number,
+        plate_category,
+        plate_area_name,
+      });
 
       // 3️⃣ Create MPGS session
       const { sessionId } = await initiateHostedCheckout({
         amount,
         orderId,
         payment_type,
-        // ❌ no payment_id anymore
       });
 
-      // 4️⃣ Return session + orderId (important for verify step)
+      // 4️⃣ Return response
       return res.status(200).json({
-        paymentId: null, // no DB record yet
+        paymentId: null, // still no final DB insert (as required)
         sessionId,
         orderId,
       });
@@ -67,6 +90,7 @@ async function initPayment(req, res) {
         message: "Authentication required for service payments",
       });
     }
+
     let ordsRes;
 
     ordsRes = await ordsInitPayment({
@@ -135,60 +159,57 @@ async function verifyPayment(req, res) {
     /* ===== PARKING FLOW ====== */
     /* ========================= */
 
-    if (payment_type === "PARKING") {
-      if (!orderId) {
-        return res.status(400).json({
-          message: "orderId is required for parking",
-        });
-      }
+if (payment_type === "PARKING") {
+  if (!orderId) {
+    return res.status(400).json({
+      message: "orderId is required for parking",
+    });
+  }
 
-      console.log("🌐 Fetching MPGS order...", orderId);
+  console.log("🌐 Fetching MPGS order...", orderId);
 
-      const order = await retrieveOrder(orderId);
+  const order = await retrieveOrder(orderId);
 
-      const isSuccess =
-        order?.result === "SUCCESS" &&
-        (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
+  const isSuccess =
+    order?.result === "SUCCESS" &&
+    (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
 
-      if (!isSuccess) {
-        return res.json({ status: "PENDING" });
-      }
+  if (!isSuccess) {
+    return res.json({ status: "PENDING" });
+  }
 
-      if (!plate_number) {
-        throw new Error("Missing plate_number for parking verification");
-      }
+  // 🔥 1️⃣ GET META INSTEAD OF PARKING INFO
+  const meta = await ordsGetParkingPaymentMeta(orderId);
 
-      console.log("🚗 Fetching parking info...");
+  if (!meta) {
+    throw new Error("Parking payment meta not found");
+  }
 
-      const parking = await ordsGetParkingInfo({
-        plate_number,
-        plate_category,
-        plate_area_name,
-      });
+  // 🔥 2️⃣ OPTIONAL: fetch fresh parking data ONLY for values
+  const parking = await ordsGetParkingInfo({
+    plate_number: meta.plate_number,
+    plate_category: meta.plate_category,
+    plate_area_name: meta.plate_area_name,
+  });
 
-      if (!parking?.ticketId) {
-        throw new Error("No active parking session found");
-      }
+  // 🔥 3️⃣ FINAL INSERT USING entry_guid FROM META
+  await ordsInsertParkingPayment({
+    entry_guid: meta.entry_guid,
+    time_in: parking?.timeEntered,
+    time_spent_min: parking?.durationMinutes,
+    amount_paid: parking?.financials?.amountDue ?? 0,
+    center_fees_spent: parking?.rules?.centreFeeUsedMinor ?? 0,
+    minutes_free: parking?.rules?.freeMinutesGranted ?? 0,
+  });
 
-      const alreadyPaid =
-        parking.financials?.amountDue === 0 &&
-        parking.financials?.isPayable === false;
+  // 🔥 4️⃣ UPDATE META STATUS
+  await ordsUpdateParkingPaymentMetaStatus({
+    order_id: orderId,
+    status: "SUCCESS",
+  });
 
-      if (alreadyPaid) {
-        return res.json({ status: "PAID" });
-      }
-
-      await ordsInsertParkingPayment({
-        entry_guid: parking.ticketId,
-        time_in: parking.timeEntered,
-        time_spent_min: parking.durationMinutes,
-        amount_paid: parking.financials?.amountDue ?? 0,
-        center_fees_spent: parking.rules?.centreFeeUsedMinor ?? 0,
-        minutes_free: parking.rules?.freeMinutesGranted ?? 0,
-      });
-
-      return res.json({ status: "PAID" });
-    }
+  return res.json({ status: "PAID" });
+}
 
     /* ========================= */
     /* ===== SERVICE FLOW ====== */
