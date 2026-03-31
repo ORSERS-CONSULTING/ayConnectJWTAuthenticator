@@ -41,46 +41,95 @@ async function initPayment(req, res) {
     /* ========================= */
     /* ===== PARKING FLOW ====== */
     /* ========================= */
+if (payment_type === "PARKING") {
+  const traceId = `PARK-${Date.now()}`;
 
-    if (payment_type === "PARKING") {
-      const {
-        plate_number,
-        plate_category,
-        plate_area_name,
-      } = req.body;
+  try {
+    const {
+      plate_number,
+      plate_category,
+      plate_area_name,
+    } = req.body;
 
-      if (!plate_number) {
-        return res.status(400).json({
-          message: "plate_number is required for parking",
-        });
-      }
+    console.log(`🚀 [${traceId}] INIT PARKING START`);
+    console.log(`📥 [${traceId}] Incoming body:`, req.body);
 
-      // 1️⃣ Generate orderId
-      const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-      // 2️⃣ INSERT META (🔥 LINK orderId → entry_guid)
-      await ordsInsertParkingPaymentMeta({
-        order_id: orderId,
-        entry_guid: reference_id, // ✅ reference_id = entry_guid
-        plate_number,
-        plate_category,
-        plate_area_name,
-      });
-
-      // 3️⃣ Create MPGS session
-      const { sessionId } = await initiateHostedCheckout({
-        amount,
-        orderId,
-        payment_type,
-      });
-
-      // 4️⃣ Return response
-      return res.status(200).json({
-        paymentId: null, // still no final DB insert (as required)
-        sessionId,
-        orderId,
+    if (!plate_number) {
+      console.warn(`⚠️ [${traceId}] Missing plate_number`);
+      return res.status(400).json({
+        message: "plate_number is required for parking",
       });
     }
+
+    // 1️⃣ Generate orderId
+    const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    console.log(`🆔 [${traceId}] Generated orderId:`, orderId);
+
+    // 2️⃣ INSERT META
+    console.log(`📡 [${traceId}] Calling ORDS insertParkingPaymentMeta...`);
+
+    const startMeta = Date.now();
+
+    let metaRes;
+    try {
+      metaRes = await ordsInsertParkingPaymentMeta({
+        order_id: orderId,
+        entry_guid: reference_id,
+        plate_number,
+        plate_category,
+        plate_area_name,
+      });
+
+      console.log(`✅ [${traceId}] ORDS META SUCCESS`, {
+        duration: `${Date.now() - startMeta}ms`,
+        response: metaRes,
+      });
+    } catch (err) {
+      console.error(`❌ [${traceId}] ORDS META FAILED`, {
+        duration: `${Date.now() - startMeta}ms`,
+        error: err?.message,
+        details: err?.response?.data || null,
+      });
+      throw err;
+    }
+
+    // 3️⃣ MPGS SESSION
+    console.log(`💳 [${traceId}] Creating MPGS session...`);
+
+    const startMpgs = Date.now();
+
+    const { sessionId } = await initiateHostedCheckout({
+      amount,
+      orderId,
+      payment_type,
+    });
+
+    console.log(`✅ [${traceId}] MPGS SESSION CREATED`, {
+      duration: `${Date.now() - startMpgs}ms`,
+      sessionId,
+    });
+
+    console.log(`🏁 [${traceId}] INIT PARKING COMPLETE`);
+
+    return res.status(200).json({
+      paymentId: null,
+      sessionId,
+      orderId,
+    });
+
+  } catch (err) {
+    console.error(`💥 [${traceId}] INIT PARKING ERROR`, {
+      message: err.message,
+      details: err?.response?.data || null,
+      stack: err.stack,
+    });
+
+    return res.status(500).json({
+      message: err.message,
+      traceId,
+    });
+  }
+}
 
     /* ========================= */
     /* ===== SERVICE FLOW ====== */
