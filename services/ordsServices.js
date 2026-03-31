@@ -791,11 +791,34 @@ function ordsInsertParkingPaymentMeta({
 async function ordsGetParkingPaymentMeta(order_id) {
   if (!order_id) throw new Error("order_id is required");
 
-  const res = await callGateway("GET", "getParkingMetadata", {
-    params: { order_id: String(order_id) },
-  });
-console.log("🚀 ORDS PARKING META RESPONSE:", { res }) ;
-  return res?.items?.[0] || null;
+  console.log("📡 [META] Sending request with order_id:", order_id);
+
+  let res;
+
+  try {
+    res = await callGateway("GET", "getParkingMetadata", {
+      params: { order_id: String(order_id) },
+    });
+
+    console.log("📡 [META] RAW RESPONSE:", JSON.stringify(res, null, 2));
+
+    console.log("📡 [META] items length:", res?.items?.length);
+    console.log("📡 [META] first item:", res?.items?.[0]);
+
+  } catch (err) {
+    console.error("❌ [META] ORDS ERROR:", {
+      message: err.message,
+      status: err?.response?.status,
+      data: err?.response?.data,
+    });
+    throw err;
+  }
+
+  const result = res?.items?.[0] || null;
+
+  console.log("📡 [META] FINAL RESULT:", result);
+
+  return result;
 }
 function ordsUpdateParkingPaymentMetaStatus({
   order_id,
