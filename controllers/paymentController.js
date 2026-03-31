@@ -209,55 +209,184 @@ async function verifyPayment(req, res) {
     /* ========================= */
 
 if (payment_type === "PARKING") {
-  if (!orderId) {
-    return res.status(400).json({
-      message: "orderId is required for parking",
+  const traceId = `VERIFY-PARK-${Date.now()}`;
+
+  try {
+    console.log(`🚀 [${traceId}] VERIFY PARKING START`);
+    console.log(`📥 [${traceId}] Incoming body:`, req.body);
+
+    if (!orderId) {
+      console.warn(`⚠️ [${traceId}] Missing orderId`);
+      return res.status(400).json({
+        message: "orderId is required for parking",
+      });
+    }
+
+    // =========================
+    // 1️⃣ MPGS VERIFY
+    // =========================
+    console.log(`🌐 [${traceId}] Fetching MPGS order...`, orderId);
+
+    const startMpgs = Date.now();
+    let order;
+
+    try {
+      order = await retrieveOrder(orderId);
+
+      console.log(`✅ [${traceId}] MPGS RESPONSE`, {
+        duration: `${Date.now() - startMpgs}ms`,
+        result: order?.result,
+        status: order?.status,
+        amount: order?.amount,
+      });
+    } catch (err) {
+      console.error(`❌ [${traceId}] MPGS FAILED`, {
+        duration: `${Date.now() - startMpgs}ms`,
+        error: err.message,
+        details: err?.response?.data || null,
+      });
+      throw err;
+    }
+
+    const isSuccess =
+      order?.result === "SUCCESS" &&
+      (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
+
+    if (!isSuccess) {
+      console.log(`⏳ [${traceId}] PAYMENT NOT COMPLETED`, {
+        result: order?.result,
+        status: order?.status,
+      });
+      return res.json({ status: "PENDING" });
+    }
+
+    // =========================
+    // 2️⃣ GET META
+    // =========================
+    console.log(`📡 [${traceId}] Fetching META for orderId...`);
+
+    let meta;
+    const startMeta = Date.now();
+
+    try {
+      meta = await ordsGetParkingPaymentMeta(orderId);
+
+      console.log(`✅ [${traceId}] META RESPONSE`, {
+        duration: `${Date.now() - startMeta}ms`,
+        meta,
+      });
+    } catch (err) {
+      console.error(`❌ [${traceId}] META FETCH FAILED`, {
+        duration: `${Date.now() - startMeta}ms`,
+        error: err.message,
+        details: err?.response?.data || null,
+      });
+      throw err;
+    }
+
+    if (!meta) {
+      throw new Error("Parking payment meta not found");
+    }
+
+    // =========================
+    // 3️⃣ FETCH PARKING INFO
+    // =========================
+    console.log(`🚗 [${traceId}] Fetching parking info...`);
+
+    let parking;
+    const startParking = Date.now();
+
+    try {
+      parking = await ordsGetParkingInfo({
+        plate_number: meta.plate_number,
+        plate_category: meta.plate_category,
+        plate_area_name: meta.plate_area_name,
+      });
+
+      console.log(`✅ [${traceId}] PARKING INFO`, {
+        duration: `${Date.now() - startParking}ms`,
+        ticketId: parking?.ticketId,
+        amountDue: parking?.financials?.amountDue,
+      });
+    } catch (err) {
+      console.error(`❌ [${traceId}] PARKING FETCH FAILED`, {
+        duration: `${Date.now() - startParking}ms`,
+        error: err.message,
+        details: err?.response?.data || null,
+      });
+      throw err;
+    }
+
+    // =========================
+    // 4️⃣ FINAL INSERT
+    // =========================
+    console.log(`💾 [${traceId}] Inserting final parking payment...`);
+
+    const startInsert = Date.now();
+
+    try {
+      await ordsInsertParkingPayment({
+        entry_guid: meta.entry_guid,
+        time_in: parking?.timeEntered,
+        time_spent_min: parking?.durationMinutes,
+        amount_paid: parking?.financials?.amountDue ?? 0,
+        center_fees_spent: parking?.rules?.centreFeeUsedMinor ?? 0,
+        minutes_free: parking?.rules?.freeMinutesGranted ?? 0,
+      });
+
+      console.log(`✅ [${traceId}] INSERT SUCCESS`, {
+        duration: `${Date.now() - startInsert}ms`,
+      });
+    } catch (err) {
+      console.error(`❌ [${traceId}] INSERT FAILED`, {
+        duration: `${Date.now() - startInsert}ms`,
+        error: err.message,
+        details: err?.response?.data || null,
+      });
+      throw err;
+    }
+
+    // =========================
+    // 5️⃣ UPDATE META
+    // =========================
+    console.log(`🔄 [${traceId}] Updating META status...`);
+
+    const startUpdate = Date.now();
+
+    try {
+      await ordsUpdateParkingPaymentMetaStatus({
+        order_id: orderId,
+        status: "SUCCESS",
+      });
+
+      console.log(`✅ [${traceId}] META UPDATED`, {
+        duration: `${Date.now() - startUpdate}ms`,
+      });
+    } catch (err) {
+      console.error(`❌ [${traceId}] META UPDATE FAILED`, {
+        duration: `${Date.now() - startUpdate}ms`,
+        error: err.message,
+        details: err?.response?.data || null,
+      });
+      throw err;
+    }
+
+    console.log(`🏁 [${traceId}] VERIFY PARKING COMPLETE`);
+
+    return res.json({ status: "PAID" });
+
+  } catch (err) {
+    console.error(`💥 [${traceId}] VERIFY PARKING ERROR`, {
+      message: err.message,
+      details: err?.response?.data || null,
+      stack: err.stack,
+    });
+
+    return res.status(500).json({
+      message: err.message,
+      traceId,
     });
   }
-
-  console.log("🌐 Fetching MPGS order...", orderId);
-
-  const order = await retrieveOrder(orderId);
-
-  const isSuccess =
-    order?.result === "SUCCESS" &&
-    (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
-
-  if (!isSuccess) {
-    return res.json({ status: "PENDING" });
-  }
-
-  // 🔥 1️⃣ GET META INSTEAD OF PARKING INFO
-  const meta = await ordsGetParkingPaymentMeta(orderId);
-
-  if (!meta) {
-    throw new Error("Parking payment meta not found");
-  }
-
-  // 🔥 2️⃣ OPTIONAL: fetch fresh parking data ONLY for values
-  const parking = await ordsGetParkingInfo({
-    plate_number: meta.plate_number,
-    plate_category: meta.plate_category,
-    plate_area_name: meta.plate_area_name,
-  });
-
-  // 🔥 3️⃣ FINAL INSERT USING entry_guid FROM META
-  await ordsInsertParkingPayment({
-    entry_guid: meta.entry_guid,
-    time_in: parking?.timeEntered,
-    time_spent_min: parking?.durationMinutes,
-    amount_paid: parking?.financials?.amountDue ?? 0,
-    center_fees_spent: parking?.rules?.centreFeeUsedMinor ?? 0,
-    minutes_free: parking?.rules?.freeMinutesGranted ?? 0,
-  });
-
-  // 🔥 4️⃣ UPDATE META STATUS
-  await ordsUpdateParkingPaymentMetaStatus({
-    order_id: orderId,
-    status: "SUCCESS",
-  });
-
-  return res.json({ status: "PAID" });
 }
 
     /* ========================= */
