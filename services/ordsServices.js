@@ -789,7 +789,7 @@ function ordsInsertParkingPaymentMeta({
   });
 }
 
-async function ordsGetParkingPaymentMeta(order_id) {
+async function ordsGetParkingPaymentMeta({ order_id }) {
   if (!order_id) throw new Error("order_id is required");
 
   console.log("📡 [META] Sending request with order_id:", order_id);
@@ -800,11 +800,10 @@ async function ordsGetParkingPaymentMeta(order_id) {
     res = await callGateway("GET", "getParkingMetadata", {
       params: { order_id: String(order_id) },
     });
-    console.log("📡 [META] RAW RESPONSE:", JSON.stringify(res));
 
+    console.log("📡 [META] RAW RESPONSE:", JSON.stringify(res));
     console.log("📡 [META] items length:", res?.items?.length);
     console.log("📡 [META] first item:", res?.items?.[0]);
-
   } catch (err) {
     console.error("❌ [META] ORDS ERROR:", {
       message: err.message,
