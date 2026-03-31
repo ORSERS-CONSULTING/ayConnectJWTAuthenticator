@@ -51,8 +51,6 @@ if (payment_type === "PARKING") {
       plate_area_name,
     } = req.body;
 
-    console.log(`🚀 [${traceId}] INIT PARKING START`);
-    console.log(`📥 [${traceId}] Incoming body:`, req.body);
 
     if (!plate_number) {
       console.warn(`⚠️ [${traceId}] Missing plate_number`);
@@ -63,12 +61,9 @@ if (payment_type === "PARKING") {
 
     // 1️⃣ Generate orderId
     const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    console.log(`🆔 [${traceId}] Generated orderId:`, orderId);
 
     // 2️⃣ INSERT META
-    console.log(`📡 [${traceId}] Calling ORDS insertParkingPaymentMeta...`);
 
-    const startMeta = Date.now();
 
     let metaRes;
     try {
@@ -80,23 +75,14 @@ if (payment_type === "PARKING") {
         plate_area_name,
       });
 
-      console.log(`✅ [${traceId}] ORDS META SUCCESS`, {
-        duration: `${Date.now() - startMeta}ms`,
-        response: metaRes,
-      });
+    
     } catch (err) {
-      console.error(`❌ [${traceId}] ORDS META FAILED`, {
-        duration: `${Date.now() - startMeta}ms`,
-        error: err?.message,
-        details: err?.response?.data || null,
-      });
+     
       throw err;
     }
 
     // 3️⃣ MPGS SESSION
-    console.log(`💳 [${traceId}] Creating MPGS session...`);
 
-    const startMpgs = Date.now();
 
     const { sessionId } = await initiateHostedCheckout({
       amount,
@@ -104,12 +90,8 @@ if (payment_type === "PARKING") {
       payment_type,
     });
 
-    console.log(`✅ [${traceId}] MPGS SESSION CREATED`, {
-      duration: `${Date.now() - startMpgs}ms`,
-      sessionId,
-    });
+   
 
-    console.log(`🏁 [${traceId}] INIT PARKING COMPLETE`);
 
     return res.status(200).json({
       paymentId: null,
@@ -180,7 +162,6 @@ if (payment_type === "PARKING") {
       orderId,
     });
   } catch (e) {
-    console.error("[initPayment] ERROR", e.message);
     return res.status(500).json({ message: e.message });
   }
 }
@@ -212,9 +193,7 @@ if (payment_type === "PARKING") {
   const traceId = `VERIFY-PARK-${Date.now()}`;
 
   try {
-    console.log(`🚀 [${traceId}] VERIFY PARKING START`);
-    console.log(`📥 [${traceId}] Incoming body:`, req.body);
-
+ 
     if (!orderId) {
       console.warn(`⚠️ [${traceId}] Missing orderId`);
       return res.status(400).json({
@@ -225,26 +204,15 @@ if (payment_type === "PARKING") {
     // =========================
     // 1️⃣ MPGS VERIFY
     // =========================
-    console.log(`🌐 [${traceId}] Fetching MPGS order...`, orderId);
 
-    const startMpgs = Date.now();
     let order;
 
     try {
       order = await retrieveOrder(orderId);
 
-      console.log(`✅ [${traceId}] MPGS RESPONSE`, {
-        duration: `${Date.now() - startMpgs}ms`,
-        result: order?.result,
-        status: order?.status,
-        amount: order?.amount,
-      });
+     
     } catch (err) {
-      console.error(`❌ [${traceId}] MPGS FAILED`, {
-        duration: `${Date.now() - startMpgs}ms`,
-        error: err.message,
-        details: err?.response?.data || null,
-      });
+      
       throw err;
     }
 
@@ -253,18 +221,11 @@ if (payment_type === "PARKING") {
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
 
     if (!isSuccess) {
-      console.log(`⏳ [${traceId}] PAYMENT NOT COMPLETED`, {
-        result: order?.result,
-        status: order?.status,
-      });
+    
       return res.json({ status: "PENDING" });
     }
 
-    // =========================
-    // 2️⃣ GET META
-    // =========================
-    console.log(`📡 [${traceId}] Fetching META for orderId...`);
-
+ 
     let meta;
     const startMeta = Date.now();
 
@@ -272,17 +233,9 @@ if (payment_type === "PARKING") {
 meta = await ordsGetParkingPaymentMeta({
   order_id: orderId,
 });
-      console.log(`✅ [${traceId}] META RESPONSE`, {
-        duration: `${Date.now() - startMeta}ms`,
-        meta,
-        orderId,
-      });
+      
     } catch (err) {
-      console.error(`❌ [${traceId}] META FETCH FAILED`, {
-        duration: `${Date.now() - startMeta}ms`,
-        error: err.message,
-        details: err?.response?.data || null,
-      });
+     
       throw err;
     }
 
@@ -293,7 +246,6 @@ meta = await ordsGetParkingPaymentMeta({
     // =========================
     // 3️⃣ FETCH PARKING INFO
     // =========================
-    console.log(`🚗 [${traceId}] Fetching parking info...`);
 
     let parking;
     const startParking = Date.now();
@@ -305,24 +257,15 @@ meta = await ordsGetParkingPaymentMeta({
         plate_area_name: meta.plate_area_name,
       });
 
-      console.log(`✅ [${traceId}] PARKING INFO`, {
-        duration: `${Date.now() - startParking}ms`,
-        ticketId: parking?.ticketId,
-        amountDue: parking?.financials?.amountDue,
-      });
+    
     } catch (err) {
-      console.error(`❌ [${traceId}] PARKING FETCH FAILED`, {
-        duration: `${Date.now() - startParking}ms`,
-        error: err.message,
-        details: err?.response?.data || null,
-      });
+    
       throw err;
     }
 
     // =========================
     // 4️⃣ FINAL INSERT
     // =========================
-    console.log(`💾 [${traceId}] Inserting final parking payment...`);
 
     const startInsert = Date.now();
 
@@ -340,18 +283,13 @@ meta = await ordsGetParkingPaymentMeta({
         duration: `${Date.now() - startInsert}ms`,
       });
     } catch (err) {
-      console.error(`❌ [${traceId}] INSERT FAILED`, {
-        duration: `${Date.now() - startInsert}ms`,
-        error: err.message,
-        details: err?.response?.data || null,
-      });
+     
       throw err;
     }
 
     // =========================
     // 5️⃣ UPDATE META
     // =========================
-    console.log(`🔄 [${traceId}] Updating META status...`);
 
     const startUpdate = Date.now();
 
@@ -361,19 +299,12 @@ meta = await ordsGetParkingPaymentMeta({
         status: "SUCCESS",
       });
 
-      console.log(`✅ [${traceId}] META UPDATED`, {
-        duration: `${Date.now() - startUpdate}ms`,
-      });
+      
     } catch (err) {
-      console.error(`❌ [${traceId}] META UPDATE FAILED`, {
-        duration: `${Date.now() - startUpdate}ms`,
-        error: err.message,
-        details: err?.response?.data || null,
-      });
+    
       throw err;
     }
 
-    console.log(`🏁 [${traceId}] VERIFY PARKING COMPLETE`);
 
     return res.json({ status: "PAID" });
 
