@@ -269,11 +269,13 @@ if (payment_type === "PARKING") {
     const startMeta = Date.now();
 
     try {
-      meta = await ordsGetParkingPaymentMeta(orderId);
-
+meta = await ordsGetParkingPaymentMeta({
+  order_id: orderId,
+});
       console.log(`✅ [${traceId}] META RESPONSE`, {
         duration: `${Date.now() - startMeta}ms`,
         meta,
+        orderId,
       });
     } catch (err) {
       console.error(`❌ [${traceId}] META FETCH FAILED`, {
