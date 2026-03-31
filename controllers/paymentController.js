@@ -457,8 +457,8 @@ async function paymentReturn(req, res) {
 
     if (payment_type === "PARKING") {
       deepLink = orderId
-        ? `ayconnect://parking/result?orderId=${orderId}&plate=${plate_number}&plate_category=${plate_category}&plate_area_name=${plate_area_name}`
-        : `ayconnect://parking/result`;
+        ? `ayconnect://parking/page?orderId=${orderId}&plate=${plate_number}&plate_category=${plate_category}&plate_area_name=${plate_area_name}`
+        : `ayconnect://parking/page`;
     } else {
       deepLink = `ayconnect://requests`;
     }
