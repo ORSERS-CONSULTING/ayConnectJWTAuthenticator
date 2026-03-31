@@ -794,7 +794,7 @@ async function ordsGetParkingPaymentMeta(order_id) {
   const res = await callGateway("GET", "getParkingMetadata", {
     params: { order_id: String(order_id) },
   });
-
+console.log("🚀 ORDS PARKING META RESPONSE:", { res }) ;
   return res?.items?.[0] || null;
 }
 function ordsUpdateParkingPaymentMetaStatus({
