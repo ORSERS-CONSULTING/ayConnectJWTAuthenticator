@@ -331,7 +331,6 @@ meta = await ordsGetParkingPaymentMeta({
         message: "paymentId is required for service payments",
       });
     }
-
     console.log("🔍 Fetching service payment from ORDS...", paymentId);
 
     const payment = await ordsGetPayment(paymentId);
