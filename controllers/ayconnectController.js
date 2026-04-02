@@ -706,7 +706,7 @@ async function getInvoices(req, res) {
       user_id,
       request_id,
     });
-
+console.log("✅ ORDS getInvoices returned", { data });
     // ORDS may return { response_body: "[]" } or direct array
     let parsed = data;
 
@@ -722,6 +722,7 @@ async function getInvoices(req, res) {
       items: Array.isArray(parsed) ? parsed : [],
     });
   } catch (e) {
+    console.error("❌ ERROR in getInvoices:", e.response?.status, e.message);
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
