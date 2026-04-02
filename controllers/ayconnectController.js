@@ -685,46 +685,94 @@ async function getCurrentStep(req, res) {
 // GET /ayconnect/getInvoices
 // Optional: ?request_id=...
 async function getInvoices(req, res) {
+  const start = Date.now();
+  const traceId = `GET-INVOICES-${Date.now()}`;
+
   try {
+    console.log(`➡️ [${traceId}] Incoming request`, {
+      query: req.query,
+      user: req.user ? { id: req.user.id, sub: req.user.sub } : null,
+    });
+
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const q = req.query || {};
 
     const user_id = String(q.user_id || fromToken);
+
     if (!user_id) {
+      console.warn(`❌ [${traceId}] Missing user_id`);
       return res.status(401).json({ message: "No user in token" });
     }
 
     let request_id = null;
+
     if (q.request_id != null) {
       request_id = Number(q.request_id);
+
       if (Number.isNaN(request_id)) {
+        console.warn(`❌ [${traceId}] Invalid request_id`, { value: q.request_id });
         return res.status(400).json({ message: "invalid request_id" });
       }
     }
+
+    console.log(`📡 [${traceId}] Calling ORDS getInvoices`, {
+      user_id,
+      request_id,
+    });
+
+    const ordsStart = Date.now();
 
     const data = await ordsGetInvoices({
       user_id,
       request_id,
     });
-console.log("✅ ORDS getInvoices returned", { data });
-    // ORDS may return { response_body: "[]" } or direct array
+
+    console.log(`✅ [${traceId}] ORDS responded`, {
+      duration: `${Date.now() - ordsStart}ms`,
+      hasResponseBody: Boolean(data?.response_body),
+      type: typeof data,
+    });
+
+    // ---------- Parsing ----------
     let parsed = data;
 
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch {
+        console.log(`🧾 [${traceId}] Parsed response_body successfully`, {
+          length: Array.isArray(parsed) ? parsed.length : "not array",
+        });
+      } catch (err) {
+        console.error(`❌ [${traceId}] Failed to parse response_body`, {
+          raw: data.response_body?.slice(0, 200),
+          error: err.message,
+        });
         parsed = [];
       }
     }
 
-    return res.status(200).json({
-      items: Array.isArray(parsed) ? parsed : [],
+    const items = Array.isArray(parsed) ? parsed : [];
+
+    console.log(`📦 [${traceId}] Final response`, {
+      count: items.length,
+      duration: `${Date.now() - start}ms`,
     });
+
+    return res.status(200).json({ items });
+
   } catch (e) {
-    console.error("❌ ERROR in getInvoices:", e.response?.status, e.message);
+    console.error(`❌ [${traceId}] ERROR`, {
+      status: e.response?.status,
+      message: e.message,
+      data: e.response?.data,
+      duration: `${Date.now() - start}ms`,
+    });
+
     const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+
+    return res.status(code).json(
+      e.response?.data ?? { message: e.message }
+    );
   }
 }
 
