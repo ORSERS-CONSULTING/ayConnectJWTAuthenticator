@@ -422,9 +422,7 @@ meta = await ordsGetParkingPaymentMeta({
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
     if (isSuccess) {
-      console.log("hello harsh;")
-      console.log("🚨 [UPDATE PAYMENT PAYLOAD]", paymentId, "PAID",  order?.authentication?.["3ds"]?.transactionId || null, order?.result || "UNKNOWN");
-        console.log("bye harsh;")
+    
 
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
