@@ -418,11 +418,16 @@ meta = await ordsGetParkingPaymentMeta({
     console.log("🌐 Fetching MPGS order from ORDS...", payment.mpgs_order_id);
 
     const order = await retrieveOrder(payment.mpgs_order_id);
-    console.log("📦 MPGS order details:", order);
     const isSuccess =
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
     if (isSuccess) {
+      console.log("🚨 [VERIFY → UPDATE INPUT]", {
+  payment_id,
+  status,
+  mpgs_transaction_id,
+  result_reason,
+});
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",
