@@ -422,15 +422,8 @@ meta = await ordsGetParkingPaymentMeta({
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
     if (isSuccess) {
- const payload = {
-    payment_id: paymentId,
-    status: "PAID",
-    mpgs_transaction_id:
-      order?.authentication?.["3ds"]?.transactionId || null,
-    result_reason: order?.result || "UNKNOWN",
-  };
+    
 
-  console.log("🚨 [UPDATE PAYMENT PAYLOAD]", payload);
       await ordsUpdatePaymentStatus({
         payment_id: paymentId,
         status: "PAID",

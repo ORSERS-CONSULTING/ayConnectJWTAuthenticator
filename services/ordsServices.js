@@ -595,7 +595,13 @@ async function ordsUpdatePaymentStatus({
   if (!payment_id || !status) {
     throw new Error("payment_id and status are required");
   }
-
+  
+console.log("🚀 Updating payment status:", {
+  payment_id,
+  status,
+  mpgs_transaction_id,
+  result_reason,
+});
   return callGateway("POST", "updatePaymentStatus", {
     params: {
       payment_id: Number(payment_id),
