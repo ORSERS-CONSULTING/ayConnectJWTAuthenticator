@@ -360,12 +360,29 @@ async function getClientCode(req, res) {
   try {
     let { email } = req.body || {};
 
+    email = email?.trim();
+
     if (!email) {
-      return res.status(400).json({ message: "Please provide email." });
+      return res.status(400).json({
+        message: "Please provide email.",
+      });
     }
 
     const data = await resendClientCode({ email });
-    return res.json(data);
+
+    const message =
+      data?.response_message ??
+      data?.RESPONSE_MESSAGE ??
+      data?.message ??
+      "Request processed.";
+
+    const success =
+      /your client code has been sent to your email/i.test(message);
+
+    return res.status(success ? 200 : 400).json({
+      ...data,
+      message,
+    });
   } catch (e) {
     const code = e.response?.status ?? 500;
     const payload = e.response?.data ?? { message: e.message };
