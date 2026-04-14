@@ -31,7 +31,6 @@ async function initPayment(req, res) {
         message: "payment_type and amount are required",
       });
     }
-
     if (payment_type === "PARKING" && !reference_id) {
       return res.status(400).json({
         message: "entry_guid (reference_id) is required for parking",
