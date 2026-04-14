@@ -394,16 +394,28 @@ console.log("🔍 [WEBHOOK CHECK]:", {
       }
 
       if (isSuccess) {
-        await ordsUpdatePaymentStatus({
-          payment_id: payment.payment_id,
-          status: "PAID",
-          mpgs_transaction_id:
-            transaction?.authentication?.["3ds"]?.transactionId || null,
-          result_reason: result,
-        });
+    const mpgsTransactionId =
+      req.body?.authentication?.["3ds"]?.transactionId ||
+      req.body?.authentication?.["3ds2"]?.dsTransactionId ||
+      req.body?.transaction?.id;
 
-        console.log("✅ [WEBHOOK] Service payment updated");
-      }
+    if (!mpgsTransactionId) {
+      console.warn("⚠️ Missing MPGS transaction ID");
+      return res.sendStatus(200);
+    }
+
+    console.log("🔑 Transaction ID:", mpgsTransactionId);
+
+    await ordsUpdatePaymentStatus({
+      payment_id: payment.payment_id,
+      status: "PAID",
+      mpgs_transaction_id: mpgsTransactionId,
+      result_reason: result,
+    });
+
+    console.log("✅ [WEBHOOK] Service payment updated");
+  }
+
     }
 
     return res.sendStatus(200);
