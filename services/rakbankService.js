@@ -8,7 +8,6 @@ const axios = require("axios");
 function getAuthHeader() {
   const merchantId = process.env.MERCHANT_ID;
   const password = process.env.MERCHANT_PASSWORD;
-
   if (!merchantId || !password) {
     throw new Error("MPGS merchant credentials are missing");
   }
