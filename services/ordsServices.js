@@ -623,7 +623,7 @@ console.log("🚀 Updating payment status:", {
 async function ordsGetPayment(order_id) {
   if (!order_id) throw new Error("order_id is required");
 
-  const res = await callGateway("GET", "getPaymentByOrderId", {
+  const res = await callGateway("GET", "getPaymentStatus", {
     params: { order_id },
   });
 
