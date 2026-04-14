@@ -332,7 +332,11 @@ async function paymentWebhook(req, res) {
 
     const { order, result, transaction } = req.body;
     const orderId = order?.id;
-
+// 🔥 Only process actual payment event (ignore AUTHENTICATION, etc.)
+if (transaction?.type !== "PAYMENT") {
+  console.log("⏭️ Skipping non-payment webhook:", transaction?.type);
+  return res.sendStatus(200);
+}
     if (!orderId) return res.sendStatus(400);
 const isSuccess =
   order?.status === "CAPTURED";
