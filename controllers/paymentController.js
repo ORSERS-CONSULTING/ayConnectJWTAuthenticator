@@ -484,11 +484,14 @@ async function paymentWebhook(req, res) {
     const orderId = order?.id;
 
     if (!orderId) return res.sendStatus(400);
+const isSuccess =
+  order?.status === "CAPTURED";
 
-    const isSuccess =
-      result === "SUCCESS" &&
-      (transaction?.status === "CAPTURED" ||
-        transaction?.status === "AUTHORIZED");
+console.log("🔍 [WEBHOOK CHECK]:", {
+  result,
+  orderStatus: order?.status,
+});
+
 
     console.log("🔍 [WEBHOOK] Order:", orderId, "Success:", isSuccess);
 
