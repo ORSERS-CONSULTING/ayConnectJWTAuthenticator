@@ -14,6 +14,7 @@ const loadConfig = require('./config/env');
   process.env.STRIPE_PUBLISHABLE_KEY = config.STRIPE_PUBLISHABLE_KEY;
   process.env.ACCESS_TOKEN_TTL = config.ACCESS_TOKEN_TTL || process.env.ACCESS_TOKEN_TTL;
   process.env.MPGS_BASE_URL = config.MPGS_BASE_URL,
+  process.env.MPGS_WEBHOOK_SECRET = config.MPGS_WEBHOOK_SECRET,
   process.env.MERCHANT_ID = config.MERCHANT_ID,
   process.env.MERCHANT_PASSWORD = config.MERCHANT_PASSWORD,
   process.env.ORDS_CLIENT_ID_OCID = config.ORDS_CLIENT_ID_OCID,

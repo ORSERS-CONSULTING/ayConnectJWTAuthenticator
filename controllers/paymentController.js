@@ -394,16 +394,15 @@ meta = await ordsGetParkingPaymentMeta({
     /* ========================= */
     /* ===== SERVICE FLOW ====== */
     /* ========================= */
+if (!orderId) {
+  return res.status(400).json({
+    message: "orderId is required",
+  });
+}
 
-    if (!paymentId) {
-      return res.status(400).json({
-        message: "paymentId is required for service payments",
-      });
-    }
+console.log("🔍 Fetching service payment from ORDS...", orderId);
 
-    console.log("🔍 Fetching service payment from ORDS...", paymentId);
-
-    const payment = await ordsGetPayment(paymentId);
+const payment = await ordsGetPayment(orderId);
 
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
@@ -422,10 +421,8 @@ meta = await ordsGetParkingPaymentMeta({
       order?.result === "SUCCESS" &&
       (order?.status === "CAPTURED" || order?.status === "AUTHORIZED");
     if (isSuccess) {
-    
-
       await ordsUpdatePaymentStatus({
-        payment_id: paymentId,
+    payment_id: payment.payment_id,
         status: "PAID",
         mpgs_transaction_id:
           order?.authentication?.["3ds"]?.transactionId || null,
@@ -472,8 +469,99 @@ async function paymentReturn(req, res) {
     return res.status(500).send("Payment return failed");
   }
 }
+async function paymentWebhook(req, res) {
+  try {
+    console.log("📩 [WEBHOOK] Incoming:", req.body);
+
+    const secret = req.headers["x-notification-secret"];
+
+    if (secret !== process.env.MPGS_WEBHOOK_SECRET) {
+      console.warn("❌ Invalid webhook secret");
+      return res.sendStatus(401);
+    }
+
+    const { order, result, transaction } = req.body;
+    const orderId = order?.id;
+
+    if (!orderId) return res.sendStatus(400);
+
+    const isSuccess =
+      result === "SUCCESS" &&
+      (transaction?.status === "CAPTURED" ||
+        transaction?.status === "AUTHORIZED");
+
+    console.log("🔍 [WEBHOOK] Order:", orderId, "Success:", isSuccess);
+
+    // =========================
+    // PARKING FLOW
+    // =========================
+    if (orderId.startsWith("P-")) {
+      const meta = await ordsGetParkingPaymentMeta({ order_id: orderId });
+
+      if (!meta) {
+        console.warn("⚠️ No parking meta found");
+        return res.sendStatus(200);
+      }
+
+      if (isSuccess) {
+        const parking = await ordsGetParkingInfo({
+          plate_number: meta.plate_number,
+          plate_category: meta.plate_category,
+          plate_area_name: meta.plate_area_name,
+        });
+
+        await ordsInsertParkingPayment({
+          entry_guid: meta.entry_guid,
+          time_in: parking?.timeEntered,
+          time_spent_min: parking?.durationMinutes,
+          amount_paid: parking?.financials?.amountDue ?? 0,
+          center_fees_spent: parking?.rules?.centreFeeUsedMinor ?? 0,
+          minutes_free: parking?.rules?.freeMinutesGranted ?? 0,
+        });
+
+        await ordsUpdateParkingPaymentMetaStatus({
+          order_id: orderId,
+          status: "SUCCESS",
+        });
+
+        console.log("✅ [WEBHOOK] Parking payment processed");
+      }
+    }
+
+    // =========================
+    // SERVICE FLOW
+    // =========================
+    else {
+      // 🔴 IMPORTANT: you need this ORDS function
+      const payment = await ordsGetPaymentByOrderId(orderId);
+
+      if (!payment) {
+        console.warn("⚠️ No service payment found");
+        return res.sendStatus(200);
+      }
+
+      if (isSuccess) {
+        await ordsUpdatePaymentStatus({
+          payment_id: payment.payment_id,
+          status: "PAID",
+          mpgs_transaction_id:
+            transaction?.authentication?.["3ds"]?.transactionId || null,
+          result_reason: result,
+        });
+
+        console.log("✅ [WEBHOOK] Service payment updated");
+      }
+    }
+
+    return res.sendStatus(200);
+  } catch (err) {
+    console.error("💥 [WEBHOOK ERROR]", err);
+    return res.sendStatus(500);
+  }
+}
 module.exports = {
   initPayment,
   verifyPayment,
   paymentReturn,
+  paymentWebhook
 };

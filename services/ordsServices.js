@@ -612,12 +612,21 @@ console.log("🚀 Updating payment status:", {
   });
 }
 
-async function ordsGetPayment(payment_id) {
-  if (!payment_id) throw new Error("payment_id is required");
+// async function ordsGetPayment(payment_id) {
+//   if (!payment_id) throw new Error("payment_id is required");
 
-  const res = await callGateway("GET", "getPaymentStatus", {
-    params: { payment_id: Number(payment_id) },
+//   const res = await callGateway("GET", "getPaymentStatus", {
+//     params: { payment_id: Number(payment_id) },
+//   });
+//   return res?.items?.[0] || null;
+// }
+async function ordsGetPayment(order_id) {
+  if (!order_id) throw new Error("order_id is required");
+
+  const res = await callGateway("GET", "getPaymentByOrderId", {
+    params: { order_id },
   });
+
   return res?.items?.[0] || null;
 }
 function ordsGetInvoices({ user_id, request_id }) {
