@@ -37,9 +37,7 @@ async function initPayment(req, res) {
       });
     }
 
-    /* ========================= */
-    /* ===== PARKING FLOW ====== */
-    /* ========================= */
+
 if (payment_type === "PARKING") {
   const traceId = `PARK-${Date.now()}`;
 
