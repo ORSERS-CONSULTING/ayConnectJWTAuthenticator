@@ -9,14 +9,23 @@ function getAuthHeader() {
   const merchantId = process.env.MERCHANT_ID;
   const password = process.env.MERCHANT_PASSWORD;
 
+  console.log("[MPGS] Using Merchant ID:", merchantId);
+  console.log(
+    "[MPGS] Password length:",
+    password ? password.length : "MISSING"
+  );
+
   if (!merchantId || !password) {
     throw new Error("MPGS merchant credentials are missing");
   }
 
-  return (
-    "Basic " +
-    Buffer.from(`merchant.${merchantId}:${password}`).toString("base64")
-  );
+  const raw = `merchant.${merchantId}:${password}`;
+  const encoded = Buffer.from(raw).toString("base64");
+
+  console.log("[MPGS] Auth raw (masked):", `merchant.${merchantId}:******`);
+  console.log("[MPGS] Auth base64 (first 10 chars):", encoded.slice(0, 10));
+
+  return "Basic " + encoded;
 }
 
 /**
@@ -30,8 +39,6 @@ async function initiateHostedCheckout({
   payment_type,
   payment_id,
 }) {
-  // ✅ safer validation
-
   if (amount == null || !orderId) {
     throw new Error("amount, orderId are required");
   }
@@ -42,38 +49,40 @@ async function initiateHostedCheckout({
 
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
+  console.log("\n========== MPGS INITIATE ==========");
+  console.log("[MPGS] URL:", url);
+  console.log("[MPGS] Base URL:", baseUrl);
+  console.log("[MPGS] Order ID:", orderId);
+  console.log("[MPGS] Amount:", amount);
+  console.log("[MPGS] Currency:", currency);
+
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
     checkoutMode: "WEBSITE",
-
     interaction: {
       operation: "PURCHASE",
-
       merchant: {
         name: "AY Connect",
         url: "https://ayconnect.yalayis.ai",
         logo: "https://ayconnect.yalayis.ai/assets/yalayis_logo.png",
       },
-
-      // Optional but recommended
       locale: "en_US",
-
       displayControl: {
         billingAddress: "HIDE",
         customerEmail: "HIDE",
         shipping: "HIDE",
       },
-
       returnUrl: `https://ayconnect.yalayis.ai/payment/return?payment_type=${payment_type}&paymentId=${payment_id}`,
     },
     order: {
       id: orderId,
-      // amount: 5656,
       amount: Number(amount).toFixed(2),
       currency,
       description: "AY Connect Service Payment",
     },
   };
+
+  console.log("[MPGS] Payload:", JSON.stringify(payload, null, 2));
 
   let res;
   try {
@@ -84,16 +93,38 @@ async function initiateHostedCheckout({
       },
       timeout: 15000,
     });
+
+    console.log("[MPGS] SUCCESS RESPONSE:");
+    console.log(JSON.stringify(res.data, null, 2));
   } catch (err) {
-    const msg =
-      err.response?.data || err.message || "Failed to create MPGS session";
-    throw new Error(`MPGS session error: ${JSON.stringify(msg)}`);
+    console.log("[MPGS] ERROR RESPONSE:");
+
+    if (err.response) {
+      console.log("Status:", err.response.status);
+      console.log("Headers:", err.response.headers);
+      console.log("Data:", JSON.stringify(err.response.data, null, 2));
+    } else {
+      console.log("Error message:", err.message);
+    }
+
+    throw new Error(
+      `MPGS session error: ${
+        err.response?.data
+          ? JSON.stringify(err.response.data)
+          : err.message
+      }`
+    );
   }
 
   const sessionId = res.data?.session?.id;
+
   if (!sessionId) {
+    console.log("[MPGS] Missing session ID in response!");
     throw new Error("MPGS did not return a session ID");
   }
+
+  console.log("[MPGS] Session ID:", sessionId);
+  console.log("====================================\n");
 
   return { sessionId };
 }
