@@ -321,7 +321,7 @@ async function paymentReturn(req, res) {
 }
 async function paymentWebhook(req, res) {
   try {
-    console.log("📩 [WEBHOOK] Incoming:", req.body);
+    // console.log("📩 [WEBHOOK] Incoming:", req.body);
 
     const secret = req.headers["x-notification-secret"];
 

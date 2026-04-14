@@ -586,31 +586,31 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
     return null; // 🔥 critical
   }
 }
-async function ordsUpdatePaymentStatus({
-  payment_id,
-  status,
-  mpgs_transaction_id,
-  result_reason,
-}) {
-  if (!payment_id || !status) {
-    throw new Error("payment_id and status are required");
-  }
+// async function ordsUpdatePaymentStatus({
+//   payment_id,
+//   status,
+//   mpgs_transaction_id,
+//   result_reason,
+// }) {
+//   if (!payment_id || !status) {
+//     throw new Error("payment_id and status are required");
+//   }
   
-console.log("🚀 Updating payment status:", {
-  payment_id,
-  status,
-  mpgs_transaction_id,
-  result_reason,
-});
-  return callGateway("POST", "updatePaymentStatus", {
-    params: {
-      payment_id: Number(payment_id),
-      status,
-      mpgs_transaction_id,
-      result_reason,
-    },
-  });
-}
+// console.log("🚀 Updating payment status:", {
+//   payment_id,
+//   status,
+//   mpgs_transaction_id,
+//   result_reason,
+// });
+//   return callGateway("POST", "updatePaymentStatus", {
+//     params: {
+//       payment_id: Number(payment_id),
+//       status,
+//       mpgs_transaction_id,
+//       result_reason,
+//     },
+//   });
+// }
 
 // async function ordsGetPayment(payment_id) {
 //   if (!payment_id) throw new Error("payment_id is required");
@@ -620,6 +620,48 @@ console.log("🚀 Updating payment status:", {
 //   });
 //   return res?.items?.[0] || null;
 // }
+async function ordsUpdatePaymentStatus({
+  payment_id,
+  status,
+  mpgs_transaction_id,
+  result_reason,
+}) {
+  if (!payment_id || !status) {
+    throw new Error("payment_id and status are required");
+  }
+
+  console.log("🚀 Updating payment status:", {
+    payment_id,
+    status,
+    mpgs_transaction_id,
+    result_reason,
+  });
+
+  try {
+    const res = await callGateway("POST", "updatePaymentStatus", {
+      params: {
+        payment_id: Number(payment_id),
+        status,
+        mpgs_transaction_id,
+        result_reason,
+      },
+    });
+
+    console.log("✅ ORDS update success:", res);
+
+    return res;
+  } catch (err) {
+    console.error("💥 [ORDS ERROR FULL]:", {
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data,   // 🔥 THIS is what you need
+      url: err.config?.url,
+      params: err.config?.params,
+    });
+
+    throw err; // important → so webhook still knows it failed
+  }
+}
 async function ordsGetPayment(order_id) {
   if (!order_id) throw new Error("order_id is required");
 
