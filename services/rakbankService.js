@@ -9,12 +9,6 @@ function getAuthHeader() {
   const merchantId = process.env.MERCHANT_ID;
   const password = process.env.MERCHANT_PASSWORD;
 
-  console.log("[MPGS] Using Merchant ID:", merchantId);
-  console.log(
-    "[MPGS] Password length:",
-    password ? password.length : "MISSING"
-  );
-
   if (!merchantId || !password) {
     throw new Error("MPGS merchant credentials are missing");
   }
@@ -22,8 +16,8 @@ function getAuthHeader() {
   const raw = `merchant.${merchantId}:${password}`;
   const encoded = Buffer.from(raw).toString("base64");
 
-  console.log("[MPGS] Auth raw (masked):", `merchant.${merchantId}:******`);
-  console.log("[MPGS] Auth base64 (first 10 chars):", encoded.slice(0, 10));
+  // 🔥 ADD THIS LINE HERE
+  console.log("[MPGS] FULL AUTH:", encoded);
 
   return "Basic " + encoded;
 }
