@@ -533,7 +533,7 @@ async function paymentWebhook(req, res) {
     // =========================
     else {
       // 🔴 IMPORTANT: you need this ORDS function
-      const payment = await ordsGetPaymentByOrderId(orderId);
+      const payment = await ordsGetPayment(orderId);
 
       if (!payment) {
         console.warn("⚠️ No service payment found");
