@@ -823,8 +823,7 @@ function ordsInsertParkingPayment({
       // 🔥 NEW FIELDS
       mpgs_order_id: mpgs_order_id ? String(mpgs_order_id) : null,
       mpgs_session_id: mpgs_session_id ? String(mpgs_session_id) : null,
-      mpgs_txn_id: mpgs_txn_id ? String(mpgs_txn_id) : null,
-      payment_status: payment_status ? String(payment_status) : "PAID",
+      mpgs_txn_id: mpgs_txn_id ? String(mpgs_txn_id) : null
     },
   });
 }
