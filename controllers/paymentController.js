@@ -369,7 +369,7 @@ async function verifyPayment(req, res) {
               center_fees_spent: parking?.rules?.centreFeeUsedMinor ?? 0,
               minutes_free: parking?.rules?.freeMinutesGranted ?? 0,
               mpgs_order_id: orderId,
-              mpgs_session_id: order?.session?.id || null,
+              mpgs_session_id: order?.session?.id || "-",
               mpgs_txn_id: mpgsTransactionId,
               payment_status: "PAID",
             });
