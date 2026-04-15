@@ -595,7 +595,7 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
 //   if (!payment_id || !status) {
 //     throw new Error("payment_id and status are required");
 //   }
-  
+
 // console.log("🚀 Updating payment status:", {
 //   payment_id,
 //   status,
@@ -654,7 +654,7 @@ async function ordsUpdatePaymentStatus({
     console.error("💥 [ORDS ERROR FULL]:", {
       message: err.message,
       status: err.response?.status,
-      data: err.response?.data,   // 🔥 THIS is what you need
+      data: err.response?.data, // 🔥 THIS is what you need
       url: err.config?.url,
       params: err.config?.params,
     });
@@ -691,13 +691,11 @@ function ordsClearPushToken({ token }) {
     },
   });
 }
-function ordsGetParkingInfo({
-  plate_number,
-  plate_category,
-  plate_area_name,
-}) {
+function ordsGetParkingInfo({ plate_number, plate_category, plate_area_name }) {
   if (!plate_number || !plate_category || !plate_area_name) {
-    throw new Error("plate_number, plate_category and plate_area_name are required");
+    throw new Error(
+      "plate_number, plate_category and plate_area_name are required",
+    );
   }
 
   return callGateway("GET", "getParkingInfo", {
@@ -790,6 +788,10 @@ function ordsInsertParkingPayment({
   amount_paid,
   center_fees_spent,
   minutes_free,
+  mpgs_order_id,
+  mpgs_session_id,
+  mpgs_txn_id,
+  payment_status,
 }) {
   // ✅ validation
   if (!entry_guid || amount_paid == null) {
@@ -803,16 +805,26 @@ function ordsInsertParkingPayment({
     amount_paid,
     center_fees_spent,
     minutes_free,
+    mpgs_order_id,
+    mpgs_session_id,
+    mpgs_txn_id,
+    payment_status,
   });
 
   return callGateway("POST", "insertParkingPayment", {
     params: {
       entry_guid: String(entry_guid),
-      time_in: String(time_in), // must match ORDS param
+      time_in: String(time_in),
       time_spent_min: String(time_spent_min ?? 0),
       amount_paid: String(amount_paid),
       center_fees_spent: String(center_fees_spent ?? 0),
       minutes_free: String(minutes_free ?? 0),
+
+      // 🔥 NEW FIELDS
+      mpgs_order_id: mpgs_order_id ? String(mpgs_order_id) : null,
+      mpgs_session_id: mpgs_session_id ? String(mpgs_session_id) : null,
+      mpgs_txn_id: mpgs_txn_id ? String(mpgs_txn_id) : null,
+      payment_status: payment_status ? String(payment_status) : "PAID",
     },
   });
 }
@@ -875,10 +887,7 @@ async function ordsGetParkingPaymentMeta({ order_id }) {
 
   return result;
 }
-function ordsUpdateParkingPaymentMetaStatus({
-  order_id,
-  status,
-}) {
+function ordsUpdateParkingPaymentMetaStatus({ order_id, status }) {
   if (!order_id || !status) {
     throw new Error("order_id and status are required");
   }
@@ -944,5 +953,5 @@ module.exports = {
   ordsInsertParkingPayment,
   ordsInsertParkingPaymentMeta,
   ordsGetParkingPaymentMeta,
-  ordsUpdateParkingPaymentMetaStatus
+  ordsUpdateParkingPaymentMetaStatus,
 };
