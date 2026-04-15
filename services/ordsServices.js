@@ -790,7 +790,7 @@ function ordsInsertParkingPayment({
   minutes_free,
   mpgs_order_id,
   mpgs_session_id,
-  mpgs_txn_id,
+  mpgs_txn_id
 }) {
   // ✅ validation
   if (!entry_guid || amount_paid == null) {
@@ -806,7 +806,7 @@ function ordsInsertParkingPayment({
     minutes_free,
     mpgs_order_id,
     mpgs_session_id,
-    mpgs_txn_id,
+    mpgs_txn_id
   });
 
   return callGateway("POST", "insertParkingPayment", {
