@@ -394,7 +394,7 @@ async function ordsMedia({ path }) {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    responseType: "stream", // 🔥 IMPORTANT
+    responseType: "stream", 
     validateStatus: () => true,
   });
 }
@@ -630,13 +630,7 @@ async function ordsUpdatePaymentStatus({
     throw new Error("payment_id and status are required");
   }
 
-  console.log("🚀 Updating payment status:", {
-    payment_id,
-    status,
-    mpgs_transaction_id,
-    result_reason,
-  });
-
+ 
   try {
     const res = await callGateway("POST", "updatePaymentStatus", {
       params: {
@@ -647,7 +641,6 @@ async function ordsUpdatePaymentStatus({
       },
     });
 
-    console.log("✅ ORDS update success:", res);
 
     return res;
   } catch (err) {
@@ -719,14 +712,6 @@ function ordsInitiateParkingPayment({
     throw new Error("Missing required parking payment fields");
   }
 
-  console.log("🚀 ORDS PARKING PAYLOAD:", {
-    entry_guid,
-    plate_number,
-    time_in,
-    time_spent_min,
-    amount_due: amount,
-  });
-
   return callGateway("POST", "initiateParkingPayment", {
     params: {
       entry_guid: String(entry_guid),
@@ -797,18 +782,6 @@ function ordsInsertParkingPayment({
     throw new Error("Missing required parking insert fields");
   }
 
-  console.log("🚀 ORDS INSERT PARKING PAYMENT:", {
-    entry_guid,
-    time_in,
-    time_spent_min,
-    amount_paid,
-    center_fees_spent,
-    minutes_free,
-    mpgs_order_id,
-    mpgs_session_id,
-    mpgs_txn_id,
-  });
-
   return callGateway("POST", "insertParkingPayment", {
     params: {
       entry_guid: String(entry_guid),
@@ -818,7 +791,6 @@ function ordsInsertParkingPayment({
       center_fees_spent: String(center_fees_spent ?? 0),
       minutes_free: String(minutes_free ?? 0),
 
-      // 🔥 NEW FIELDS
       mpgs_order_id: mpgs_order_id ? String(mpgs_order_id) : null,
       mpgs_session_id: mpgs_session_id ? String(mpgs_session_id) : null,
       mpgs_txn_id: mpgs_txn_id ? String(mpgs_txn_id) : null,
@@ -836,13 +808,7 @@ function ordsInsertParkingPaymentMeta({
     throw new Error("order_id, entry_guid and plate_number are required");
   }
 
-  console.log("🚀 ORDS INSERT PARKING META:", {
-    order_id,
-    entry_guid,
-    plate_number,
-    plate_category,
-    plate_area_name,
-  });
+ 
 
   return callGateway("POST", "insertParkingPaymentMeta", {
     params: {
@@ -857,7 +823,6 @@ function ordsInsertParkingPaymentMeta({
 async function ordsGetParkingPaymentMeta({ order_id }) {
   if (!order_id) throw new Error("order_id is required");
 
-  console.log("📡 [META] Sending request with order_id:", order_id);
 
   let res;
 
@@ -866,9 +831,6 @@ async function ordsGetParkingPaymentMeta({ order_id }) {
       params: { order_id: String(order_id) },
     });
 
-    console.log("📡 [META] RAW RESPONSE:", JSON.stringify(res));
-    console.log("📡 [META] items length:", res?.items?.length);
-    console.log("📡 [META] first item:", res?.items?.[0]);
   } catch (err) {
     console.error("❌ [META] ORDS ERROR:", {
       message: err.message,
@@ -880,7 +842,6 @@ async function ordsGetParkingPaymentMeta({ order_id }) {
 
   const result = res?.items?.[0] || null;
 
-  console.log("📡 [META] FINAL RESULT:", result);
 
   return result;
 }

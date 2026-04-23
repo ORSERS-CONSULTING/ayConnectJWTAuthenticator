@@ -16,7 +16,6 @@ function getAuthHeader() {
   const encoded = Buffer.from(raw).toString("base64");
 
   // 🔥 ADD THIS LINE HERE
-  console.log("[MPGS] FULL AUTH:", encoded);
 
   return "Basic " + encoded;
 }
@@ -42,13 +41,7 @@ async function initiateHostedCheckout({
 
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
 
-  console.log("\n========== MPGS INITIATE ==========");
-  console.log("[MPGS] URL:", url);
-  console.log("[MPGS] Base URL:", baseUrl);
-  console.log("[MPGS] Order ID:", orderId);
-  console.log("[MPGS] Amount:", amount);
-  console.log("[MPGS] Currency:", currency);
-
+  
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
     checkoutMode: "WEBSITE",
@@ -75,7 +68,6 @@ async function initiateHostedCheckout({
     },
   };
 
-  console.log("[MPGS] Payload:", JSON.stringify(payload, null, 2));
 
   let res;
   try {
@@ -87,19 +79,10 @@ async function initiateHostedCheckout({
       timeout: 15000,
     });
 
-    console.log("[MPGS] SUCCESS RESPONSE:");
-    console.log(JSON.stringify(res.data, null, 2));
+   
   } catch (err) {
-    console.log("[MPGS] ERROR RESPONSE:");
 
-    if (err.response) {
-      console.log("Status:", err.response.status);
-      console.log("Headers:", err.response.headers);
-      console.log("Data:", JSON.stringify(err.response.data, null, 2));
-    } else {
-      console.log("Error message:", err.message);
-    }
-
+   
     throw new Error(
       `MPGS session error: ${
         err.response?.data
@@ -112,12 +95,10 @@ async function initiateHostedCheckout({
   const sessionId = res.data?.session?.id;
 
   if (!sessionId) {
-    console.log("[MPGS] Missing session ID in response!");
     throw new Error("MPGS did not return a session ID");
   }
 
-  console.log("[MPGS] Session ID:", sessionId);
-  console.log("====================================\n");
+
 
   return { sessionId };
 }

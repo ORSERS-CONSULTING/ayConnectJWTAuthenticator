@@ -112,20 +112,17 @@ async function downloadUserDoc(req, res) {
 // Optional: ?instance_svc_id=...
 async function getRequests(req, res) {
   try {
-    console.log("➡️ Incoming getRequests");
 
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const q = req.query || req.body || {};
 
     const user_id = String(q.user_id || fromToken);
-    console.log("👤 user_id:", user_id);
 
     let instance_svc_id = null;
     if (q.instance_svc_id != null) {
       instance_svc_id = Number(q.instance_svc_id);
     }
 
-    console.log("📡 Calling ORDS...");
 
     const start = Date.now();
 
@@ -134,11 +131,8 @@ async function getRequests(req, res) {
       instance_svc_id,
     });
 
-    console.log("✅ ORDS returned in", Date.now() - start, "ms");
-
     // 🔥 log size
     const size = JSON.stringify(data).length;
-    console.log("📦 Response size:", size);
 
     return res.status(200).json(data);
   } catch (e) {
@@ -689,11 +683,7 @@ async function getInvoices(req, res) {
   const traceId = `GET-INVOICES-${Date.now()}`;
 
   try {
-    console.log(`➡️ [${traceId}] Incoming request`, {
-      query: req.query,
-      user: req.user ? { id: req.user.id, sub: req.user.sub } : null,
-    });
-
+   
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const q = req.query || {};
 
@@ -715,10 +705,7 @@ async function getInvoices(req, res) {
       }
     }
 
-    console.log(`📡 [${traceId}] Calling ORDS getInvoices`, {
-      user_id,
-      request_id,
-    });
+
 
     const ordsStart = Date.now();
 
@@ -727,11 +714,6 @@ async function getInvoices(req, res) {
       request_id,
     });
 
-    console.log(`✅ [${traceId}] ORDS responded`, {
-      duration: `${Date.now() - ordsStart}ms`,
-      hasResponseBody: Boolean(data?.response_body),
-      type: typeof data,
-    });
 
     // ---------- Parsing ----------
     let parsed = data;
@@ -739,9 +721,7 @@ async function getInvoices(req, res) {
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-        console.log(`🧾 [${traceId}] Parsed response_body successfully`, {
-          length: Array.isArray(parsed) ? parsed.length : "not array",
-        });
+       
       } catch (err) {
         console.error(`❌ [${traceId}] Failed to parse response_body`, {
           raw: data.response_body?.slice(0, 200),
@@ -752,11 +732,6 @@ async function getInvoices(req, res) {
     }
 
     const items = Array.isArray(parsed) ? parsed : [];
-
-    console.log(`📦 [${traceId}] Final response`, {
-      count: items.length,
-      duration: `${Date.now() - start}ms`,
-    });
 
     return res.status(200).json({ items });
 
@@ -1121,7 +1096,6 @@ async function downloadInvoicePdf(req, res) {
   const start = Date.now();
 
   try {
-    console.log("➡️ [API] downloadInvoicePdf called", req.query);
 
     const user_id = String(req.user?.id || req.user?.sub || "");
     const request_id = Number(req.query?.request_id);
@@ -1136,11 +1110,6 @@ async function downloadInvoicePdf(req, res) {
       return res.status(400).json({ message: "request_id is required" });
     }
 
-    console.log("👤 [API] user_id:", user_id);
-    console.log("📄 [API] request_id:", request_id);
-
-    // 🔥 ORDS CALL
-    console.log("📡 [API] Calling ORDS...");
     const ordsStart = Date.now();
 
     const upstream = await ordsDownloadInvoicePdf({
@@ -1148,18 +1117,13 @@ async function downloadInvoicePdf(req, res) {
       user_id,
     });
 
-    // 🔥 CRITICAL FIX
     if (!upstream) {
       console.error("❌ [API] Upstream is null (ORDS failed)");
       return res.status(500).json({
         message: "Failed to fetch invoice from ORDS",
       });
     }
-    console.log("✅ [API] ORDS returned", {
-      status: upstream.status,
-      duration: Date.now() - ordsStart + "ms",
-    });
-
+ 
     if (upstream.status >= 400) {
       console.error("❌ [API] ORDS returned error", upstream.status);
       return res.status(upstream.status).json({
@@ -1182,8 +1146,6 @@ async function downloadInvoicePdf(req, res) {
       upstream.headers["content-disposition"] ||
         'inline; filename="invoice.pdf"',
     );
-
-    console.log("📤 [API] Starting stream...");
 
     upstream.data.on("end", () => {
       console.log("✅ [API] Stream completed in", Date.now() - start, "ms");
