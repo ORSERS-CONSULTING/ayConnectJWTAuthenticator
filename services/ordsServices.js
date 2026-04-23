@@ -643,31 +643,31 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
     return null; // 🔥 critical
   }
 }
-async function ordsUpdatePaymentStatus({
-  payment_id,
-  status,
-  mpgs_transaction_id,
-  result_reason,
-}) {
-  if (!payment_id || !status) {
-    throw new Error("payment_id and status are required");
-  }
-  
-console.log("🚀 Updating payment status:", {
-  payment_id,
-  status,
-  mpgs_transaction_id,
-  result_reason,
-});
-  return callGateway("POST", "updatePaymentStatus", {
-    params: {
-      payment_id: Number(payment_id),
-      status,
-      mpgs_transaction_id,
-      result_reason,
-    },
-  });
-}
+// async function ordsUpdatePaymentStatus({
+//   payment_id,
+//   status,
+//   mpgs_transaction_id,
+//   result_reason,
+// }) {
+//   if (!payment_id || !status) {
+//     throw new Error("payment_id and status are required");
+//   }
+
+// console.log("🚀 Updating payment status:", {
+//   payment_id,
+//   status,
+//   mpgs_transaction_id,
+//   result_reason,
+// });
+//   return callGateway("POST", "updatePaymentStatus", {
+//     params: {
+//       payment_id: Number(payment_id),
+//       status,
+//       mpgs_transaction_id,
+//       result_reason,
+//     },
+//   });
+// }
 
 // async function ordsGetPayment(payment_id) {
 //   if (!payment_id) throw new Error("payment_id is required");
@@ -677,10 +677,52 @@ console.log("🚀 Updating payment status:", {
 //   });
 //   return res?.items?.[0] || null;
 // }
+async function ordsUpdatePaymentStatus({
+  payment_id,
+  status,
+  mpgs_transaction_id,
+  result_reason,
+}) {
+  if (!payment_id || !status) {
+    throw new Error("payment_id and status are required");
+  }
+
+  console.log("🚀 Updating payment status:", {
+    payment_id,
+    status,
+    mpgs_transaction_id,
+    result_reason,
+  });
+
+  try {
+    const res = await callGateway("POST", "updatePaymentStatus", {
+      params: {
+        payment_id: Number(payment_id),
+        status,
+        mpgs_transaction_id,
+        result_reason,
+      },
+    });
+
+    console.log("✅ ORDS update success:", res);
+
+    return res;
+  } catch (err) {
+    console.error("💥 [ORDS ERROR FULL]:", {
+      message: err.message,
+      status: err.response?.status,
+      data: err.response?.data, // 🔥 THIS is what you need
+      url: err.config?.url,
+      params: err.config?.params,
+    });
+
+    throw err; // important → so webhook still knows it failed
+  }
+}
 async function ordsGetPayment(order_id) {
   if (!order_id) throw new Error("order_id is required");
 
-  const res = await callGateway("GET", "getPaymentByOrderId", {
+  const res = await callGateway("GET", "getPaymentStatus", {
     params: { order_id },
   });
 
@@ -706,13 +748,11 @@ function ordsClearPushToken({ token }) {
     },
   });
 }
-function ordsGetParkingInfo({
-  plate_number,
-  plate_category,
-  plate_area_name,
-}) {
+function ordsGetParkingInfo({ plate_number, plate_category, plate_area_name }) {
   if (!plate_number || !plate_category || !plate_area_name) {
-    throw new Error("plate_number, plate_category and plate_area_name are required");
+    throw new Error(
+      "plate_number, plate_category and plate_area_name are required",
+    );
   }
 
   return callGateway("GET", "getParkingInfo", {
@@ -805,6 +845,9 @@ function ordsInsertParkingPayment({
   amount_paid,
   center_fees_spent,
   minutes_free,
+  mpgs_order_id,
+  mpgs_session_id,
+  mpgs_txn_id,
 }) {
   // ✅ validation
   if (!entry_guid || amount_paid == null) {
@@ -818,16 +861,24 @@ function ordsInsertParkingPayment({
     amount_paid,
     center_fees_spent,
     minutes_free,
+    mpgs_order_id,
+    mpgs_session_id,
+    mpgs_txn_id,
   });
 
   return callGateway("POST", "insertParkingPayment", {
     params: {
       entry_guid: String(entry_guid),
-      time_in: String(time_in), // must match ORDS param
+      time_in: String(time_in),
       time_spent_min: String(time_spent_min ?? 0),
       amount_paid: String(amount_paid),
       center_fees_spent: String(center_fees_spent ?? 0),
       minutes_free: String(minutes_free ?? 0),
+
+      // 🔥 NEW FIELDS
+      mpgs_order_id: mpgs_order_id ? String(mpgs_order_id) : null,
+      mpgs_session_id: mpgs_session_id ? String(mpgs_session_id) : null,
+      mpgs_txn_id: mpgs_txn_id ? String(mpgs_txn_id) : null,
     },
   });
 }
@@ -890,10 +941,7 @@ async function ordsGetParkingPaymentMeta({ order_id }) {
 
   return result;
 }
-function ordsUpdateParkingPaymentMetaStatus({
-  order_id,
-  status,
-}) {
+function ordsUpdateParkingPaymentMetaStatus({ order_id, status }) {
   if (!order_id || !status) {
     throw new Error("order_id and status are required");
   }
@@ -960,5 +1008,5 @@ module.exports = {
   ordsInsertParkingPayment,
   ordsInsertParkingPaymentMeta,
   ordsGetParkingPaymentMeta,
-  ordsUpdateParkingPaymentMetaStatus
+  ordsUpdateParkingPaymentMetaStatus,
 };
