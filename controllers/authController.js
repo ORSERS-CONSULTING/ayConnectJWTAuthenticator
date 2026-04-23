@@ -168,6 +168,10 @@ async function refresh(req, res) {
 async function logout(req, res) {
   const { refresh_token, device_id } = req.body || {};
 
+  console.log("🚪 LOGOUT REQUEST RECEIVED:");
+  console.log("➡️ device_id:", device_id);
+  console.log("➡️ refresh_token prefix:", refresh_token?.slice(0, 12));
+
   if (!refresh_token) {
     return res.status(400).json({ message: "refresh_token required" });
   }
@@ -177,9 +181,14 @@ async function logout(req, res) {
   }
 
   try {
-    await authTokensRevoke({ refresh_token, device_id });
+    const result = await authTokensRevoke({ refresh_token, device_id });
+
+    console.log("✅ REVOKE RESULT:", result);
+
     return res.json({ ok: true });
   } catch (e) {
+    console.error("❌ LOGOUT ERROR:", e.response?.data || e.message);
+
     const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
       .status(code)
