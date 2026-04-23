@@ -134,12 +134,52 @@ async function callGatewayJson(method, path, { params, data } = {}) {
   };
 }
 
+// function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
+//   if (!device_id) throw new Error("device_id is required");
+
+//   const token_hash = refreshDigest(refresh_token);
+//   return callGateway("POST", "authTokens/create", {
+//     params: {
+//       user_id: Number(user_id),
+//       token_hash,
+//       device_id: String(device_id),
+//       days: Number(days),
+//     },
+//   });
+// }
+
+// function authTokensValidate({ refresh_token, device_id }) {
+//   if (!device_id) throw new Error("device_id is required");
+
+//   const token_hash = refreshDigest(refresh_token);
+//   return callGateway("POST", "authTokens/validate", {
+//     params: {
+//       token_hash,
+//       device_id: String(device_id),
+//     },
+//   });
+// }
+
+// function authTokensRevoke({ refresh_token, device_id }) {
+//   if (!device_id) throw new Error("device_id is required");
+
+//   const token_hash = refreshDigest(refresh_token);
+//   return callGateway("POST", "authTokens/revoke", {
+//     params: {
+//       token_hash,
+//       device_id: String(device_id),
+//     },
+//   });
+// }
+
+
 function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
   if (!device_id) throw new Error("device_id is required");
 
   const token_hash = refreshDigest(refresh_token);
+
   return callGateway("POST", "authTokens/create", {
-    params: {
+    data: {
       user_id: Number(user_id),
       token_hash,
       device_id: String(device_id),
@@ -152,8 +192,9 @@ function authTokensValidate({ refresh_token, device_id }) {
   if (!device_id) throw new Error("device_id is required");
 
   const token_hash = refreshDigest(refresh_token);
+
   return callGateway("POST", "authTokens/validate", {
-    params: {
+    data: {
       token_hash,
       device_id: String(device_id),
     },
@@ -164,13 +205,29 @@ function authTokensRevoke({ refresh_token, device_id }) {
   if (!device_id) throw new Error("device_id is required");
 
   const token_hash = refreshDigest(refresh_token);
+
   return callGateway("POST", "authTokens/revoke", {
-    params: {
+    data: {
       token_hash,
       device_id: String(device_id),
     },
   });
 }
+
+function authTokensRevokeByUserDevice({ user_id, device_id }) {
+  if (!device_id) throw new Error("device_id is required");
+  if (!Number.isFinite(Number(user_id))) {
+    throw new Error("user_id must be numeric");
+  }
+
+  return callGateway("POST", "authTokens/revokeByUserDevice", {
+    params: {
+      user_id: Number(user_id),
+      device_id: String(device_id),
+    },
+  });
+}
+
 
 function sendMobileOtp(mobile_number) {
   return callGateway("POST", "sendMobileOtp", { params: { mobile_number } });
@@ -865,6 +922,7 @@ module.exports = {
   authTokensCreate,
   authTokensValidate,
   authTokensRevoke,
+  authTokensRevokeByUserDevice,
   ordsGetRequests,
   ordsMarkNotificationRead,
   resendClientCode,
