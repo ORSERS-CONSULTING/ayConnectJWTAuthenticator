@@ -16,6 +16,7 @@ const {
   authTokensCreate,
   authTokensValidate,
   authTokensRevoke,
+  authTokensRevokeByUserDevice,
 } = require("../services/ordsServices");
 
 const { sendSms } = require("../services/etisalatServices");
@@ -70,8 +71,10 @@ async function sendOtp(req, res) {
     const data = await sendEmailOtp(target);
     return res.json({ sent: true, ...data });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -108,8 +111,10 @@ async function verifyOtp(req, res) {
 
     return res.json({ verified: true, status });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -137,15 +142,32 @@ async function refresh(req, res) {
       role: "user",
     });
 
-    return res.json({ access_token });
+    const new_refresh_token = crypto.randomBytes(64).toString("hex");
+
+    await authTokensRevoke({ refresh_token, device_id });
+
+    await authTokensCreate({
+      user_id: Number(userId),
+      refresh_token: new_refresh_token,
+      device_id,
+      days,
+    });
+
+    return res.json({
+      access_token,
+      refresh_token: new_refresh_token,
+    });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
 async function logout(req, res) {
   const { refresh_token, device_id } = req.body || {};
+
 
   if (!refresh_token) {
     return res.status(400).json({ message: "refresh_token required" });
@@ -156,11 +178,42 @@ async function logout(req, res) {
   }
 
   try {
-    await authTokensRevoke({ refresh_token, device_id });
+    const result = await authTokensRevoke({ refresh_token, device_id });
+
     return res.json({ ok: true });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    console.error("❌ LOGOUT ERROR:", e.response?.data || e.message);
+
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
+  }
+}
+
+async function revokeByDevice(req, res) {
+  const { user_id, device_id } = req.body || {};
+
+  if (!user_id) {
+    return res.status(400).json({ message: "user_id required" });
+  }
+
+  if (!device_id) {
+    return res.status(400).json({ message: "device_id required" });
+  }
+
+  try {
+    const data = await authTokensRevokeByUserDevice({
+      user_id,
+      device_id,
+    });
+
+    return res.json(data || { ok: true });
+  } catch (e) {
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -205,6 +258,12 @@ async function login(req, res) {
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
+
+    await authTokensRevokeByUserDevice({
+      user_id: out_user_id,
+      device_id,
+    });
+
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
@@ -220,8 +279,10 @@ async function login(req, res) {
       },
     });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -259,6 +320,12 @@ async function register(req, res) {
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
+
+    await authTokensRevokeByUserDevice({
+      user_id: out_user_id,
+      device_id,
+    });
+
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
@@ -274,8 +341,10 @@ async function register(req, res) {
       },
     });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -311,6 +380,12 @@ async function loginClient(req, res) {
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
+
+    await authTokensRevokeByUserDevice({
+      user_id: out_user_id,
+      device_id,
+    });
+
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
@@ -326,8 +401,10 @@ async function loginClient(req, res) {
       },
     });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -351,8 +428,10 @@ async function getLoginClientEmail(req, res) {
     });
   } catch (e) {
     console.error("getLoginClientEmail error:", e.response?.data || e.message);
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -384,8 +463,8 @@ async function getClientCode(req, res) {
       message,
     });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    const payload = e.response?.data ?? { message: e.message };
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    const payload = e.response?.data ?? e.upstream?.data ?? { message: e.message };
     return res.status(code).json(payload);
   }
 }
@@ -417,8 +496,10 @@ async function registerExistingClientFromMainDB(req, res) {
       },
     });
   } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
+    return res
+      .status(code)
+      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
 
@@ -454,10 +535,10 @@ async function clienCodeExist(req, res) {
           : "Client found in main system.",
     });
   } catch (e) {
-    const code = e.response?.status ?? 500;
+    const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
       .status(code)
-      .json(e.response?.data ?? { ok: false, message: e.message });
+      .json(e.response?.data ?? e.upstream?.data ?? { ok: false, message: e.message });
   }
 }
 
@@ -473,4 +554,5 @@ module.exports = {
   register,
   registerExistingClientFromMainDB,
   logout,
+  revokeByDevice,
 };

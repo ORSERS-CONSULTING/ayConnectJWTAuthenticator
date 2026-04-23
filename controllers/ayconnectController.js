@@ -117,7 +117,6 @@ async function getRequests(req, res) {
     const q = req.query || req.body || {};
 
     const user_id = String(q.user_id || fromToken);
-
     let instance_svc_id = null;
     if (q.instance_svc_id != null) {
       instance_svc_id = Number(q.instance_svc_id);
@@ -130,7 +129,6 @@ async function getRequests(req, res) {
       user_id,
       instance_svc_id,
     });
-
     // 🔥 log size
     const size = JSON.stringify(data).length;
 
@@ -683,14 +681,12 @@ async function getInvoices(req, res) {
   const traceId = `GET-INVOICES-${Date.now()}`;
 
   try {
-   
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const q = req.query || {};
 
     const user_id = String(q.user_id || fromToken);
 
     if (!user_id) {
-      console.warn(`❌ [${traceId}] Missing user_id`);
       return res.status(401).json({ message: "No user in token" });
     }
 
@@ -705,23 +701,19 @@ async function getInvoices(req, res) {
       }
     }
 
-
-
     const ordsStart = Date.now();
 
     const data = await ordsGetInvoices({
       user_id,
       request_id,
     });
-
-
     // ---------- Parsing ----------
     let parsed = data;
 
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-       
+
       } catch (err) {
         console.error(`❌ [${traceId}] Failed to parse response_body`, {
           raw: data.response_body?.slice(0, 200),
@@ -732,6 +724,7 @@ async function getInvoices(req, res) {
     }
 
     const items = Array.isArray(parsed) ? parsed : [];
+
 
     return res.status(200).json({ items });
 
