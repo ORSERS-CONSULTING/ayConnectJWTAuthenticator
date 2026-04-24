@@ -21,8 +21,6 @@ async function loadConfig() {
     TEST_RESOURCE: process.env.TEST_RESOURCE,  // <— add this line
     TEST_CLEINT: process.env.TEST_CLEINT,  // <— add this line
     JWT_SECRET: await required("JWT_SECRET", "JWT_SECRET_OCID"),
-    ORDS_CLIENT_ID_OCID: await required("ORDS_CLIENT_ID", "ORDS_CLIENT_ID_OCID"),
-    ORDS_CLIENT_SECRET_OCID: await required("ORDS_CLIENT_SECRET", "ORDS_CLIENT_SECRET_OCID"),
     REFRESH_TOKEN_PEPPER_OCID: await required("REFRESH_TOKEN_PEPPER", "REFRESH_TOKEN_PEPPER_OCID"),
     IDCS_TENANT: await required("IDCS_TENANT", "IDCS_TENANT_OCID"),
     IDCS_CLIENT_ID: await required("IDCS_CLIENT_ID", "IDCS_CLIENT_ID_OCID"),
