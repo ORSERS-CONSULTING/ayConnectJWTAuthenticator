@@ -49,8 +49,8 @@ async function initiateHostedCheckout({
       operation: "PURCHASE",
       merchant: {
         name: "AY Connect",
-        url: "https://ayconnect.yalayis.ai",
-        logo: "https://ayconnect.yalayis.ai/assets/yalayis_logo.png",
+        url: "https://ayconnect.yalayis.org",
+        logo: "https://ayconnect.yalayis.org/assets/yalayis_logo.png",
       },
       locale: "en_US",
       displayControl: {
@@ -58,7 +58,7 @@ async function initiateHostedCheckout({
         customerEmail: "HIDE",
         shipping: "HIDE",
       },
-      returnUrl: `https://ayconnect.yalayis.ai/payment/return?payment_type=${payment_type}&paymentId=${payment_id}`,
+      returnUrl: `https://ayconnect.yalayis.org/payment/return?payment_type=${payment_type}&paymentId=${payment_id}`,
     },
     order: {
       id: orderId,
