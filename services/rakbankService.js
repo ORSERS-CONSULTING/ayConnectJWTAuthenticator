@@ -5,21 +5,51 @@ const axios = require("axios");
  * Helpers
  * ----------------------------------------------------
  */
+// function getAuthHeader() {
+//   const merchantId = process.env.MERCHANT_ID;
+//   const password = process.env.MERCHANT_PASSWORD;
+//   if (!merchantId || !password) {
+//     throw new Error("MPGS merchant credentials are missing");
+//   }
+
+//   const raw = `merchant.${merchantId}:${password}`;
+//   const encoded = Buffer.from(raw).toString("base64");
+
+//   // 🔥 ADD THIS LINE HERE
+
+//   return "Basic " + encoded;
+// }
 function getAuthHeader() {
   const merchantId = process.env.MERCHANT_ID;
   const password = process.env.MERCHANT_PASSWORD;
+
   if (!merchantId || !password) {
     throw new Error("MPGS merchant credentials are missing");
   }
 
-  const raw = `merchant.${merchantId}:${password}`;
+  const trimmedMerchantId = merchantId.trim();
+  const trimmedPassword = password.trim();
+
+  // Try current format first
+  const raw = `merchant.${trimmedMerchantId}:${trimmedPassword}`;
   const encoded = Buffer.from(raw).toString("base64");
 
-  // 🔥 ADD THIS LINE HERE
+  // 🔥 DEBUG LOGS
+  console.log("========== MPGS AUTH DEBUG ==========");
+  console.log("MERCHANT_ID RAW:", JSON.stringify(merchantId));
+  console.log("MERCHANT_ID TRIMMED:", JSON.stringify(trimmedMerchantId));
+  console.log("PASSWORD LENGTH:", trimmedPassword.length);
+  console.log("PASSWORD FIRST/LAST CHAR CODES:", {
+    first: trimmedPassword.charCodeAt(0),
+    last: trimmedPassword.charCodeAt(trimmedPassword.length - 1),
+  });
+  console.log("AUTH RAW STRING:", raw); 
+  console.log("AUTH BASE64:", encoded);
+  console.log("BASE URL:", process.env.MPGS_BASE_URL);
+  console.log("====================================");
 
   return "Basic " + encoded;
 }
-
 /**
  * ----------------------------------------------------
  * Create Hosted Checkout Session
