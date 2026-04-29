@@ -172,7 +172,6 @@ async function callGatewayJson(method, path, { params, data } = {}) {
 //   });
 // }
 
-
 function authTokensCreate({ user_id, refresh_token, device_id, days = 30 }) {
   if (!device_id) throw new Error("device_id is required");
 
@@ -227,7 +226,6 @@ function authTokensRevokeByUserDevice({ user_id, device_id }) {
     },
   });
 }
-
 
 function sendMobileOtp(mobile_number) {
   return callGateway("POST", "sendMobileOtp", { params: { mobile_number } });
@@ -451,7 +449,7 @@ async function ordsMedia({ path }) {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    responseType: "stream", 
+    responseType: "stream",
     validateStatus: () => true,
   });
 }
@@ -687,7 +685,6 @@ async function ordsUpdatePaymentStatus({
     throw new Error("payment_id and status are required");
   }
 
- 
   try {
     const res = await callGateway("POST", "updatePaymentStatus", {
       params: {
@@ -697,7 +694,6 @@ async function ordsUpdatePaymentStatus({
         result_reason,
       },
     });
-
 
     return res;
   } catch (err) {
@@ -826,8 +822,6 @@ async function ordsGetParkingPayment(payment_id) {
 function ordsInsertParkingPayment({
   entry_guid,
 
-  // 🔒 Frozen snapshot
-  locked_time_in,
   locked_time_spent_min,
   amount_paid,
 
@@ -835,15 +829,14 @@ function ordsInsertParkingPayment({
   locked_minutes_free,
 
   locked_deadline_to_leave,
+
   locked_gross_amount,
   locked_already_paid,
 
-  // 🔥 MPGS identifiers
   mpgs_order_id,
   mpgs_session_id,
   mpgs_txn_id,
 }) {
-  // ✅ Validation
   if (!entry_guid || amount_paid == null) {
     throw new Error(
       "Missing required parking insert fields"
@@ -856,11 +849,6 @@ function ordsInsertParkingPayment({
     {
       params: {
         entry_guid: String(entry_guid),
-
-        // 🔒 LOCKED SNAPSHOT
-        locked_time_in: locked_time_in
-          ? String(locked_time_in)
-          : null,
 
         locked_time_spent_min: String(
           locked_time_spent_min ?? 0
@@ -876,6 +864,7 @@ function ordsInsertParkingPayment({
           locked_minutes_free ?? 0
         ),
 
+        // 🔥 DEADLINE SNAPSHOT RESTORED
         locked_deadline_to_leave:
           locked_deadline_to_leave
             ? String(locked_deadline_to_leave)
@@ -889,7 +878,6 @@ function ordsInsertParkingPayment({
           locked_already_paid ?? 0
         ),
 
-        // 🔥 MPGS
         mpgs_order_id: mpgs_order_id
           ? String(mpgs_order_id)
           : null,
@@ -915,8 +903,6 @@ function ordsInsertParkingPayment({
 //   if (!order_id || !entry_guid || !plate_number) {
 //     throw new Error("order_id, entry_guid and plate_number are required");
 //   }
-
- 
 
 //   return callGateway("POST", "insertParkingPaymentMeta", {
 //     params: {
@@ -958,7 +944,7 @@ function ordsInsertParkingPaymentMeta({
     !locked_time_in
   ) {
     throw new Error(
-      "locked_amount_due, locked_time_spent_min, locked_deadline_to_leave, and locked_time_in are required"
+      "locked_amount_due, locked_time_spent_min, locked_deadline_to_leave, and locked_time_in are required",
     );
   }
 
@@ -976,22 +962,15 @@ function ordsInsertParkingPaymentMeta({
       locked_time_spent_min: Number(locked_time_spent_min),
 
       locked_center_fees_spent:
-        locked_center_fees_spent != null
-          ? Number(locked_center_fees_spent)
-          : 0,
+        locked_center_fees_spent != null ? Number(locked_center_fees_spent) : 0,
 
       locked_minutes_free:
-        locked_minutes_free != null
-          ? Number(locked_minutes_free)
-          : 0,
+        locked_minutes_free != null ? Number(locked_minutes_free) : 0,
 
       locked_deadline_to_leave: String(locked_deadline_to_leave),
       locked_time_in: String(locked_time_in),
 
-      locked_is_valet:
-        locked_is_valet != null
-          ? Number(locked_is_valet)
-          : 0,
+      locked_is_valet: locked_is_valet != null ? Number(locked_is_valet) : 0,
 
       locked_gross_amount:
         locked_gross_amount != null
@@ -999,15 +978,12 @@ function ordsInsertParkingPaymentMeta({
           : Number(locked_amount_due),
 
       locked_already_paid:
-        locked_already_paid != null
-          ? Number(locked_already_paid)
-          : 0,
+        locked_already_paid != null ? Number(locked_already_paid) : 0,
     },
   });
 }
 async function ordsGetParkingPaymentMeta({ order_id }) {
   if (!order_id) throw new Error("order_id is required");
-
 
   let res;
 
@@ -1015,7 +991,6 @@ async function ordsGetParkingPaymentMeta({ order_id }) {
     res = await callGateway("GET", "getParkingMetadata", {
       params: { order_id: String(order_id) },
     });
-
   } catch (err) {
     console.error("❌ [META] ORDS ERROR:", {
       message: err.message,
@@ -1026,7 +1001,6 @@ async function ordsGetParkingPaymentMeta({ order_id }) {
   }
 
   const result = res?.items?.[0] || null;
-
 
   return result;
 }

@@ -200,7 +200,7 @@ async function initPayment(req, res) {
           ),
 
           locked_deadline_to_leave: lockedDeadline,
-          locked_time_in: lockedTimeIn,
+          // locked_time_in: lockedTimeIn,
 
           locked_is_valet: Number(
             parking.rules?.isValet || 0,
@@ -490,7 +490,7 @@ async function verifyPayment(req, res) {
               entry_guid: meta.entry_guid,
 
               // 🔒 FROZEN SNAPSHOT VALUES
-              locked_time_in: meta.locked_time_in,
+              // locked_time_in: meta.locked_time_in,
               locked_time_spent_min:
                 meta.locked_time_spent_min,
 
@@ -725,7 +725,7 @@ async function paymentWebhook(req, res) {
             entry_guid: meta.entry_guid,
 
             // 🔒 FROZEN SNAPSHOT
-            locked_time_in: meta.locked_time_in,
+            // locked_time_in: meta.locked_time_in,
 
             locked_time_spent_min:
               meta.locked_time_spent_min,
