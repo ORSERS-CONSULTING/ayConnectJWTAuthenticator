@@ -563,7 +563,13 @@ async function initPayment(req, res) {
               await ordsInsertParkingPayment(
                 parkingInsertPayload
               );
-
+if (
+  !insertResult ||
+  insertResult.status === "ERROR" ||
+  insertResult.message?.includes("ORA-")
+) {
+  throw new Error(insertResult?.message || "Parking insert failed");
+}
             console.log(
               `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
               JSON.stringify(
