@@ -490,17 +490,17 @@ async function verifyPayment(req, res) {
               entry_guid: meta.entry_guid,
 
               // 🔒 FROZEN SNAPSHOT VALUES
-              time_in: meta.locked_time_in,
-              time_spent_min:
+              locked_time_in: meta.locked_time_in,
+              locked_time_spent_min:
                 meta.locked_time_spent_min,
 
               amount_paid:
                 meta.locked_amount_due ?? 0,
 
-              center_fees_spent:
+              locked_center_fees_spent:
                 meta.locked_center_fees_spent ?? 0,
 
-              minutes_free:
+              locked_minutes_free:
                 meta.locked_minutes_free ?? 0,
 
               // 🔥 Payment identifiers
@@ -725,18 +725,18 @@ async function paymentWebhook(req, res) {
             entry_guid: meta.entry_guid,
 
             // 🔒 FROZEN SNAPSHOT
-            time_in: meta.locked_time_in,
+            locked_time_in: meta.locked_time_in,
 
-            time_spent_min:
+            locked_time_spent_min:
               meta.locked_time_spent_min,
 
             amount_paid:
               meta.locked_amount_due ?? 0,
 
-            center_fees_spent:
+            locked_center_fees_spent:
               meta.locked_center_fees_spent ?? 0,
 
-            minutes_free:
+            locked_minutes_free:
               meta.locked_minutes_free ?? 0,
 
             // 🔥 MPGS DETAILS
