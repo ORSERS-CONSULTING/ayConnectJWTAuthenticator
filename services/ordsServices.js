@@ -825,34 +825,85 @@ async function ordsGetParkingPayment(payment_id) {
 }
 function ordsInsertParkingPayment({
   entry_guid,
-  time_in,
-  time_spent_min,
+
+  // 🔒 Frozen snapshot
+  locked_time_in,
+  locked_time_spent_min,
   amount_paid,
-  center_fees_spent,
-  minutes_free,
+
+  locked_center_fees_spent,
+  locked_minutes_free,
+
+  locked_deadline_to_leave,
+  locked_gross_amount,
+  locked_already_paid,
+
+  // 🔥 MPGS identifiers
   mpgs_order_id,
   mpgs_session_id,
   mpgs_txn_id,
 }) {
-  // ✅ validation
+  // ✅ Validation
   if (!entry_guid || amount_paid == null) {
-    throw new Error("Missing required parking insert fields");
+    throw new Error(
+      "Missing required parking insert fields"
+    );
   }
 
-  return callGateway("POST", "insertParkingPayment", {
-    params: {
-      entry_guid: String(entry_guid),
-      time_in: String(time_in),
-      time_spent_min: String(time_spent_min ?? 0),
-      amount_paid: String(amount_paid),
-      center_fees_spent: String(center_fees_spent ?? 0),
-      minutes_free: String(minutes_free ?? 0),
+  return callGateway(
+    "POST",
+    "insertParkingPayment",
+    {
+      params: {
+        entry_guid: String(entry_guid),
 
-      mpgs_order_id: mpgs_order_id ? String(mpgs_order_id) : null,
-      mpgs_session_id: mpgs_session_id ? String(mpgs_session_id) : null,
-      mpgs_txn_id: mpgs_txn_id ? String(mpgs_txn_id) : null,
-    },
-  });
+        // 🔒 LOCKED SNAPSHOT
+        locked_time_in: locked_time_in
+          ? String(locked_time_in)
+          : null,
+
+        locked_time_spent_min: String(
+          locked_time_spent_min ?? 0
+        ),
+
+        amount_paid: String(amount_paid),
+
+        locked_center_fees_spent: String(
+          locked_center_fees_spent ?? 0
+        ),
+
+        locked_minutes_free: String(
+          locked_minutes_free ?? 0
+        ),
+
+        locked_deadline_to_leave:
+          locked_deadline_to_leave
+            ? String(locked_deadline_to_leave)
+            : null,
+
+        locked_gross_amount: String(
+          locked_gross_amount ?? amount_paid
+        ),
+
+        locked_already_paid: String(
+          locked_already_paid ?? 0
+        ),
+
+        // 🔥 MPGS
+        mpgs_order_id: mpgs_order_id
+          ? String(mpgs_order_id)
+          : null,
+
+        mpgs_session_id: mpgs_session_id
+          ? String(mpgs_session_id)
+          : null,
+
+        mpgs_txn_id: mpgs_txn_id
+          ? String(mpgs_txn_id)
+          : null,
+      },
+    }
+  );
 }
 // function ordsInsertParkingPaymentMeta({
 //   order_id,
