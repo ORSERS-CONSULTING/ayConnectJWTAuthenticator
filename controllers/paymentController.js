@@ -414,10 +414,9 @@ async function initPayment(req, res) {
 //   }
 // }
 
-async function verifyPayment(req, res) {
+  async function verifyPayment(req, res) {
   const traceId = `VERIFY-${Date.now()}`;
 
- 
   try {
     const { orderId, payment_type } = req.body;
 
@@ -433,10 +432,19 @@ async function verifyPayment(req, res) {
           });
         }
 
+        console.log(
+          `🚗 [${traceId}] Starting parking payment verification for orderId: ${orderId}`
+        );
+
         // 🔥 1️⃣ GET FROZEN META SNAPSHOT
         const meta = await ordsGetParkingPaymentMeta({
           order_id: orderId,
         });
+
+        console.log(
+          `🧾 [${traceId}] META SNAPSHOT:`,
+          JSON.stringify(meta, null, 2)
+        );
 
         if (!meta) {
           console.warn(`⚠️ [${traceId}] No meta found`);
@@ -445,15 +453,26 @@ async function verifyPayment(req, res) {
 
         // 🔥 Already finalized
         if (meta.status === "SUCCESS") {
+          console.log(
+            `✅ [${traceId}] Meta already SUCCESS`
+          );
           return res.json({ status: "PAID" });
         }
 
         if (meta.status === "FAILED") {
+          console.log(
+            `❌ [${traceId}] Meta already FAILED`
+          );
           return res.json({ status: "FAILED" });
         }
 
         // 🔥 2️⃣ VERIFY MPGS STATUS
         const order = await retrieveOrder(orderId);
+
+        console.log(
+          `💳 [${traceId}] MPGS ORDER RESPONSE:`,
+          JSON.stringify(order, null, 2)
+        );
 
         const mpgsOrderStatus =
           order?.order?.status || order?.status;
@@ -470,6 +489,16 @@ async function verifyPayment(req, res) {
           "DECLINED",
         ].includes(mpgsOrderStatus);
 
+        console.log(
+          `📊 [${traceId}] Payment Status Check`,
+          {
+            mpgsOrderStatus,
+            mpgsResult,
+            isCaptured,
+            isFailed,
+          }
+        );
+
         /* =================================================== */
         /* ================= PAYMENT SUCCESS ================= */
         /* =================================================== */
@@ -484,58 +513,114 @@ async function verifyPayment(req, res) {
             `💾 [${traceId}] Using frozen meta snapshot (NO RECALCULATION)`
           );
 
-          // 🔥 3️⃣ INSERT USING LOCKED SNAPSHOT
+          const parkingInsertPayload = {
+            entry_guid: meta.entry_guid,
+
+            // 🔒 FROZEN SNAPSHOT
+            locked_time_spent_min:
+              meta.locked_time_spent_min,
+
+            amount_paid:
+              meta.locked_amount_due ?? 0,
+
+            locked_center_fees_spent:
+              meta.locked_center_fees_spent ?? 0,
+
+            locked_minutes_free:
+              meta.locked_minutes_free ?? 0,
+
+            // 🔥 MPGS
+            mpgs_order_id: orderId,
+            mpgs_session_id:
+              order?.session?.id || null,
+            mpgs_txn_id:
+              mpgsTransactionId,
+
+            // 🔥 Locked financial state
+            locked_deadline_to_leave:
+              meta.locked_deadline_to_leave,
+
+            locked_gross_amount:
+              meta.locked_gross_amount,
+
+            locked_already_paid:
+              meta.locked_already_paid,
+          };
+
+          console.log(
+            `🚨 [${traceId}] FINAL PARKING INSERT PAYLOAD:`,
+            JSON.stringify(
+              parkingInsertPayload,
+              null,
+              2
+            )
+          );
+
+          let insertResult = null;
+
           try {
-            await ordsInsertParkingPayment({
-              entry_guid: meta.entry_guid,
+            insertResult =
+              await ordsInsertParkingPayment(
+                parkingInsertPayload
+              );
 
-              // 🔒 FROZEN SNAPSHOT VALUES
-              // locked_time_in: meta.locked_time_in,
-              locked_time_spent_min:
-                meta.locked_time_spent_min,
-
-              amount_paid:
-                meta.locked_amount_due ?? 0,
-
-              locked_center_fees_spent:
-                meta.locked_center_fees_spent ?? 0,
-
-              locked_minutes_free:
-                meta.locked_minutes_free ?? 0,
-
-              // 🔥 Payment identifiers
-              mpgs_order_id: orderId,
-              mpgs_session_id:
-                order?.session?.id || null,
-              mpgs_txn_id:
-                mpgsTransactionId,
-
-              // 🔥 Optional future-proof fields if endpoint supports:
-              locked_deadline_to_leave:
-                meta.locked_deadline_to_leave,
-
-              locked_gross_amount:
-                meta.locked_gross_amount,
-
-              locked_already_paid:
-                meta.locked_already_paid,
-            });
+            console.log(
+              `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
+              JSON.stringify(
+                insertResult,
+                null,
+                2
+              )
+            );
           } catch (err) {
-            // 🔥 Prevent duplicate insert on retry/webhook overlap
-            if (err.message.includes("ORA-00001")) {
+            if (
+              err.message.includes(
+                "ORA-00001"
+              )
+            ) {
               console.log(
                 `⏭️ [${traceId}] Duplicate insert skipped`
               );
             } else {
+              console.error(
+                `💥 [${traceId}] PARKING INSERT FAILED`,
+                {
+                  message:
+                    err.message,
+                  status:
+                    err?.response
+                      ?.status,
+                  data:
+                    err?.response
+                      ?.data,
+                  stack:
+                    err.stack,
+                }
+              );
+
               throw err;
             }
           }
 
+          if (!insertResult) {
+            console.warn(
+              `⚠️ [${traceId}] Insert returned empty or duplicate response`
+            );
+          }
+
           // 🔥 4️⃣ MARK META SUCCESS
+          console.log(
+            `🟢 [${traceId}] Updating meta status to SUCCESS`
+          );
+
           await ordsUpdateParkingPaymentMetaStatus({
             order_id: orderId,
             status: "SUCCESS",
           });
+
+          console.log(
+            `🏁 [${traceId}] Parking payment fully verified`
+          );
 
           return res.json({
             status: "PAID",
@@ -546,6 +631,10 @@ async function verifyPayment(req, res) {
         /* ================= PAYMENT FAILED ================== */
         /* =================================================== */
         if (isFailed) {
+          console.log(
+            `❌ [${traceId}] Payment marked FAILED`
+          );
+
           await ordsUpdateParkingPaymentMetaStatus({
             order_id: orderId,
             status: "FAILED",
@@ -559,13 +648,25 @@ async function verifyPayment(req, res) {
         /* =================================================== */
         /* ================= STILL PENDING =================== */
         /* =================================================== */
+        console.log(
+          `⏳ [${traceId}] Payment still pending`
+        );
+
         return res.json({
           status: "PENDING",
         });
       } catch (err) {
         console.error(
           `💥 [${traceId}] PARKING ERROR`,
-          err.message
+          {
+            message: err.message,
+            status:
+              err?.response?.status,
+            data:
+              err?.response?.data,
+            stack:
+              err.stack,
+          }
         );
 
         return res.status(500).json({
@@ -649,106 +750,231 @@ async function verifyPayment(req, res) {
 async function paymentWebhook(req, res) {
   try {
     const traceId = `WEBHOOK-${Date.now()}`;
-    const secret = req.headers["x-notification-secret"];
+    const secret =
+      req.headers[
+        "x-notification-secret"
+      ];
 
-    if (secret !== process.env.MPGS_WEBHOOK_SECRET) {
-      console.warn("❌ Invalid webhook secret");
+    console.log(
+      `📩 [${traceId}] Incoming webhook received`
+    );
+
+    if (
+      secret !==
+      process.env.MPGS_WEBHOOK_SECRET
+    ) {
+      console.warn(
+        `❌ [${traceId}] Invalid webhook secret`
+      );
+
       return res.sendStatus(401);
     }
 
-    const { order, result, transaction } = req.body;
-    const orderId = order?.id;
+    const {
+      order,
+      result,
+      transaction,
+    } = req.body;
+
+    const orderId =
+      order?.id;
+
+    console.log(
+      `📦 [${traceId}] Webhook Payload:`,
+      JSON.stringify(
+        req.body,
+        null,
+        2
+      )
+    );
 
     // 🔥 Only process actual payment event
-    if (transaction?.type !== "PAYMENT") {
+    if (
+      transaction?.type !==
+      "PAYMENT"
+    ) {
+      console.log(
+        `⏭️ [${traceId}] Ignored non-payment webhook type: ${transaction?.type}`
+      );
+
       return res.sendStatus(200);
     }
 
     if (!orderId) {
+      console.warn(
+        `⚠️ [${traceId}] Missing orderId`
+      );
+
       return res.sendStatus(400);
     }
 
-    const isSuccess = order?.status === "CAPTURED";
+    const isSuccess =
+      order?.status ===
+      "CAPTURED";
+
+    console.log(
+      `📊 [${traceId}] Basic Webhook Status`,
+      {
+        orderId,
+        orderStatus:
+          order?.status,
+        result,
+        isSuccess,
+      }
+    );
 
     /* ======================================================= */
     /* ==================== PARKING FLOW ===================== */
     /* ======================================================= */
-    if (orderId.startsWith("P-")) {
-      const meta = await ordsGetParkingPaymentMeta({
-        order_id: orderId,
-      });
+    if (
+      orderId.startsWith("P-")
+    ) {
+      console.log(
+        `🚗 [${traceId}] Processing parking payment webhook`
+      );
+
+      const meta =
+        await ordsGetParkingPaymentMeta(
+          {
+            order_id:
+              orderId,
+          }
+        );
+
+      console.log(
+        `🧾 [${traceId}] META SNAPSHOT:`,
+        JSON.stringify(
+          meta,
+          null,
+          2
+        )
+      );
 
       if (!meta) {
-        console.warn(`⚠️ [${traceId}] No parking meta found`);
+        console.warn(
+          `⚠️ [${traceId}] No parking meta found`
+        );
+
         return res.sendStatus(200);
       }
 
       // 🔥 Already finalized
-      if (meta.status === "SUCCESS") {
+      if (
+        meta.status ===
+        "SUCCESS"
+      ) {
+        console.log(
+          `✅ [${traceId}] Meta already SUCCESS — skipping`
+        );
+
         return res.sendStatus(200);
       }
 
-      const mpgsOrder = await retrieveOrder(orderId);
+      const mpgsOrder =
+        await retrieveOrder(
+          orderId
+        );
+
+      console.log(
+        `💳 [${traceId}] MPGS ORDER RESPONSE:`,
+        JSON.stringify(
+          mpgsOrder,
+          null,
+          2
+        )
+      );
 
       const mpgsOrderStatus =
-        mpgsOrder?.order?.status || mpgsOrder?.status;
+        mpgsOrder?.order
+          ?.status ||
+        mpgsOrder?.status;
 
-      const mpgsResult = mpgsOrder?.result;
+      const mpgsResult =
+        mpgsOrder?.result;
 
       const isCaptured =
-        mpgsOrderStatus === "CAPTURED" &&
-        mpgsResult === "SUCCESS";
+        mpgsOrderStatus ===
+          "CAPTURED" &&
+        mpgsResult ===
+          "SUCCESS";
 
       const isFailed = [
         "FAILED",
         "CANCELLED",
         "DECLINED",
-      ].includes(mpgsOrderStatus);
+      ].includes(
+        mpgsOrderStatus
+      );
+
+      console.log(
+        `📊 [${traceId}] MPGS Final Status`,
+        {
+          mpgsOrderStatus,
+          mpgsResult,
+          isCaptured,
+          isFailed,
+        }
+      );
 
       /* =================================================== */
       /* ================= PAYMENT SUCCESS ================= */
       /* =================================================== */
       if (isCaptured) {
         const mpgsTransactionId =
-          mpgsOrder?.transaction?.id ||
-          mpgsOrder?.authentication?.["3ds"]?.transactionId ||
-          mpgsOrder?.authentication?.["3ds2"]?.dsTransactionId ||
+          mpgsOrder
+            ?.transaction
+            ?.id ||
+          mpgsOrder
+            ?.authentication?.[
+            "3ds"
+          ]
+            ?.transactionId ||
+          mpgsOrder
+            ?.authentication?.[
+            "3ds2"
+          ]
+            ?.dsTransactionId ||
           null;
 
         console.log(
           `💾 [${traceId}] PARKING SUCCESS USING FROZEN META SNAPSHOT`
         );
 
-        // 🔥 NO RECALCULATION
-        try {
-          await ordsInsertParkingPayment({
-            entry_guid: meta.entry_guid,
+        const parkingInsertPayload =
+          {
+            entry_guid:
+              meta.entry_guid,
 
-            // 🔒 FROZEN SNAPSHOT
-            // locked_time_in: meta.locked_time_in,
-
+            // 🔒 Frozen snapshot
             locked_time_spent_min:
               meta.locked_time_spent_min,
 
             amount_paid:
-              meta.locked_amount_due ?? 0,
+              meta.locked_amount_due ??
+              0,
 
             locked_center_fees_spent:
-              meta.locked_center_fees_spent ?? 0,
+              meta.locked_center_fees_spent ??
+              0,
 
             locked_minutes_free:
-              meta.locked_minutes_free ?? 0,
+              meta.locked_minutes_free ??
+              0,
 
-            // 🔥 MPGS DETAILS
-            mpgs_order_id: orderId,
+            // 🔥 MPGS
+            mpgs_order_id:
+              orderId,
 
             mpgs_session_id:
-              mpgsOrder?.session?.id || null,
+              mpgsOrder
+                ?.session
+                ?.id ||
+              null,
 
             mpgs_txn_id:
               mpgsTransactionId,
 
-            // 🔥 Optional advanced fields
+            // 🔥 Locked advanced fields
             locked_deadline_to_leave:
               meta.locked_deadline_to_leave,
 
@@ -757,41 +983,115 @@ async function paymentWebhook(req, res) {
 
             locked_already_paid:
               meta.locked_already_paid,
-          });
+          };
+
+        console.log(
+          `🚨 [${traceId}] FINAL PARKING INSERT PAYLOAD:`,
+          JSON.stringify(
+            parkingInsertPayload,
+            null,
+            2
+          )
+        );
+
+        let insertResult =
+          null;
+
+        try {
+          insertResult =
+            await ordsInsertParkingPayment(
+              parkingInsertPayload
+            );
+
+          console.log(
+            `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
+            JSON.stringify(
+              insertResult,
+              null,
+              2
+            )
+          );
         } catch (err) {
-          // 🔥 Prevent duplicate insert
-          if (err.message.includes("ORA-00001")) {
+          if (
+            err.message.includes(
+              "ORA-00001"
+            )
+          ) {
             console.log(
               `⏭️ [${traceId}] Duplicate insert skipped`
             );
           } else {
+            console.error(
+              `💥 [${traceId}] PARKING INSERT FAILED`,
+              {
+                message:
+                  err.message,
+                status:
+                  err
+                    ?.response
+                    ?.status,
+                data:
+                  err
+                    ?.response
+                    ?.data,
+                stack:
+                  err.stack,
+              }
+            );
+
             throw err;
           }
         }
 
-        // 🔥 Mark snapshot finalized
-        await ordsUpdateParkingPaymentMetaStatus({
-          order_id: orderId,
-          status: "SUCCESS",
-        });
+        if (
+          !insertResult
+        ) {
+          console.warn(
+            `⚠️ [${traceId}] Insert returned empty or duplicate response`
+          );
+        }
+
+        console.log(
+          `🟢 [${traceId}] Updating meta status to SUCCESS`
+        );
+
+        await ordsUpdateParkingPaymentMetaStatus(
+          {
+            order_id:
+              orderId,
+            status:
+              "SUCCESS",
+          }
+        );
+
+        console.log(
+          `🏁 [${traceId}] Parking webhook fully processed`
+        );
       }
 
       /* =================================================== */
       /* ================= PAYMENT FAILED ================== */
       /* =================================================== */
-      else if (isFailed) {
+      else if (
+        isFailed
+      ) {
         console.log(
           `❌ [${traceId}] PARKING PAYMENT FAILED`
         );
 
-        await ordsUpdateParkingPaymentMetaStatus({
-          order_id: orderId,
-          status: "FAILED",
-        });
+        await ordsUpdateParkingPaymentMetaStatus(
+          {
+            order_id:
+              orderId,
+            status:
+              "FAILED",
+          }
+        );
       }
 
       return res.sendStatus(200);
     }
+
 
     // =========================
     // SERVICE FLOW
