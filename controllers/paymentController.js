@@ -200,7 +200,7 @@ async function initPayment(req, res) {
           ),
 
           locked_deadline_to_leave: lockedDeadline,
-          // locked_time_in: lockedTimeIn,
+          locked_time_in: lockedTimeIn,
 
           locked_is_valet: Number(
             parking.rules?.isValet || 0,
