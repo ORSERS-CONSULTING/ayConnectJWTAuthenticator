@@ -854,26 +854,103 @@ function ordsInsertParkingPayment({
     },
   });
 }
+// function ordsInsertParkingPaymentMeta({
+//   order_id,
+//   entry_guid,
+//   plate_number,
+//   plate_category,
+//   plate_area_name,
+// }) {
+//   if (!order_id || !entry_guid || !plate_number) {
+//     throw new Error("order_id, entry_guid and plate_number are required");
+//   }
+
+ 
+
+//   return callGateway("POST", "insertParkingPaymentMeta", {
+//     params: {
+//       order_id: String(order_id),
+//       entry_guid: String(entry_guid),
+//       plate_number: String(plate_number),
+//       plate_category: plate_category ? String(plate_category) : null,
+//       plate_area_name: plate_area_name ? String(plate_area_name) : null,
+//     },
+//   });
+// }
 function ordsInsertParkingPaymentMeta({
   order_id,
   entry_guid,
   plate_number,
   plate_category,
   plate_area_name,
+
+  // 🔒 Frozen payment snapshot
+  locked_amount_due,
+  locked_time_spent_min,
+  locked_center_fees_spent,
+  locked_minutes_free,
+  locked_deadline_to_leave,
+  locked_time_in,
+  locked_is_valet,
+  locked_gross_amount,
+  locked_already_paid,
 }) {
   if (!order_id || !entry_guid || !plate_number) {
     throw new Error("order_id, entry_guid and plate_number are required");
   }
 
- 
+  // 🔥 Core financial snapshot required
+  if (
+    locked_amount_due == null ||
+    locked_time_spent_min == null ||
+    !locked_deadline_to_leave ||
+    !locked_time_in
+  ) {
+    throw new Error(
+      "locked_amount_due, locked_time_spent_min, locked_deadline_to_leave, and locked_time_in are required"
+    );
+  }
 
   return callGateway("POST", "insertParkingPaymentMeta", {
     params: {
       order_id: String(order_id),
       entry_guid: String(entry_guid),
+
       plate_number: String(plate_number),
       plate_category: plate_category ? String(plate_category) : null,
       plate_area_name: plate_area_name ? String(plate_area_name) : null,
+
+      // 🔒 Locked snapshot values
+      locked_amount_due: Number(locked_amount_due),
+      locked_time_spent_min: Number(locked_time_spent_min),
+
+      locked_center_fees_spent:
+        locked_center_fees_spent != null
+          ? Number(locked_center_fees_spent)
+          : 0,
+
+      locked_minutes_free:
+        locked_minutes_free != null
+          ? Number(locked_minutes_free)
+          : 0,
+
+      locked_deadline_to_leave: String(locked_deadline_to_leave),
+      locked_time_in: String(locked_time_in),
+
+      locked_is_valet:
+        locked_is_valet != null
+          ? Number(locked_is_valet)
+          : 0,
+
+      locked_gross_amount:
+        locked_gross_amount != null
+          ? Number(locked_gross_amount)
+          : Number(locked_amount_due),
+
+      locked_already_paid:
+        locked_already_paid != null
+          ? Number(locked_already_paid)
+          : 0,
     },
   });
 }

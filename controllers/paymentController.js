@@ -21,7 +21,94 @@ const {
  * POST /payment/init
  */
 async function initPayment(req, res) {
-  try {
+  // try {
+  //   const user_id = req.user?.user_id || req.user?.id || req.user?.sub || null;
+
+  //   const { payment_type, reference_id, amount } = req.body;
+
+  //   if (!payment_type || amount == null) {
+  //     return res.status(400).json({
+  //       message: "payment_type and amount are required",
+  //     });
+  //   }
+  //   if (payment_type === "PARKING" && !reference_id) {
+  //     return res.status(400).json({
+  //       message: "entry_guid (reference_id) is required for parking",
+  //     });
+  //   }
+
+  //   if (payment_type === "PARKING") {
+  //     const traceId = `PARK-${Date.now()}`;
+
+  //     try {
+  //       const { plate_number, plate_category, plate_area_name } = req.body;
+
+  //       if (!plate_number) {
+  //         console.warn(`⚠️ [${traceId}] Missing plate_number`);
+  //         return res.status(400).json({
+  //           message: "plate_number is required for parking",
+  //         });
+  //       }
+
+  //       // 1️⃣ Generate orderId
+  //       const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        
+  //       const startMeta = Date.now();
+
+  //       let metaRes;
+  //       try {
+  //         metaRes = await ordsInsertParkingPaymentMeta({
+  //           order_id: orderId,
+  //           entry_guid: reference_id,
+  //           plate_number,
+  //           plate_category,
+  //           plate_area_name,
+  //         });
+
+  //       } catch (err) {
+  //         console.error(`❌ [${traceId}] ORDS META FAILED`, {
+  //           duration: `${Date.now() - startMeta}ms`,
+  //           error: err?.message,
+  //           details: err?.response?.data || null,
+  //         });
+  //         throw err;
+  //       }
+
+      
+  //       const startMpgs = Date.now();
+
+  //       const { sessionId } = await initiateHostedCheckout({
+  //         amount,
+  //         orderId,
+  //         payment_type,
+  //       });
+
+
+       
+  //       return res.status(200).json({
+  //         paymentId: null,
+  //         sessionId,
+  //         orderId,
+  //       });
+  //     } catch (err) {
+  //       console.error(`💥 [${traceId}] INIT PARKING ERROR`, {
+  //         message: err.message,
+  //         details: err?.response?.data || null,
+  //         stack: err.stack,
+  //       });
+
+  //       return res.status(500).json({
+  //         message: err.message,
+  //         traceId,
+  //       });
+  //     }
+  //   }
+
+
+
+
+   try {
     const user_id = req.user?.user_id || req.user?.id || req.user?.sub || null;
 
     const { payment_type, reference_id, amount } = req.body;
@@ -31,17 +118,25 @@ async function initPayment(req, res) {
         message: "payment_type and amount are required",
       });
     }
+
     if (payment_type === "PARKING" && !reference_id) {
       return res.status(400).json({
         message: "entry_guid (reference_id) is required for parking",
       });
     }
 
+    /* ======================================================= */
+    /* ==================== PARKING FLOW ===================== */
+    /* ======================================================= */
     if (payment_type === "PARKING") {
       const traceId = `PARK-${Date.now()}`;
 
       try {
-        const { plate_number, plate_category, plate_area_name } = req.body;
+        const {
+          plate_number,
+          plate_category,
+          plate_area_name,
+        } = req.body;
 
         if (!plate_number) {
           console.warn(`⚠️ [${traceId}] Missing plate_number`);
@@ -50,46 +145,96 @@ async function initPayment(req, res) {
           });
         }
 
-        // 1️⃣ Generate orderId
-        const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        // 🔥 1️⃣ FINAL SNAPSHOT BEFORE PAYMENT
+        // This is the ONLY final pricing truth before checkout
+        console.log(`🚗 [${traceId}] Fetching final parking snapshot before checkout...`);
 
-        
-        const startMeta = Date.now();
+        const parking = await ordsGetParkingInfo({
+          plate_number,
+          plate_category,
+          plate_area_name,
+        });
 
-        let metaRes;
-        try {
-          metaRes = await ordsInsertParkingPaymentMeta({
-            order_id: orderId,
-            entry_guid: reference_id,
-            plate_number,
-            plate_category,
-            plate_area_name,
-          });
-
-        } catch (err) {
-          console.error(`❌ [${traceId}] ORDS META FAILED`, {
-            duration: `${Date.now() - startMeta}ms`,
-            error: err?.message,
-            details: err?.response?.data || null,
-          });
-          throw err;
+        if (!parking?.financials) {
+          throw new Error("Unable to retrieve parking financial snapshot");
         }
 
-      
-        const startMpgs = Date.now();
+        const lockedAmountDue = Number(parking.financials.amountDue || 0);
+
+        if (lockedAmountDue <= 0) {
+          return res.status(400).json({
+            message:
+              parking.financials.reasonNotPayable ||
+              "Parking payment is not currently required",
+          });
+        }
+
+        // 🔥 IMPORTANT:
+        // Deadline is simulated NOW and becomes frozen once payment starts
+        const lockedDeadline = parking.financials.deadlineToLeave;
+        const lockedTimeIn = parking.timeEntered;
+
+        // 2️⃣ Generate orderId
+        const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        // 🔥 3️⃣ STORE FROZEN SNAPSHOT IN META
+        console.log(`🧾 [${traceId}] Freezing parking snapshot into meta...`);
+
+        await ordsInsertParkingPaymentMeta({
+          order_id: orderId,
+          entry_guid: reference_id,
+
+          plate_number,
+          plate_category,
+          plate_area_name,
+
+          locked_amount_due: lockedAmountDue,
+          locked_time_spent_min: Number(parking.durationMinutes || 0),
+
+          locked_center_fees_spent: Number(
+            parking.rules?.centreFeeUsedMinor || 0,
+          ),
+
+          locked_minutes_free: Number(
+            parking.rules?.freeMinutesGranted || 0,
+          ),
+
+          locked_deadline_to_leave: lockedDeadline,
+          locked_time_in: lockedTimeIn,
+
+          locked_is_valet: Number(
+            parking.rules?.isValet || 0,
+          ),
+
+          // Optional but recommended accounting truth
+          locked_gross_amount: Number(
+            parking.financials.grossAmount || lockedAmountDue,
+          ),
+
+          locked_already_paid: Number(
+            parking.financials.alreadyPaid || 0,
+          ),
+        });
+
+        // 🔥 4️⃣ MPGS MUST USE LOCKED AMOUNT
+        console.log(
+          `💳 [${traceId}] Initiating checkout with frozen amount: AED ${lockedAmountDue}`,
+        );
 
         const { sessionId } = await initiateHostedCheckout({
-          amount,
+          amount: lockedAmountDue,
           orderId,
           payment_type,
         });
 
-
-       
         return res.status(200).json({
           paymentId: null,
           sessionId,
           orderId,
+
+          // Optional frontend display
+          lockedAmountDue,
+          lockedDeadline,
         });
       } catch (err) {
         console.error(`💥 [${traceId}] INIT PARKING ERROR`, {
@@ -272,102 +417,162 @@ async function initPayment(req, res) {
 async function verifyPayment(req, res) {
   const traceId = `VERIFY-${Date.now()}`;
 
+ 
   try {
-
     const { orderId, payment_type } = req.body;
 
-    /* ========================= */
-    /* ===== PARKING FLOW ====== */
-    /* ========================= */
-
+    /* ======================================================= */
+    /* ==================== PARKING FLOW ===================== */
+    /* ======================================================= */
     if (payment_type === "PARKING") {
       try {
         if (!orderId) {
           console.warn(`⚠️ [${traceId}] Missing orderId`);
-          return res.status(400).json({ message: "orderId is required" });
+          return res.status(400).json({
+            message: "orderId is required",
+          });
         }
 
-        const meta = await ordsGetParkingPaymentMeta({ order_id: orderId });
+        // 🔥 1️⃣ GET FROZEN META SNAPSHOT
+        const meta = await ordsGetParkingPaymentMeta({
+          order_id: orderId,
+        });
 
         if (!meta) {
           console.warn(`⚠️ [${traceId}] No meta found`);
           return res.json({ status: "PENDING" });
         }
 
+        // 🔥 Already finalized
+        if (meta.status === "SUCCESS") {
+          return res.json({ status: "PAID" });
+        }
 
-        if (meta.status === "SUCCESS") return res.json({ status: "PAID" });
-        if (meta.status === "FAILED") return res.json({ status: "FAILED" });
+        if (meta.status === "FAILED") {
+          return res.json({ status: "FAILED" });
+        }
 
-
+        // 🔥 2️⃣ VERIFY MPGS STATUS
         const order = await retrieveOrder(orderId);
 
-        const mpgsOrderStatus = order?.order?.status || order?.status;
+        const mpgsOrderStatus =
+          order?.order?.status || order?.status;
+
         const mpgsResult = order?.result;
 
- 
         const isCaptured =
-          mpgsOrderStatus === "CAPTURED" && mpgsResult === "SUCCESS";
+          mpgsOrderStatus === "CAPTURED" &&
+          mpgsResult === "SUCCESS";
 
-        const isFailed = ["FAILED", "CANCELLED", "DECLINED"].includes(
-          mpgsOrderStatus,
-        );
+        const isFailed = [
+          "FAILED",
+          "CANCELLED",
+          "DECLINED",
+        ].includes(mpgsOrderStatus);
 
+        /* =================================================== */
+        /* ================= PAYMENT SUCCESS ================= */
+        /* =================================================== */
         if (isCaptured) {
-          const parking = await ordsGetParkingInfo({
-            plate_number: meta.plate_number,
-            plate_category: meta.plate_category,
-            plate_area_name: meta.plate_area_name,
-          });
-
           const mpgsTransactionId =
             order?.transaction?.id ||
             order?.authentication?.["3ds"]?.transactionId ||
             order?.authentication?.["3ds2"]?.dsTransactionId ||
             null;
 
+          console.log(
+            `💾 [${traceId}] Using frozen meta snapshot (NO RECALCULATION)`
+          );
 
+          // 🔥 3️⃣ INSERT USING LOCKED SNAPSHOT
           try {
             await ordsInsertParkingPayment({
               entry_guid: meta.entry_guid,
-              time_in: parking?.timeEntered,
-              time_spent_min: parking?.durationMinutes,
-              amount_paid: parking?.financials?.amountDue ?? 0,
-              center_fees_spent: parking?.rules?.centreFeeUsedMinor ?? 0,
-              minutes_free: parking?.rules?.freeMinutesGranted ?? 0,
+
+              // 🔒 FROZEN SNAPSHOT VALUES
+              time_in: meta.locked_time_in,
+              time_spent_min:
+                meta.locked_time_spent_min,
+
+              amount_paid:
+                meta.locked_amount_due ?? 0,
+
+              center_fees_spent:
+                meta.locked_center_fees_spent ?? 0,
+
+              minutes_free:
+                meta.locked_minutes_free ?? 0,
+
+              // 🔥 Payment identifiers
               mpgs_order_id: orderId,
-              mpgs_session_id: order?.session?.id || null,
-              mpgs_txn_id: mpgsTransactionId
+              mpgs_session_id:
+                order?.session?.id || null,
+              mpgs_txn_id:
+                mpgsTransactionId,
+
+              // 🔥 Optional future-proof fields if endpoint supports:
+              locked_deadline_to_leave:
+                meta.locked_deadline_to_leave,
+
+              locked_gross_amount:
+                meta.locked_gross_amount,
+
+              locked_already_paid:
+                meta.locked_already_paid,
             });
           } catch (err) {
+            // 🔥 Prevent duplicate insert on retry/webhook overlap
             if (err.message.includes("ORA-00001")) {
-              console.log(`⏭️ [${traceId}] Duplicate insert skipped`);
-            } else throw err;
+              console.log(
+                `⏭️ [${traceId}] Duplicate insert skipped`
+              );
+            } else {
+              throw err;
+            }
           }
 
+          // 🔥 4️⃣ MARK META SUCCESS
           await ordsUpdateParkingPaymentMetaStatus({
             order_id: orderId,
             status: "SUCCESS",
           });
 
-          return res.json({ status: "PAID" });
+          return res.json({
+            status: "PAID",
+          });
         }
 
+        /* =================================================== */
+        /* ================= PAYMENT FAILED ================== */
+        /* =================================================== */
         if (isFailed) {
           await ordsUpdateParkingPaymentMetaStatus({
             order_id: orderId,
             status: "FAILED",
           });
 
-          return res.json({ status: "FAILED" });
+          return res.json({
+            status: "FAILED",
+          });
         }
 
-        return res.json({ status: "PENDING" });
+        /* =================================================== */
+        /* ================= STILL PENDING =================== */
+        /* =================================================== */
+        return res.json({
+          status: "PENDING",
+        });
       } catch (err) {
-        console.error(`💥 [${traceId}] PARKING ERROR`, err.message);
-        return res.status(500).json({ message: err.message });
+        console.error(
+          `💥 [${traceId}] PARKING ERROR`,
+          err.message
+        );
+
+        return res.status(500).json({
+          message: err.message,
+        });
       }
     }
-
     /* ========================= */
     /* ===== SERVICE FLOW ====== */
     /* ========================= */
@@ -443,8 +648,6 @@ async function verifyPayment(req, res) {
 
 async function paymentWebhook(req, res) {
   try {
-    // console.log("📩 [WEBHOOK] Incoming:", req.body);
-
     const traceId = `WEBHOOK-${Date.now()}`;
     const secret = req.headers["x-notification-secret"];
 
@@ -456,89 +659,138 @@ async function paymentWebhook(req, res) {
     const { order, result, transaction } = req.body;
     const orderId = order?.id;
 
-    // 🔥 Only process actual payment event (ignore AUTHENTICATION, etc.)
+    // 🔥 Only process actual payment event
     if (transaction?.type !== "PAYMENT") {
       return res.sendStatus(200);
     }
 
-    if (!orderId) return res.sendStatus(400);
+    if (!orderId) {
+      return res.sendStatus(400);
+    }
 
     const isSuccess = order?.status === "CAPTURED";
 
-
-
-    // =========================
-    // PARKING FLOW
-    // =========================
+    /* ======================================================= */
+    /* ==================== PARKING FLOW ===================== */
+    /* ======================================================= */
     if (orderId.startsWith("P-")) {
-      const meta = await ordsGetParkingPaymentMeta({ order_id: orderId });
+      const meta = await ordsGetParkingPaymentMeta({
+        order_id: orderId,
+      });
 
       if (!meta) {
-        console.warn("⚠️ No parking meta found");
+        console.warn(`⚠️ [${traceId}] No parking meta found`);
         return res.sendStatus(200);
       }
 
+      // 🔥 Already finalized
       if (meta.status === "SUCCESS") {
         return res.sendStatus(200);
       }
 
-      const order = await retrieveOrder(orderId);
+      const mpgsOrder = await retrieveOrder(orderId);
 
-      const mpgsOrderStatus = order?.order?.status || order?.status;
-      const mpgsResult = order?.result;
+      const mpgsOrderStatus =
+        mpgsOrder?.order?.status || mpgsOrder?.status;
+
+      const mpgsResult = mpgsOrder?.result;
 
       const isCaptured =
-        mpgsOrderStatus === "CAPTURED" && mpgsResult === "SUCCESS";
+        mpgsOrderStatus === "CAPTURED" &&
+        mpgsResult === "SUCCESS";
 
-      const isFailed = ["FAILED", "CANCELLED", "DECLINED"].includes(
-        mpgsOrderStatus,
-      );
+      const isFailed = [
+        "FAILED",
+        "CANCELLED",
+        "DECLINED",
+      ].includes(mpgsOrderStatus);
 
+      /* =================================================== */
+      /* ================= PAYMENT SUCCESS ================= */
+      /* =================================================== */
       if (isCaptured) {
-        const parking = await ordsGetParkingInfo({
-          plate_number: meta.plate_number,
-          plate_category: meta.plate_category,
-          plate_area_name: meta.plate_area_name,
-        });
-
         const mpgsTransactionId =
-          order?.transaction?.id ||
-          order?.authentication?.["3ds"]?.transactionId ||
-          order?.authentication?.["3ds2"]?.dsTransactionId ||
+          mpgsOrder?.transaction?.id ||
+          mpgsOrder?.authentication?.["3ds"]?.transactionId ||
+          mpgsOrder?.authentication?.["3ds2"]?.dsTransactionId ||
           null;
 
-      
+        console.log(
+          `💾 [${traceId}] PARKING SUCCESS USING FROZEN META SNAPSHOT`
+        );
 
+        // 🔥 NO RECALCULATION
         try {
           await ordsInsertParkingPayment({
             entry_guid: meta.entry_guid,
-            time_in: parking?.timeEntered,
-            time_spent_min: parking?.durationMinutes,
-            amount_paid: parking?.financials?.amountDue ?? 0,
-            center_fees_spent: parking?.rules?.centreFeeUsedMinor ?? 0,
-            minutes_free: parking?.rules?.freeMinutesGranted ?? 0,
+
+            // 🔒 FROZEN SNAPSHOT
+            time_in: meta.locked_time_in,
+
+            time_spent_min:
+              meta.locked_time_spent_min,
+
+            amount_paid:
+              meta.locked_amount_due ?? 0,
+
+            center_fees_spent:
+              meta.locked_center_fees_spent ?? 0,
+
+            minutes_free:
+              meta.locked_minutes_free ?? 0,
+
+            // 🔥 MPGS DETAILS
             mpgs_order_id: orderId,
-            mpgs_session_id: order?.session?.id || null,
-            mpgs_txn_id: mpgsTransactionId
+
+            mpgs_session_id:
+              mpgsOrder?.session?.id || null,
+
+            mpgs_txn_id:
+              mpgsTransactionId,
+
+            // 🔥 Optional advanced fields
+            locked_deadline_to_leave:
+              meta.locked_deadline_to_leave,
+
+            locked_gross_amount:
+              meta.locked_gross_amount,
+
+            locked_already_paid:
+              meta.locked_already_paid,
           });
         } catch (err) {
+          // 🔥 Prevent duplicate insert
           if (err.message.includes("ORA-00001")) {
-            console.log(`⏭️ [${traceId}] Duplicate insert skipped`);
-          } else throw err;
+            console.log(
+              `⏭️ [${traceId}] Duplicate insert skipped`
+            );
+          } else {
+            throw err;
+          }
         }
 
+        // 🔥 Mark snapshot finalized
         await ordsUpdateParkingPaymentMetaStatus({
           order_id: orderId,
           status: "SUCCESS",
         });
+      }
 
-      } else if (isFailed) {
+      /* =================================================== */
+      /* ================= PAYMENT FAILED ================== */
+      /* =================================================== */
+      else if (isFailed) {
+        console.log(
+          `❌ [${traceId}] PARKING PAYMENT FAILED`
+        );
+
         await ordsUpdateParkingPaymentMetaStatus({
           order_id: orderId,
           status: "FAILED",
         });
-
       }
+
+      return res.sendStatus(200);
     }
 
     // =========================
