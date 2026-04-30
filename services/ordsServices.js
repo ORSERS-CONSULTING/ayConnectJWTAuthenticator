@@ -286,9 +286,12 @@ function getClientEmail({ client_code }) {
     params: { client_code },
   });
 }
-function ordsGetServices() {
-  return callGateway("GET", "getServices");
+function ordsGetServices(user_id) {
+  return callGateway("GET", "getServices", {
+    params: { user_id: Number(user_id) },
+  });
 }
+
 function ordsGetDepartments() {
   return callGateway("GET", "getDepartments");
 }
@@ -893,27 +896,7 @@ function ordsInsertParkingPayment({
     }
   );
 }
-// function ordsInsertParkingPaymentMeta({
-//   order_id,
-//   entry_guid,
-//   plate_number,
-//   plate_category,
-//   plate_area_name,
-// }) {
-//   if (!order_id || !entry_guid || !plate_number) {
-//     throw new Error("order_id, entry_guid and plate_number are required");
-//   }
 
-//   return callGateway("POST", "insertParkingPaymentMeta", {
-//     params: {
-//       order_id: String(order_id),
-//       entry_guid: String(entry_guid),
-//       plate_number: String(plate_number),
-//       plate_category: plate_category ? String(plate_category) : null,
-//       plate_area_name: plate_area_name ? String(plate_area_name) : null,
-//     },
-//   });
-// }
 function ordsInsertParkingPaymentMeta({
   order_id,
   entry_guid,
@@ -982,6 +965,27 @@ function ordsInsertParkingPaymentMeta({
     },
   });
 }
+// function ordsInsertParkingPaymentMeta({
+//   order_id,
+//   entry_guid,
+//   plate_number,
+//   plate_category,
+//   plate_area_name,
+// }) {
+//   if (!order_id || !entry_guid || !plate_number) {
+//     throw new Error("order_id, entry_guid and plate_number are required");
+//   }
+
+//   return callGateway("POST", "insertParkingPaymentMeta", {
+//     params: {
+//       order_id: String(order_id),
+//       entry_guid: String(entry_guid),
+//       plate_number: String(plate_number),
+//       plate_category: plate_category ? String(plate_category) : null,
+//       plate_area_name: plate_area_name ? String(plate_area_name) : null,
+//     },
+//   });
+// }
 async function ordsGetParkingPaymentMeta({ order_id }) {
   if (!order_id) throw new Error("order_id is required");
 

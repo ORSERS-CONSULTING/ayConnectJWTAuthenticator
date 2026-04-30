@@ -227,16 +227,37 @@ async function markNotificationRead(req, res) {
   }
 }
 
-async function getServices(_req, res) {
+async function getServices(req, res) {
   try {
-    const data = await ordsGetServices();
-    return res.json(data);
+    // 🔹 same pattern as markNotificationRead
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const b = req.query || req.body || {};
+
+    // 🔹 optional user_id
+    const user_id = String(b.user_id || fromToken || "");
+
+    // 🔹 pass it (even if empty)
+    const data = await ordsGetServices(user_id);
+
+    // 🔹 parse response if needed (same pattern you used)
+    let parsed = data;
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch {}
+    }
+
+    return res.status(200).json({
+      success: true,
+      user_id: user_id || null,
+      result: parsed,
+    });
+
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 async function getDocumentTypes(_req, res) {
   try {
     const data = await ordsGetDocumentTypes();
