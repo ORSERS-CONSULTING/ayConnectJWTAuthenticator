@@ -822,10 +822,20 @@ async function paymentWebhook(req, res) {
         try {
           insertResult = await ordsInsertParkingPayment(parkingInsertPayload);
 
-          console.log(
-            `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
-            JSON.stringify(insertResult, null, 2),
-          );
+if (
+  !insertResult ||
+  insertResult.status === "ERROR" ||
+  insertResult.message?.includes("ORA-")
+) {
+  throw new Error(
+    insertResult?.message || "Parking insert failed"
+  );
+}
+
+console.log(
+  `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
+  JSON.stringify(insertResult, null, 2),
+);
         } catch (err) {
           if (err.message.includes("ORA-00001")) {
             console.log(`⏭️ [${traceId}] Duplicate insert skipped`);
