@@ -70,7 +70,6 @@ async function initiateHostedCheckout({
   const currency = process.env.CURRENCY || "AED";
 
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
-
   
   const payload = {
     apiOperation: "INITIATE_CHECKOUT",
