@@ -215,15 +215,13 @@ async function login(req, res) {
 
     const data = await ordsLogin({ email, mobile_number });
 
-    const out_user_id = Number(data.user_id ?? data.out_user_id ?? data.OUT_USER_ID);
-    const out_mobile = data.mobile ?? data.out_mobile ?? data.OUT_MOBILE ?? null;
-    const out_email = data.email ?? data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_client_code =
-      data.client_code ?? data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
-    const out_name = data.name ?? data.out_name ?? data.OUT_NAME ?? null;
+    const out_user_id = Number(data.user_id);
+    const out_mobile = data.mobile;
+    const out_email = data.email;
+    const out_client_code =data.client_code;
+    const out_name = data.name;
+    const response_message = data.message;
 
-    const response_message =
-      data.message ?? data.response_message ?? data.RESPONSE_MESSAGE ?? "Login failed";
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
@@ -254,7 +252,7 @@ async function login(req, res) {
         full_name: out_name,
       },
     });
-    
+
   } catch (e) {
     const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
@@ -279,13 +277,13 @@ async function register(req, res) {
 
     const data = await registerUser({ email, mobile_number, full_name });
 
-    const out_user_id = Number(data.user_id ?? data.out_user_id ?? data.OUT_USER_ID);
-    const out_mobile = data.mobile ?? data.out_mobile ?? data.OUT_MOBILE ?? null;
-    const out_email = data.email ?? data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_client_code =
-      data.client_code ?? data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
-    const out_name = data.name ?? data.out_name ?? data.OUT_NAME ?? null;
-
+    const out_user_id = Number(data.user_id);
+    const out_mobile = data.mobile;
+    const out_email = data.email;
+    const out_client_code = data.client_code;
+    const out_name = data.name;
+    const response_message = data.message;
+  
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
@@ -338,12 +336,12 @@ async function loginClient(req, res) {
 
     const data = await registerClient({ client_code });
 
-    const out_user_id = Number(data.user_id ?? data.out_user_id ?? data.OUT_USER_ID);
-    const out_mobile = data.mobile ?? data.out_mobile ?? data.OUT_MOBILE ?? null;
-    const out_email = data.email ?? data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_client_code =
-      data.client_code ?? data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
-    const out_name = data.name ?? data.out_name ?? data.OUT_NAME ?? null;
+    const out_user_id = Number(data.user_id);
+    const out_mobile = data.mobile;
+    const out_email = data.email;
+    const out_client_code = data.client_code;
+    const out_name = data.name;
+    const response_message = data.message;
 
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
