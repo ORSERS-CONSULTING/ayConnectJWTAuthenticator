@@ -8,7 +8,7 @@ const {
   ordsInsertParkingPaymentMeta, // ✅ NEW
   ordsGetParkingPaymentMeta, // ✅ NEW
   ordsUpdateParkingPaymentMetaStatus, // ✅ NEW
-} = require("../services/ordsServices");
+} = require("../services/paymentServices");
 const {
   initiateHostedCheckout,
   retrieveOrder,
@@ -21,89 +21,8 @@ const {
  * POST /payment/init
  */
 async function initPayment(req, res) {
-  // try {
-  //   const user_id = req.user?.user_id || req.user?.id || req.user?.sub || null;
-
-  //   const { payment_type, reference_id, amount } = req.body;
-
-  //   if (!payment_type || amount == null) {
-  //     return res.status(400).json({
-  //       message: "payment_type and amount are required",
-  //     });
-  //   }
-  //   if (payment_type === "PARKING" && !reference_id) {
-  //     return res.status(400).json({
-  //       message: "entry_guid (reference_id) is required for parking",
-  //     });
-  //   }
-
-  //   if (payment_type === "PARKING") {
-  //     const traceId = `PARK-${Date.now()}`;
-
-  //     try {
-  //       const { plate_number, plate_category, plate_area_name } = req.body;
-
-  //       if (!plate_number) {
-  //         console.warn(`⚠️ [${traceId}] Missing plate_number`);
-  //         return res.status(400).json({
-  //           message: "plate_number is required for parking",
-  //         });
-  //       }
-
-  //       // 1️⃣ Generate orderId
-  //       const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-  //       const startMeta = Date.now();
-
-  //       let metaRes;
-  //       try {
-  //         metaRes = await ordsInsertParkingPaymentMeta({
-  //           order_id: orderId,
-  //           entry_guid: reference_id,
-  //           plate_number,
-  //           plate_category,
-  //           plate_area_name,
-  //         });
-
-  //       } catch (err) {
-  //         console.error(`❌ [${traceId}] ORDS META FAILED`, {
-  //           duration: `${Date.now() - startMeta}ms`,
-  //           error: err?.message,
-  //           details: err?.response?.data || null,
-  //         });
-  //         throw err;
-  //       }
-
-  //       const startMpgs = Date.now();
-
-  //       const { sessionId } = await initiateHostedCheckout({
-  //         amount,
-  //         orderId,
-  //         payment_type,
-  //       });
-
-  //       return res.status(200).json({
-  //         paymentId: null,
-  //         sessionId,
-  //         orderId,
-  //       });
-  //     } catch (err) {
-  //       console.error(`💥 [${traceId}] INIT PARKING ERROR`, {
-  //         message: err.message,
-  //         details: err?.response?.data || null,
-  //         stack: err.stack,
-  //       });
-
-  //       return res.status(500).json({
-  //         message: err.message,
-  //         traceId,
-  //       });
-  //     }
-  //   }
-
   try {
-    const user_id = req.user?.user_id || req.user?.id || req.user?.sub || null;
-
+    const user_id = String(req.user?.id || "");
     const { payment_type, reference_id, amount } = req.body;
 
     if (!payment_type || amount == null) {
@@ -255,8 +174,8 @@ async function initPayment(req, res) {
 
     const payment_id = Number(
       ordsRes?.payment_id ??
-        ordsRes?.data?.payment_id ??
-        ordsRes?.data?.response_body?.payment_id,
+      ordsRes?.data?.payment_id ??
+      ordsRes?.data?.response_body?.payment_id,
     );
 
     if (!Number.isFinite(payment_id)) {
@@ -822,20 +741,20 @@ async function paymentWebhook(req, res) {
         try {
           insertResult = await ordsInsertParkingPayment(parkingInsertPayload);
 
-if (
-  !insertResult ||
-  insertResult.status === "ERROR" ||
-  insertResult.message?.includes("ORA-")
-) {
-  throw new Error(
-    insertResult?.message || "Parking insert failed"
-  );
-}
+          if (
+            !insertResult ||
+            insertResult.status === "ERROR" ||
+            insertResult.message?.includes("ORA-")
+          ) {
+            throw new Error(
+              insertResult?.message || "Parking insert failed"
+            );
+          }
 
-console.log(
-  `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
-  JSON.stringify(insertResult, null, 2),
-);
+          console.log(
+            `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
+            JSON.stringify(insertResult, null, 2),
+          );
         } catch (err) {
           if (err.message.includes("ORA-00001")) {
             console.log(`⏭️ [${traceId}] Duplicate insert skipped`);
@@ -867,9 +786,9 @@ console.log(
         console.log(`🏁 [${traceId}] Parking webhook fully processed`);
       } else if (isFailed) {
 
-      /* =================================================== */
-      /* ================= PAYMENT FAILED ================== */
-      /* =================================================== */
+        /* =================================================== */
+        /* ================= PAYMENT FAILED ================== */
+        /* =================================================== */
         console.log(`❌ [${traceId}] PARKING PAYMENT FAILED`);
 
         await ordsUpdateParkingPaymentMetaStatus({

@@ -17,7 +17,7 @@ const {
   authTokensValidate,
   authTokensRevoke,
   authTokensRevokeByUserDevice,
-} = require("../services/ordsServices");
+} = require("../services/authServices");
 
 const { sendSms } = require("../services/etisalatServices");
 const { normalizeUaeMobile } = require("../utils/normalizeMobile");
@@ -191,31 +191,6 @@ async function logout(req, res) {
   }
 }
 
-async function revokeByDevice(req, res) {
-  const { user_id, device_id } = req.body || {};
-
-  if (!user_id) {
-    return res.status(400).json({ message: "user_id required" });
-  }
-
-  if (!device_id) {
-    return res.status(400).json({ message: "device_id required" });
-  }
-
-  try {
-    const data = await authTokensRevokeByUserDevice({
-      user_id,
-      device_id,
-    });
-
-    return res.json(data || { ok: true });
-  } catch (e) {
-    const code = e.response?.status ?? e.upstream?.status ?? 500;
-    return res
-      .status(code)
-      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
-  }
-}
 
 async function login(req, res) {
   try {
@@ -517,13 +492,13 @@ async function clienCodeExist(req, res) {
     if (!status) {
       return res
         .status(500)
-        .json({ ok: false, message: "Invalid ORDS response." });
+        .json({ ok: false, message: "User doesn't exist"  });
     }
 
     if (status === "NOT_FOUND") {
       return res
         .status(404)
-        .json({ ok: false, status, message: "Invalid client code." });
+        .json({ ok: false, status, message: "User doesn't exist" });
     }
 
     return res.json({
@@ -554,5 +529,4 @@ module.exports = {
   register,
   registerExistingClientFromMainDB,
   logout,
-  revokeByDevice,
 };
