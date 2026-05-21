@@ -240,9 +240,10 @@ async function login(req, res) {
       user_id: out_user_id,
       device_id,
     });
-
+    console.log(hello);
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
+    console.log(hello);
     return res.json({
       message: response_message,
       access_token,
@@ -255,6 +256,8 @@ async function login(req, res) {
         full_name: out_name,
       },
     });
+    
+    console.log(hello);
   } catch (e) {
     const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
