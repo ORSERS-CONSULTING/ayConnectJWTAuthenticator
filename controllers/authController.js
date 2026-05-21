@@ -214,11 +214,8 @@ async function login(req, res) {
     }
 
     const data = await ordsLogin({ email, mobile_number });
-    console.log("🔐 ORDS LOGIN RESPONSE:", data);
 
-    console.log("hello1");
     const out_user_id = Number(data.user_id ?? data.out_user_id ?? data.OUT_USER_ID);
-    console.log("✅ 2 parsed user id:", out_user_id);
     const out_mobile = data.mobile ?? data.out_mobile ?? data.OUT_MOBILE ?? null;
     const out_email = data.email ?? data.out_email ?? data.OUT_EMAIL ?? null;
     const out_client_code =
@@ -231,7 +228,6 @@ async function login(req, res) {
       return res.status(401).json({ message: response_message });
     }
 
-    console.log("hello2");
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
       "30m"
@@ -239,15 +235,13 @@ async function login(req, res) {
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
 
-    console.log("hello");
     await authTokensRevokeByUserDevice({
       user_id: out_user_id,
       device_id,
     });
-    console.log("hello");
+
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
-    console.log("hello");
     return res.json({
       message: response_message,
       access_token,
@@ -261,7 +255,6 @@ async function login(req, res) {
       },
     });
     
-    console.log("hello");
   } catch (e) {
     const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
