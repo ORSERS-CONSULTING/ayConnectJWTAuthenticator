@@ -213,15 +213,17 @@ async function login(req, res) {
       mobile_number = normalizeUaeMobile(mobile_number);
     }
 
-    const data = await ordsLogin({ email, mobile_number });
+    console.log("🔐 ORDS LOGIN RESPONSE:", data);
 
-    const out_user_id = Number(data.out_user_id ?? data.OUT_USER_ID);
-    const out_mobile = data.out_mobile ?? data.OUT_MOBILE ?? null;
-    const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_client_code = data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
-    const out_name = data.out_name ?? data.OUT_NAME ?? null;
+    const out_user_id = Number(data.user_id ?? data.out_user_id ?? data.OUT_USER_ID);
+    const out_mobile = data.mobile ?? data.out_mobile ?? data.OUT_MOBILE ?? null;
+    const out_email = data.email ?? data.out_email ?? data.OUT_EMAIL ?? null;
+    const out_client_code =
+      data.client_code ?? data.out_client_code ?? data.OUT_CLIENT_CODE ?? null;
+    const out_name = data.name ?? data.out_name ?? data.OUT_NAME ?? null;
+
     const response_message =
-      data.response_message ?? data.RESPONSE_MESSAGE ?? "Login failed";
+      data.message ?? data.response_message ?? data.RESPONSE_MESSAGE ?? "Login failed";
 
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
@@ -492,7 +494,7 @@ async function clienCodeExist(req, res) {
     if (!status) {
       return res
         .status(500)
-        .json({ ok: false, message: "User doesn't exist"  });
+        .json({ ok: false, message: "User doesn't exist" });
     }
 
     if (status === "NOT_FOUND") {
