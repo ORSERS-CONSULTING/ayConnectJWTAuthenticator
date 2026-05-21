@@ -236,6 +236,7 @@ async function login(req, res) {
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
 
+    console.log(hello);
     await authTokensRevokeByUserDevice({
       user_id: out_user_id,
       device_id,
