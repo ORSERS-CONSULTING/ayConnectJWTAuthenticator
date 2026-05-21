@@ -232,13 +232,9 @@ async function getServices(req, res) {
         parsed = JSON.parse(data.response_body);
       } catch { }
     }
- console.log(parsed)
+    console.log(parsed)
     // 🔹 parse response
-    return res.status(200).json({
-      success: true,
-      user_id: user_id || null,
-      result: parsed,
-    });
+    return res.status(200).json(parsed);
 
   } catch (e) {
     const code = e.response?.status ?? 500;
