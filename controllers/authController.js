@@ -218,6 +218,7 @@ async function login(req, res) {
 
     console.log("hello1");
     const out_user_id = Number(data.user_id ?? data.out_user_id ?? data.OUT_USER_ID);
+    console.log("✅ 2 parsed user id:", out_user_id);
     const out_mobile = data.mobile ?? data.out_mobile ?? data.OUT_MOBILE ?? null;
     const out_email = data.email ?? data.out_email ?? data.OUT_EMAIL ?? null;
     const out_client_code =
