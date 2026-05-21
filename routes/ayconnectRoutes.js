@@ -26,8 +26,6 @@ router.post("/user/details", authUser, express.json(), ctrl.updateUserDetails);
 router.get("/beneficiaries", authUser, ctrl.getBeneficiaries);
 router.post("/beneficiaries", authUser, ctrl.createBeneficiary);
 router.put("/beneficiaries", authUser, ctrl.updateBeneficiary);
-router.get("/runs/active", authUser, ctrl.getActiveRuns);
-router.get("/procedure-instances/current-step", authUser, ctrl.getCurrentStep);
 router.post("/initiateService", authUser, express.json(), ctrl.initiateService);
 router.get("/getServiceStatus", authUser, ctrl.getServiceStatus);
 router.post("/registerPushToken", authUser, ctrl.registerPushToken);
