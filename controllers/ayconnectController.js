@@ -221,7 +221,7 @@ async function getServices(req, res) {
     const user_id = String(req.user?.id || "");
     const b = req.query || req.body || {};
 
-
+    console.log("user_id", user_id);
     // 🔹 pass it (even if empty)
     const data = await ordsGetServices(user_id);
 
