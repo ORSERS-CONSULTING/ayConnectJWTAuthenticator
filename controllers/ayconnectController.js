@@ -224,7 +224,7 @@ async function getServices(req, res) {
     console.log("user_id", user_id);
     // 🔹 pass it (even if empty)
     const data = await ordsGetServices(user_id);
-
+    console.log(data)
     // 🔹 parse response if needed (same pattern you used)
     let parsed = data;
     if (typeof data?.response_body === "string") {
