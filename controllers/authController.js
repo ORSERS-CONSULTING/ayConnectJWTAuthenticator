@@ -213,6 +213,7 @@ async function login(req, res) {
       mobile_number = normalizeUaeMobile(mobile_number);
     }
 
+    const data = await ordsLogin({ email, mobile_number });
     console.log("🔐 ORDS LOGIN RESPONSE:", data);
 
     const out_user_id = Number(data.user_id ?? data.out_user_id ?? data.OUT_USER_ID);
@@ -224,7 +225,6 @@ async function login(req, res) {
 
     const response_message =
       data.message ?? data.response_message ?? data.RESPONSE_MESSAGE ?? "Login failed";
-
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
