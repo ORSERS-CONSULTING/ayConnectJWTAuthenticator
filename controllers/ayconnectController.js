@@ -24,8 +24,8 @@ const {
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
-    ordsGetApplicationDocument,
-} = require("../services/ordsServices");
+} = require("../services/ayconnectServices");
+ 
 
 async function updateBeneficiary(req, res) {
   try {
