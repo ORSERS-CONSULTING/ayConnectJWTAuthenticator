@@ -218,14 +218,17 @@ async function login(req, res) {
     const out_user_id = Number(data.user_id);
     const out_mobile = data.mobile;
     const out_email = data.email;
-    const out_client_code =data.client_code;
+    const out_client_code = data.client_code;
     const out_name = data.name;
     const response_message = data.message;
-    
-    if (!out_user_id) {
-      return res.status(401).json({ message: response_message });
-    }
 
+    if (data?.success === false || !out_user_id) {
+      return res.status(401).json({
+        success: false,
+        code: "LOGIN_FAILED",
+        message: data?.message || "Login failed.",
+      });
+    }
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
       "30m"
@@ -241,6 +244,7 @@ async function login(req, res) {
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
+      success: true,
       message: response_message,
       access_token,
       refresh_token,
@@ -282,11 +286,14 @@ async function register(req, res) {
     const out_client_code = data.client_code;
     const out_name = data.name;
     const response_message = data.message;
-  
-    if (!out_user_id) {
-      return res.status(401).json({ message: response_message });
-    }
 
+    if (data?.success === false || !out_user_id) {
+      return res.status(401).json({
+        success: false,
+        code: "LOGIN_FAILED",
+        message: data?.message || "Login failed.",
+      });
+    }
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
       "30m"
@@ -302,6 +309,7 @@ async function register(req, res) {
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
+      success: true,
       message: response_message,
       access_token,
       refresh_token,
@@ -341,8 +349,12 @@ async function loginClient(req, res) {
     const out_name = data.name;
     const response_message = data.message;
 
-    if (!out_user_id) {
-      return res.status(401).json({ message: response_message });
+    if (data?.success === false || !out_user_id) {
+      return res.status(401).json({
+        success: false,
+        code: "LOGIN_FAILED",
+        message: data?.message || "Login failed.",
+      });
     }
 
     const access_token = signAccessToken(
@@ -360,6 +372,7 @@ async function loginClient(req, res) {
     await persistRefreshToken(out_user_id, refresh_token, device_id);
 
     return res.json({
+      success: true,
       message: response_message,
       access_token,
       refresh_token,
