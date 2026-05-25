@@ -459,9 +459,7 @@ async function ordsGetApplicationDocument({
     validateStatus: () => true,
   });
 
-  console.log("📥 [ORDS APP DOC] Response:", response);
-
-  // return response;
+  return response;
 }
 module.exports = {
   ordsGetUserAvatar,
