@@ -1078,10 +1078,7 @@ async function getApplicationDocument(req, res) {
       user_id,
     });
 
-    console.log("📥 ORDS response:", {
-      status: upstream?.status,
-      contentType: upstream?.headers?.["content-type"],
-    });
+    console.log("📥 ORDS response:", upstream);
 
     if (upstream.status >= 400) {
       console.log("❌ ORDS returned error status:", upstream.status);
