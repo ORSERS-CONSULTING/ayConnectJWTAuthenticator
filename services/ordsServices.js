@@ -402,7 +402,37 @@ function ordsUpdateBeneficiary({ beneficiary_id, user_id }, body = {}) {
     data: body,
   });
 }
+async function ordsGetApplicationDocument({
+  request_id,
+  user_id,
+}) {
+  if (!request_id) {
+    throw new Error("request_id is required");
+  }
 
+  if (!user_id) {
+    throw new Error("user_id is required");
+  }
+
+  const url =
+    `${process.env.GATEWAY_BASE_URL}/getApplicationDoc`;
+
+  const token = await getIdcsToken(url);
+
+  return axios({
+    method: "GET",
+    url,
+    params: {
+      request_id: Number(request_id),
+      user_id: Number(user_id),
+    },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    responseType: "stream", // ✅ important
+    validateStatus: () => true,
+  });
+}
 async function ordsDownloadUserDoc({ doc_id, user_id }) {
   if (!user_id) throw new Error("user_id is required");
   if (!doc_id) throw new Error("doc_id is required");
@@ -1076,4 +1106,5 @@ module.exports = {
   ordsInsertParkingPaymentMeta,
   ordsGetParkingPaymentMeta,
   ordsUpdateParkingPaymentMetaStatus,
+  ordsGetApplicationDocument,
 };

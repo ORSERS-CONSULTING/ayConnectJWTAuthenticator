@@ -28,6 +28,7 @@ const {
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
+    ordsGetApplicationDocument,
 } = require("../services/ordsServices");
 
 // PUT /ayconnect/beneficiaries/update
@@ -1206,6 +1207,75 @@ async function getParkingInfo(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+// GET /ayconnect/application-document?request_id=...
+async function getApplicationDocument(req, res) {
+  try {
+    // 🔹 same auth pattern as existing endpoints
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.query || {};
+
+    const request_id = String(q.request_id || "");
+    const user_id = String(q.user_id || fromToken || "");
+
+    if (!request_id) {
+      return res.status(400).json({
+        message: "request_id is required",
+      });
+    }
+
+    if (!user_id) {
+      return res.status(401).json({
+        message: "No user in token",
+      });
+    }
+
+    // 🔹 call ORDS media endpoint
+    const upstream = await ordsGetApplicationDocument({
+      request_id,
+      user_id,
+    });
+
+    if (upstream.status >= 400) {
+      return res.status(upstream.status).end();
+    }
+
+    // 🔹 forward media headers
+    const headers = upstream.headers || {};
+
+    if (headers["content-type"]) {
+      res.setHeader(
+        "Content-Type",
+        headers["content-type"],
+      );
+    }
+
+    if (headers["content-length"]) {
+      res.setHeader(
+        "Content-Length",
+        headers["content-length"],
+      );
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      headers["content-disposition"] || "inline",
+    );
+
+    // 🔹 IMPORTANT: stream blob
+    upstream.data.pipe(res);
+
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+
+    return res
+      .status(code)
+      .json(
+        e.response?.data ?? {
+          message: e.message,
+        },
+      );
+  }
+}
 // // POST /ayconnect/parking/pay
 // async function initiateParkingPayment(req, res) {
 //   try {
@@ -1317,4 +1387,5 @@ module.exports = {
   downloadInvoicePdf,
   getInvoices,
   getParkingInfo,
+  getApplicationDocument,
 };

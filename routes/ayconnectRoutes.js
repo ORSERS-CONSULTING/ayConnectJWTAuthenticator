@@ -20,9 +20,9 @@ router.get("/user/avatar", authUser, ctrl.getUserAvatar);
 router.put(
   "/user/avatar",
   authUser,
-  rawImages, 
+  rawImages,
   upload.single("avatar"), // handles multipart form-data (field "avatar")
-  ctrl.uploadUserAvatar
+  ctrl.uploadUserAvatar,
 );
 router.get("/user/details", authUser, ctrl.getUserDetails);
 router.post("/user/details", authUser, express.json(), ctrl.updateUserDetails);
@@ -44,5 +44,5 @@ router.post("/clearPushToken", authUser, ctrl.clearPushToken);
 router.get("/downloadInvoicePdf", authUser, ctrl.downloadInvoicePdf);
 router.get("/getInvoices", authUser, ctrl.getInvoices);
 router.get("/getParkingInfo", ctrl.getParkingInfo);
-
+router.get("/getApplicationDocument", authUser, ctrl.getApplicationDocument);
 module.exports = router;
