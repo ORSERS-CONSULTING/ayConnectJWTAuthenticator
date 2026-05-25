@@ -27,7 +27,6 @@ const {
   ordsGetApplicationDocument,
 } = require("../services/ayconnectServices");
  
-
 async function updateBeneficiary(req, res) {
   try {
     const user_id = String(req.user?.id || "");
