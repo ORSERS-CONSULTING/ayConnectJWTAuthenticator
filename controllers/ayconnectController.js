@@ -24,6 +24,7 @@ const {
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
+  ordsGetApplicationDocument,
 } = require("../services/ayconnectServices");
  
 
