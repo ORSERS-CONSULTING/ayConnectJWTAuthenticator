@@ -979,13 +979,84 @@ async function getParkingInfo(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+// async function getApplicationDocument(req, res) {
+//   try {
+//     const user_id = String(req.user?.id || "");
+//     const request_id = Number(req.query?.request_id);
+
+
+//     if (!request_id) {
+
+//       return res.status(400).json({
+//         message: "request_id is required",
+//       });
+//     }
+
+//     if (!user_id) {
+
+//       return res.status(401).json({
+//         message: "No user in token",
+//       });
+//     }
+
+
+//     const upstream = await ordsGetApplicationDocument({
+//       request_id,
+//       user_id,
+//     });
+
+ 
+//     if (upstream.status >= 400) {
+
+//       return res.status(upstream.status).end();
+//     }
+
+//     const headers = upstream.headers || {};
+
+//     if (headers["content-type"]) {
+//       res.setHeader("Content-Type", headers["content-type"]);
+//     }
+
+//     if (headers["content-length"]) {
+//       res.setHeader("Content-Length", headers["content-length"]);
+//     }
+
+//     res.setHeader(
+//       "Content-Disposition",
+//       headers["content-disposition"] || "inline",
+//     );
+
+
+//     upstream.data.pipe(res);
+//   } catch (e) {
+//     console.error("❌ getApplicationDocument ERROR:", {
+//       message: e.message,
+//       status: e.response?.status,
+//       data: e.response?.data,
+//     });
+
+//     const code = e.response?.status ?? 500;
+
+//     return res.status(code).json(
+//       e.response?.data ?? {
+//         message: e.message,
+//       },
+//     );
+//   }
+// }
+
 async function getApplicationDocument(req, res) {
   try {
     const user_id = String(req.user?.id || "");
     const request_id = Number(req.query?.request_id);
-
+    console.log("📄 [APPLICATION DOC] Incoming request:", {
+      request_id,
+      user_id,
+      originalUrl: req.originalUrl,
+    });
 
     if (!request_id) {
+      console.log("❌ Missing request_id");
 
       return res.status(400).json({
         message: "request_id is required",
@@ -993,20 +1064,27 @@ async function getApplicationDocument(req, res) {
     }
 
     if (!user_id) {
+      console.log("❌ Missing user_id");
 
       return res.status(401).json({
         message: "No user in token",
       });
     }
 
+    console.log("📡 Calling ORDS getApplicationDoc...");
 
     const upstream = await ordsGetApplicationDocument({
       request_id,
       user_id,
     });
 
- 
+    console.log("📥 ORDS response:", {
+      status: upstream?.status,
+      contentType: upstream?.headers?.["content-type"],
+    });
+
     if (upstream.status >= 400) {
+      console.log("❌ ORDS returned error status:", upstream.status);
 
       return res.status(upstream.status).end();
     }
@@ -1026,6 +1104,7 @@ async function getApplicationDocument(req, res) {
       headers["content-disposition"] || "inline",
     );
 
+    console.log("✅ Streaming application document...");
 
     upstream.data.pipe(res);
   } catch (e) {
