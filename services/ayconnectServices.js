@@ -474,5 +474,5 @@ module.exports = {
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
-  ordsGetApplicationDocument,
+  ordsGetApplicationDocument
 };
