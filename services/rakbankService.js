@@ -108,7 +108,7 @@ async function initiateHostedCheckout({
       timeout: 15000,
     });
 
-   
+  
   } catch (err) {
 
    

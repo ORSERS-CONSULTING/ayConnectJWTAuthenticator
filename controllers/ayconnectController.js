@@ -24,8 +24,9 @@ const {
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
+  ordsGetApplicationDocument,
 } = require("../services/ayconnectServices");
-
+ 
 async function updateBeneficiary(req, res) {
   try {
     const user_id = String(req.user?.id || "");
@@ -987,7 +988,157 @@ async function getParkingInfo(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+async function getApplicationDocument(req, res) {
+  try {
+    // 🔹 same auth pattern as existing endpoints
+    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const q = req.query || {};
 
+    const request_id = String(q.request_id || "");
+    const user_id = String(q.user_id || fromToken || "");
+
+    if (!request_id) {
+      return res.status(400).json({
+        message: "request_id is required",
+      });
+    }
+
+    if (!user_id) {
+      return res.status(401).json({
+        message: "No user in token",
+      });
+    }
+
+    // 🔹 call ORDS media endpoint
+    const upstream = await ordsGetApplicationDocument({
+      request_id,
+      user_id,
+    });
+
+    if (upstream.status >= 400) {
+      return res.status(upstream.status).end();
+    }
+
+    // 🔹 forward media headers
+    const headers = upstream.headers || {};
+
+    if (headers["content-type"]) {
+      res.setHeader(
+        "Content-Type",
+        headers["content-type"],
+      );
+    }
+
+    if (headers["content-length"]) {
+      res.setHeader(
+        "Content-Length",
+        headers["content-length"],
+      );
+    }
+
+    res.setHeader(
+      "Content-Disposition",
+      headers["content-disposition"] || "inline",
+    );
+
+    // 🔹 IMPORTANT: stream blob
+    upstream.data.pipe(res);
+
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+
+    return res
+      .status(code)
+      .json(
+        e.response?.data ?? {
+          message: e.message,
+        },
+      );
+  }
+}
+// // POST /ayconnect/parking/pay
+// async function initiateParkingPayment(req, res) {
+//   try {
+//     const b = req.body || {};
+
+//     const entry_guid = b.entry_guid;
+//     const amount = Number(b.amount);
+
+//     if (!entry_guid || amount == null) {
+//       return res.status(400).json({
+//         message: "entry_guid and amount are required",
+//       });
+//     }
+
+//     const data = await ordsInitiateParkingPayment({
+//       entry_guid,
+//       amount,
+//     });
+
+//     return res.status(200).json(data);
+//   } catch (e) {
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json(e.response?.data ?? { message: e.message });
+//   }
+// }
+
+// // POST /ayconnect/parking/update
+// async function updateParkingSession(req, res) {
+//   try {
+//     const b = req.body || {};
+
+//     const payment_id = Number(b.payment_id);
+//     const mpgs_order_id = b.mpgs_order_id;
+//     const mpgs_session_id = b.mpgs_session_id;
+
+//     if (!payment_id || !mpgs_order_id || !mpgs_session_id) {
+//       return res.status(400).json({
+//         message: "payment_id, mpgs_order_id, mpgs_session_id are required",
+//       });
+//     }
+
+//     const data = await ordsUpdateParkingSession({
+//       payment_id,
+//       mpgs_order_id,
+//       mpgs_session_id,
+//     });
+
+//     return res.status(200).json(data);
+//   } catch (e) {
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json(e.response?.data ?? { message: e.message });
+//   }
+// }
+// async function updateParkingStatus(req, res) {
+//   try {
+//     const b = req.body || {};
+
+//     const payment_id = Number(b.payment_id);
+//     const payment_status = b.payment_status;
+//     const amount_paid = Number(b.amount_paid);
+//     const mpgs_txn_id = b.mpgs_txn_id;
+//     const deadline_to_leave = b.deadline_to_leave || null;
+
+//     if (!payment_id || !payment_status) {
+//       return res.status(400).json({
+//         message: "payment_id and payment_status are required",
+//       });
+//     }
+
+//     const data = await ordsUpdateParkingStatus({
+//       payment_id,
+//       payment_status,
+//       amount_paid,
+//       mpgs_txn_id,
+//       deadline_to_leave,
+//     });
+
+//     return res.status(200).json(data);
+//   } catch (e) {
+//     const code = e.response?.status ?? 500;
+//     return res.status(code).json(e.response?.data ?? { message: e.message });
+//   }
+// }
 module.exports = {
   getServices,
   getUserDocs,
@@ -1012,4 +1163,5 @@ module.exports = {
   downloadInvoicePdf,
   getInvoices,
   getParkingInfo,
+  getApplicationDocument,
 };
