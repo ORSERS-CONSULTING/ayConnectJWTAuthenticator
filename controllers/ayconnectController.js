@@ -220,10 +220,8 @@ async function getServices(req, res) {
     const user_id = String(req.user?.id || "");
     const b = req.query || req.body || {};
 
-    console.log("user_id", user_id);
     // 🔹 pass it (even if empty)
     const data = await ordsGetServices(user_id);
-    console.log(data)
     // 🔹 parse response if needed (same pattern you used)
     let parsed = data;
     if (typeof data?.response_body === "string") {
@@ -231,7 +229,6 @@ async function getServices(req, res) {
         parsed = JSON.parse(data.response_body);
       } catch { }
     }
-    console.log(parsed)
     // 🔹 parse response
     return res.status(200).json(parsed);
 
