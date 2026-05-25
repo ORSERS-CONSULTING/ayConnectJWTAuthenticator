@@ -1056,7 +1056,6 @@ async function getApplicationDocument(req, res) {
     });
 
     if (!request_id) {
-      console.log("❌ Missing request_id");
 
       return res.status(400).json({
         message: "request_id is required",
@@ -1064,24 +1063,20 @@ async function getApplicationDocument(req, res) {
     }
 
     if (!user_id) {
-      console.log("❌ Missing user_id");
 
       return res.status(401).json({
         message: "No user in token",
       });
     }
 
-    console.log("📡 Calling ORDS getApplicationDoc...");
 
     const upstream = await ordsGetApplicationDocument({
       request_id,
       user_id,
     });
 
-    console.log("📥 ORDS response:", upstream);
 
     if (upstream.status >= 400) {
-      console.log("❌ ORDS returned error status:", upstream.status);
 
       return res.status(upstream.status).end();
     }
@@ -1100,8 +1095,6 @@ async function getApplicationDocument(req, res) {
       "Content-Disposition",
       headers["content-disposition"] || "inline",
     );
-
-    console.log("✅ Streaming application document...");
 
     upstream.data.pipe(res);
   } catch (e) {

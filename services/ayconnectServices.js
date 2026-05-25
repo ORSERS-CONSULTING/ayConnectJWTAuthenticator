@@ -438,12 +438,6 @@ async function ordsGetApplicationDocument({
 
   const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
 
-  console.log("📄 [ORDS APP DOC] Request:", {
-    url,
-    request_id,
-    user_id,
-  });
-
   const token = await getIdcsToken(url);
   const response = await axios({
     method: "GET",
