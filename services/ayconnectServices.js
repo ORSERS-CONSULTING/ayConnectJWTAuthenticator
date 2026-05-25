@@ -445,13 +445,12 @@ async function ordsGetApplicationDocument({
   });
 
   const token = await getIdcsToken(url);
-  console.log(token);
   const response = await axios({
     method: "GET",
     url,
     params: {
-      request_id: String(request_id),
-      user_id: String(user_id),
+      request_id: Number(request_id),
+      user_id: Number(user_id),
     },
     headers: {
       Authorization: `Bearer ${token}`,
