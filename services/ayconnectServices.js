@@ -430,8 +430,9 @@ async function ordsGetApplicationDocument({
     throw new Error("user_id is required");
   }
 
-  const url =
-    `${process.env.GATEWAY_BASE_URL}/getApplicationDoc`;
+  const PATH = "getApplicationDoc";
+
+  const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
 
   console.log("📄 [ORDS APP DOC] Request:", {
     url,
