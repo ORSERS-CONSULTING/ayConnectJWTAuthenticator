@@ -434,11 +434,7 @@ async function ordsGetApplicationDocument({
 
   const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
 
-  console.log("📄 [ORDS APP DOC] Request:", {
-    url,
-    request_id,
-    user_id,
-  });
+  
 
   const token = await getIdcsToken(url);
 
@@ -456,11 +452,7 @@ async function ordsGetApplicationDocument({
     validateStatus: () => true,
   });
 
-  console.log("📥 [ORDS APP DOC] Response:", {
-    status: response?.status,
-    contentType: response?.headers?.["content-type"],
-    contentLength: response?.headers?.["content-length"],
-  });
+ 
 
   return response;
 }
