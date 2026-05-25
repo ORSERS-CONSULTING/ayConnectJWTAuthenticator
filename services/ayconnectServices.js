@@ -403,16 +403,6 @@ function ordsGetInvoices({ user_id, request_id }) {
   return callGateway("GET", "getInvoices", { params });
 }
 
-
-
-function ordsClearPushToken({ token }) {
-  if (!token) throw new Error("token is required");
-  return callGateway("POST", "deletePushToken", {
-    params: {
-      token: String(token),
-    },
-  });
-}
 function ordsGetParkingInfo({ plate_number, plate_category, plate_area_name }) {
   if (!plate_number || !plate_category || !plate_area_name) {
     throw new Error(
@@ -451,7 +441,6 @@ module.exports = {
   ordsGetServiceStatus,
   ordsRegisterPushToken,
   ordsGetNotifications,
-  ordsClearPushToken,
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,

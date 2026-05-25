@@ -221,7 +221,8 @@ async function login(req, res) {
     const out_client_code =data.client_code;
     const out_name = data.name;
     const response_message = data.message;
-
+    console.log(response_message);
+    
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
     }
@@ -245,7 +246,6 @@ async function login(req, res) {
       access_token,
       refresh_token,
       profile: {
-        user_id: out_user_id,
         mobile: out_mobile,
         email: out_email,
         client_code: out_client_code,
@@ -307,7 +307,6 @@ async function register(req, res) {
       access_token,
       refresh_token,
       profile: {
-        user_id: out_user_id,
         mobile: out_mobile,
         email: out_email,
         client_code: out_client_code,
@@ -366,7 +365,6 @@ async function loginClient(req, res) {
       access_token,
       refresh_token,
       profile: {
-        user_id: out_user_id,
         mobile: out_mobile,
         email: out_email,
         client_code: out_client_code,
