@@ -990,12 +990,8 @@ async function getParkingInfo(req, res) {
 }
 async function getApplicationDocument(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const q = req.query || {};
-
-    const request_id = String(q.request_id || "");
-    const user_id = String(q.user_id || fromToken || "");
-
+  const user_id = String(req.user?.id || "");
+    const request_id = Number(req.query?.request_id);
     console.log("📄 [APPLICATION DOC] Incoming request:", {
       request_id,
       user_id,
