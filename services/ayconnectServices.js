@@ -459,11 +459,7 @@ async function ordsGetApplicationDocument({
     validateStatus: () => true,
   });
 
-  console.log("📥 [ORDS APP DOC] Response:", {
-    status: response?.status,
-    contentType: response?.headers?.["content-type"],
-    contentLength: response?.headers?.["content-length"],
-  });
+  console.log("📥 [ORDS APP DOC] Response:", response);
 
   // return response;
 }
