@@ -990,36 +990,52 @@ async function getParkingInfo(req, res) {
 }
 async function getApplicationDocument(req, res) {
   try {
-    // 🔹 same auth pattern as existing endpoints
     const fromToken = String(req.user?.id || req.user?.sub || "");
     const q = req.query || {};
 
     const request_id = String(q.request_id || "");
     const user_id = String(q.user_id || fromToken || "");
 
+    console.log("📄 [APPLICATION DOC] Incoming request:", {
+      request_id,
+      user_id,
+      originalUrl: req.originalUrl,
+    });
+
     if (!request_id) {
+      console.log("❌ Missing request_id");
+
       return res.status(400).json({
         message: "request_id is required",
       });
     }
 
     if (!user_id) {
+      console.log("❌ Missing user_id");
+
       return res.status(401).json({
         message: "No user in token",
       });
     }
 
-    // 🔹 call ORDS media endpoint
+    console.log("📡 Calling ORDS getApplicationDoc...");
+
     const upstream = await ordsGetApplicationDocument({
       request_id,
       user_id,
     });
 
+    console.log("📥 ORDS response:", {
+      status: upstream?.status,
+      contentType: upstream?.headers?.["content-type"],
+    });
+
     if (upstream.status >= 400) {
+      console.log("❌ ORDS returned error status:", upstream.status);
+
       return res.status(upstream.status).end();
     }
 
-    // 🔹 forward media headers
     const headers = upstream.headers || {};
 
     if (headers["content-type"]) {
@@ -1041,10 +1057,17 @@ async function getApplicationDocument(req, res) {
       headers["content-disposition"] || "inline",
     );
 
-    // 🔹 IMPORTANT: stream blob
+    console.log("✅ Streaming application document...");
+
     upstream.data.pipe(res);
 
   } catch (e) {
+    console.error("❌ getApplicationDocument ERROR:", {
+      message: e.message,
+      status: e.response?.status,
+      data: e.response?.data,
+    });
+
     const code = e.response?.status ?? 500;
 
     return res
