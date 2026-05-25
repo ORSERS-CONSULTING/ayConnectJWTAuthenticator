@@ -8,12 +8,9 @@ const rawImages = express.raw({
   type: ["image/*", "application/octet-stream"],
   limit: "20mb",
 });
-// router.get("/services", authUser, ctrl.getServices);
 router.get("/services", ctrl.getServices);
 router.get("/user-docs", authUser, ctrl.getUserDocs);
 router.get("/document-types", authUser, ctrl.getDocumentTypes);
-// router.get("/getProcedures", authUser, ctrl.getProcedures);
-// router.get("/getDepartments", authUser, ctrl.getDepartments);
 router.get("/getDepartments", ctrl.getDepartments);
 router.post("/uploadUserDocuments", authUser, ctrl.uploadUserDocuments);
 router.get("/user/avatar", authUser, ctrl.getUserAvatar);
@@ -29,9 +26,6 @@ router.post("/user/details", authUser, express.json(), ctrl.updateUserDetails);
 router.get("/beneficiaries", authUser, ctrl.getBeneficiaries);
 router.post("/beneficiaries", authUser, ctrl.createBeneficiary);
 router.put("/beneficiaries", authUser, ctrl.updateBeneficiary);
-router.get("/runs/active", authUser, ctrl.getActiveRuns);
-router.get("/procedure-instances/current-step", authUser, ctrl.getCurrentStep);
-// router.post("/procedures", authUser, express.json(), ctrl.ensureRun);
 router.post("/initiateService", authUser, express.json(), ctrl.initiateService);
 router.get("/getServiceStatus", authUser, ctrl.getServiceStatus);
 router.post("/registerPushToken", authUser, ctrl.registerPushToken);
@@ -40,7 +34,6 @@ router.get("/downloadUserDoc", authUser, ctrl.downloadUserDoc);
 router.get("/getRequests", authUser, ctrl.getRequests);
 router.get("/media", ctrl.media);
 router.post("/markNotificationRead", authUser, ctrl.markNotificationRead);
-router.post("/clearPushToken", authUser, ctrl.clearPushToken);
 router.get("/downloadInvoicePdf", authUser, ctrl.downloadInvoicePdf);
 router.get("/getInvoices", authUser, ctrl.getInvoices);
 router.get("/getParkingInfo", ctrl.getParkingInfo);

@@ -3,9 +3,6 @@
 const {
   ordsGetServices,
   ordsGetUserDocs,
-  ordsEnsureRun,
-  ordsGetActiveRuns,
-  ordsGetCurrentStep,
   ordsGetBeneficiaries,
   ordsCreateBeneficiary,
   ordsGetDocumentTypes,
@@ -24,24 +21,22 @@ const {
   ordsMedia,
   ordsGetRequests,
   ordsMarkNotificationRead,
-  ordsClearPushToken,
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
     ordsGetApplicationDocument,
 } = require("../services/ordsServices");
 
-// PUT /ayconnect/beneficiaries/update
-// Body: { beneficiary_id, user_id? }  (user_id defaults from token)
 async function updateBeneficiary(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
+
     const b = req.body || req.query || {};
 
-    const user_id = String(b.user_id || fromToken);
     const beneficiary_id = Number(b.beneficiary_id);
 
     if (!user_id) return res.status(401).json({ message: "No user in token" });
+
     if (!beneficiary_id) {
       return res.status(400).json({ message: "beneficiary_id is required" });
     }
@@ -66,8 +61,8 @@ async function updateBeneficiary(req, res) {
 // GET /ayconnect/downloadUserDoc?doc_id=...
 async function downloadUserDoc(req, res) {
   try {
-    // 🔐 MUST come from auth middleware
-    const user_id = String(req.user?.id || req.user?.sub || "");
+
+    const user_id = String(req.user?.id || "");
     const doc_id = Number(req.query?.doc_id);
 
     if (!user_id) {
@@ -114,10 +109,9 @@ async function downloadUserDoc(req, res) {
 async function getRequests(req, res) {
   try {
 
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const q = req.query || req.body || {};
 
-    const user_id = String(q.user_id || fromToken);
     let instance_svc_id = null;
     if (q.instance_svc_id != null) {
       instance_svc_id = Number(q.instance_svc_id);
@@ -180,18 +174,11 @@ async function media(req, res) {
   }
 }
 
-// POST /ayconnect/notifications/mark-read
-// Body: { notif_id, user_id? } (user_id defaults from token)
-// POST /ayconnect/notifications/mark-read
-// Body: { notif_id? , user_id? }
-// - notif_id present  → mark one
-// - notif_id missing  → mark all
 async function markNotificationRead(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const b = req.body || req.query || {};
 
-    const user_id = String(b.user_id || fromToken);
     const notif_id = b.notif_id != null ? String(b.notif_id) : null;
 
     if (!user_id) {
@@ -214,7 +201,7 @@ async function markNotificationRead(req, res) {
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch {}
+      } catch { }
     }
 
     return res.status(200).json({
@@ -231,34 +218,30 @@ async function markNotificationRead(req, res) {
 async function getServices(req, res) {
   try {
     // 🔹 same pattern as markNotificationRead
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const b = req.query || req.body || {};
 
-    // 🔹 optional user_id
-    const user_id = String(b.user_id || fromToken || "");
-
+    console.log("user_id", user_id);
     // 🔹 pass it (even if empty)
     const data = await ordsGetServices(user_id);
-
+    console.log(data)
     // 🔹 parse response if needed (same pattern you used)
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch {}
+      } catch { }
     }
-
-    return res.status(200).json({
-      success: true,
-      user_id: user_id || null,
-      result: parsed,
-    });
+    console.log(parsed)
+    // 🔹 parse response
+    return res.status(200).json(parsed);
 
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
+
 async function getDocumentTypes(_req, res) {
   try {
     const data = await ordsGetDocumentTypes();
@@ -270,18 +253,6 @@ async function getDocumentTypes(_req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
-// async function getProcedures(_req, res) {
-//   try {
-//     const data = await ordsGetProcedures();
-//     // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
-//     const items = Array.isArray(data) ? data : data.items ?? data;
-//     return res.json({ items });
-//   } catch (e) {
-//     const code = e.response?.status ?? 500;
-//     return res.status(code).json(e.response?.data ?? { message: e.message });
-//   }
-// }
 
 async function getDepartments(_req, res) {
   try {
@@ -297,10 +268,10 @@ async function getDepartments(_req, res) {
 
 async function getUserDocs(req, res) {
   try {
-    const userId = String(req.user?.id || req.user?.sub || "");
-    if (!userId) return res.status(401).json({ message: "No user in token" });
+    const user_id = String(req.user?.id || "");
+    if (!user_id) return res.status(401).json({ message: "No user in token" });
 
-    const data = await ordsGetUserDocs(userId);
+    const data = await ordsGetUserDocs(user_id);
     return res.json(data);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -310,10 +281,10 @@ async function getUserDocs(req, res) {
 
 async function uploadUserDocuments(req, res) {
   try {
-    const userFromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const b = req.body || {};
     const body = {
-      user_id: b.user_id ?? userFromToken,
+      user_id: user_id,
       beneficiary_id: Number(b.beneficiary_id), // ✅ REQUIRED
       document_id: Number(b.document_id),
       file_name: b.file_name,
@@ -446,8 +417,8 @@ async function uploadUserDocuments(req, res) {
 // --- GET avatar (stream image) ---
 async function getUserAvatar(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
+    const user_id = String(req.user?.id || "");
+
     if (!user_id) return res.status(401).send("No user");
 
     const upstream = await ordsGetUserAvatar(user_id);
@@ -475,8 +446,8 @@ async function getUserAvatar(req, res) {
 
 async function uploadUserAvatar(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
+    const user_id = String(req.user?.id || "");
+
     if (!user_id) return res.status(401).json({ message: "No user in token" });
 
     const b = req.body || {};
@@ -524,7 +495,7 @@ async function uploadUserAvatar(req, res) {
     let out = upstream.data;
     try {
       out = typeof out === "string" && out ? JSON.parse(out) : out;
-    } catch {}
+    } catch { }
     return res.status(ok ? 200 : upstream.status).json(
       out ?? {
         message: ok ? "Avatar uploaded successfully" : "Upload failed",
@@ -538,8 +509,8 @@ async function uploadUserAvatar(req, res) {
 
 async function getUserDetails(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
+    const user_id = String(req.user?.id || "");
+
     if (!user_id) return res.status(401).json({ message: "No user in token" });
 
     const data = await ordsGetUserDetails(user_id);
@@ -551,14 +522,10 @@ async function getUserDetails(req, res) {
   }
 }
 
-/**
- * POST /ayconnect/user/details?user_id=...
- * Accepts JSON: { full_name, mobile_number, email, emirates_id }
- */
+
 async function updateUserDetails(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
+    const user_id = String(req.user?.id || "");
     if (!user_id) return res.status(401).json({ message: "No user in token" });
 
     const body = req.body || {};
@@ -589,9 +556,8 @@ async function updateUserDetails(req, res) {
 
 async function getBeneficiaries(req, res) {
   try {
-    // prefer the authenticated user; fall back to explicit query param for admin/testing
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
+    const user_id = String(req.user?.id || "");
+
     if (!user_id) return res.status(401).json({ message: "No user in token" });
 
     const data = await ordsGetBeneficiaries(user_id);
@@ -612,9 +578,8 @@ async function getBeneficiaries(req, res) {
 
 async function createBeneficiary(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const q = req.body || req.query || {}; // support JSON body or query
-    const user_id = String(q.user_id || fromToken);
+    const user_id = String(req.user?.id || "");
+    const q = req.body || req.query || {};
     const type = String(q.type || "").toUpperCase();
     const full_name = q.full_name ?? null;
     const relationship = q.relationship ?? null;
@@ -656,57 +621,13 @@ async function createBeneficiary(req, res) {
   }
 }
 
-async function getCurrentStep(req, res) {
-  try {
-    // accept either ?id=... or ?proc_instance_id=...
-    const procInstanceId =
-      req.query?.id || req.query?.proc_instance_id || req.query?.procInstanceId;
-
-    if (!procInstanceId) {
-      return res
-        .status(400)
-        .json({ message: "id (proc_instance_id) is required" });
-    }
-
-    const data = await ordsGetCurrentStep(procInstanceId);
-
-    // ORDS returns { items: [ row ] }
-    const row = Array.isArray(data) ? data[0] : (data.items?.[0] ?? data);
-    if (!row)
-      return res
-        .status(404)
-        .json({ message: "No current step (maybe all done)" });
-
-    return res.status(200).json({
-      instance_svc_id: row.instance_svc_id ?? row.id ?? null,
-      proc_instance_id: row.proc_instance_id ?? Number(procInstanceId),
-      service_id: row.service_id ?? null,
-      order_index: row.order_index ?? null,
-      status: row.status ?? null,
-      beneficiary_id: row.beneficiary_id ?? null,
-      beneficiary_name: row.beneficiary_name ?? null,
-      docs_status: row.docs_status ?? null,
-      fee_amount: row.fee_amount ?? null,
-      paid_amount: row.paid_amount ?? null,
-      updated_at: row.updated_at ?? null,
-      is_completed: row.is_completed ?? null,
-    });
-  } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
-  }
-}
-// GET /ayconnect/getInvoices
-// Optional: ?request_id=...
 async function getInvoices(req, res) {
   const start = Date.now();
   const traceId = `GET-INVOICES-${Date.now()}`;
 
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const q = req.query || {};
-
-    const user_id = String(q.user_id || fromToken);
 
     if (!user_id) {
       return res.status(401).json({ message: "No user in token" });
@@ -766,108 +687,13 @@ async function getInvoices(req, res) {
   }
 }
 
-// GET /ayconnect/runs/active?user_id=...
-async function getActiveRuns(req, res) {
-  try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
 
-    if (!user_id) {
-      return res.status(401).json({ message: "No user in token" });
-    }
-
-    const data = await ordsGetActiveRuns(user_id);
-
-    // ORDS may return { items: [...] } or an array
-    const items = Array.isArray(data) ? data : (data?.items ?? []);
-
-    const normalized = items.map((x) => ({
-      run_type: x.run_type, // "PROCEDURE" | "SERVICE"
-      id: x.id ?? x.proc_instance_id ?? null, // <— ensure id
-      procedure_id: x.procedure_id ?? null,
-      service_id: x.service_id ?? null,
-      status: x.status ?? null,
-      started_at: x.started_at ?? null,
-      updated_at: x.updated_at ?? null,
-      progress: Number(x.progress_pct ?? x.progress ?? 0), // 0..100 (procedure rows may have it)
-      beneficiary_id: x.beneficiary_id ?? null,
-      beneficiary_name: x.beneficiary_name ?? null,
-      label: x.display_name ?? x.name ?? null,
-    }));
-
-    // quick visibility log (first few)
-
-    return res.status(200).json({ items: normalized });
-  } catch (e) {
-    const code = e?.response?.status ?? 500;
-    const body = e?.response?.data ?? { message: e.message };
-    console.error("[active-runs] ERROR", code, body);
-    return res.status(code).json(body);
-  }
-}
-
-async function ensureRun(req, res) {
-  try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const b = req.body || req.query || {};
-
-    const user_id = b.user_id ?? fromToken;
-    const procedure_id = b.procedure_id ?? null;
-    const service_id = b.service_id ?? null;
-    const order_ref = b.order_ref ?? null;
-    const beneficiary_id = b.beneficiary_id ?? null;
-
-    if (!user_id) return res.status(401).json({ message: "No user in token" });
-
-    // Validation consistent with your PL/SQL
-    if (procedure_id == null) {
-      // standalone: need service_id OR order_ref
-      if (!service_id && !order_ref) {
-        return res.status(400).json({
-          message:
-            "service_id or order_ref is required for a standalone service",
-        });
-      }
-    } else {
-      // procedure: need first-step reference
-      if (!service_id && !order_ref) {
-        return res.status(400).json({
-          message:
-            "service_id or order_ref is required for a procedure's first step",
-        });
-      }
-    }
-
-    const data = await ordsEnsureRun({
-      user_id,
-      procedure_id,
-      service_id,
-      order_ref,
-      beneficiary_id,
-    });
-    // ORDS PL/SQL OUTs: out_proc_instance_id, out_instance_svc_id, status_code, response_message
-    const status = Number(data.status_code ?? 200);
-
-    const out = {
-      run_type: data.out_proc_instance_id ? "PROCEDURE" : "SERVICE",
-      proc_instance_id: data.out_proc_instance_id ?? null,
-      instance_svc_id: data.out_instance_svc_id ?? null,
-      message: data.response_message ?? null,
-    };
-
-    return res.status(status).json(out);
-  } catch (e) {
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
-  }
-}
 // POST /ayconnect/initiateService
 async function initiateService(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const b = req.body || req.query || {};
 
-    const user_id = b.user_id ?? fromToken;
     const service_id = b.service_id ?? null;
     const beneficiary_id = b.beneficiary_id ?? null;
     const procedure_id = b.procedure_id ?? null;
@@ -939,10 +765,9 @@ async function initiateService(req, res) {
 // GET /ayconnect/getServiceStatus
 async function getServiceStatus(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const q = req.query || req.body || {};
 
-    const user_id = q.user_id ?? fromToken;
     const service_id = q.service_id ?? null;
 
     if (!user_id) return res.status(401).json({ message: "No user in token" });
@@ -989,10 +814,9 @@ async function getServiceStatus(req, res) {
 
 async function registerPushToken(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const b = req.body || req.query || {};
 
-    const user_id = b.user_id ?? fromToken;
     const expo_push_token = b.expo_push_token;
 
     if (!user_id) {
@@ -1041,8 +865,7 @@ async function registerPushToken(req, res) {
 
 async function getNotifications(req, res) {
   try {
-    const fromToken = String(req.user?.id || req.user?.sub || "");
-    const user_id = String(req.query?.user_id || fromToken);
+    const user_id = String(req.user?.id || "");
 
     if (!user_id) {
       return res.status(401).json({ message: "No user in token" });
@@ -1069,50 +892,11 @@ async function getNotifications(req, res) {
   }
 }
 
-async function clearPushToken(req, res) {
-  try {
-    const token = req.query?.token;
-
-    if (!token) {
-      return res.status(400).json({ message: "token query param is required" });
-    }
-
-    const data = await ordsClearPushToken({ token });
-
-    // ORDS usually returns 204 No Content
-    if (!data || data.status === 204) {
-      return res.status(204).send();
-    }
-
-    let parsed = data;
-    if (typeof data?.response_body === "string") {
-      try {
-        parsed = JSON.parse(data.response_body);
-      } catch {
-        console.warn("[clearPushToken] Could not parse response_body JSON");
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Push token cleared",
-      upstream: parsed,
-    });
-  } catch (e) {
-    console.error("[clearPushToken] ERROR", e.message);
-    const code = e.response?.status ?? 500;
-    return res.status(code).json(e.response?.data ?? { message: e.message });
-  }
-}
-
-// GET /ayconnect/invoices/download?request_id=...
-// GET /ayconnect/getInvoicePdf?request_id=...
 async function downloadInvoicePdf(req, res) {
   const start = Date.now();
 
   try {
-
-    const user_id = String(req.user?.id || req.user?.sub || "");
+    const user_id = String(req.user?.id || "");
     const request_id = Number(req.query?.request_id);
 
     if (!user_id) {
@@ -1138,7 +922,7 @@ async function downloadInvoicePdf(req, res) {
         message: "Failed to fetch invoice from ORDS",
       });
     }
- 
+
     if (upstream.status >= 400) {
       console.error("❌ [API] ORDS returned error", upstream.status);
       return res.status(upstream.status).json({
@@ -1159,7 +943,7 @@ async function downloadInvoicePdf(req, res) {
     res.setHeader(
       "Content-Disposition",
       upstream.headers["content-disposition"] ||
-        'inline; filename="invoice.pdf"',
+      'inline; filename="invoice.pdf"',
     );
 
     upstream.data.on("end", () => {
@@ -1361,10 +1145,7 @@ async function getApplicationDocument(req, res) {
 // }
 module.exports = {
   getServices,
-  ensureRun,
   getUserDocs,
-  getActiveRuns,
-  getCurrentStep,
   createBeneficiary,
   getBeneficiaries,
   getDocumentTypes,
@@ -1383,7 +1164,6 @@ module.exports = {
   getRequests,
   media,
   markNotificationRead,
-  clearPushToken,
   downloadInvoicePdf,
   getInvoices,
   getParkingInfo,
