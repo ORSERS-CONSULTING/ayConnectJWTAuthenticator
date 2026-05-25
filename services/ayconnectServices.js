@@ -2,18 +2,18 @@ const axios = require("axios");
 const { getIdcsToken } = require("./idcsServices");
 
 async function callGateway(method, path, { params, data } = {}) {
-    const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-    const token = await getIdcsToken(url);
-    const res = await axios({
-        url,
-        method,
-        params,
-        data,
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
-    return res.data;
+  const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
+  const token = await getIdcsToken(url);
+  const res = await axios({
+    url,
+    method,
+    params,
+    data,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data;
 }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
@@ -361,7 +361,7 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
 
     const PATH = "getInvoicePdf";
     const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
-console.log("📄 [ORDS INVOICE PDF] Request:", {
+    console.log("📄 [ORDS INVOICE PDF] Request:", {
       url,
       request_id,
       user_id,
@@ -445,13 +445,13 @@ async function ordsGetApplicationDocument({
   });
 
   const token = await getIdcsToken(url);
-
+  console.log(token);
   const response = await axios({
     method: "GET",
     url,
     params: {
-      request_id: Number(request_id),
-      user_id: Number(user_id),
+      request_id: String(request_id),
+      user_id: String(user_id),
     },
     headers: {
       Authorization: `Bearer ${token}`,
@@ -466,7 +466,7 @@ async function ordsGetApplicationDocument({
     contentLength: response?.headers?.["content-length"],
   });
 
-  return response;
+  // return response;
 }
 module.exports = {
   ordsGetUserAvatar,
