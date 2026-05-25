@@ -221,7 +221,6 @@ async function login(req, res) {
     const out_client_code =data.client_code;
     const out_name = data.name;
     const response_message = data.message;
-    console.log(response_message);
     
     if (!out_user_id) {
       return res.status(401).json({ message: response_message });
