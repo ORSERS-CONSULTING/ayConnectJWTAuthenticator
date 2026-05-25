@@ -991,7 +991,6 @@ async function getParkingInfo(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 async function getApplicationDocument(req, res) {
   try {
     // 🔹 same auth pattern as existing endpoints
