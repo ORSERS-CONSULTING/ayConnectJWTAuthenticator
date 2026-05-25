@@ -26,7 +26,7 @@ const {
   ordsGetParkingInfo,
   ordsGetApplicationDocument,
 } = require("../services/ayconnectServices");
- 
+
 async function updateBeneficiary(req, res) {
   try {
     const user_id = String(req.user?.id || "");
@@ -61,7 +61,6 @@ async function updateBeneficiary(req, res) {
 // GET /ayconnect/downloadUserDoc?doc_id=...
 async function downloadUserDoc(req, res) {
   try {
-
     const user_id = String(req.user?.id || "");
     const doc_id = Number(req.query?.doc_id);
 
@@ -108,7 +107,6 @@ async function downloadUserDoc(req, res) {
 // Optional: ?instance_svc_id=...
 async function getRequests(req, res) {
   try {
-
     const user_id = String(req.user?.id || "");
     const q = req.query || req.body || {};
 
@@ -116,7 +114,6 @@ async function getRequests(req, res) {
     if (q.instance_svc_id != null) {
       instance_svc_id = Number(q.instance_svc_id);
     }
-
 
     const start = Date.now();
 
@@ -201,7 +198,7 @@ async function markNotificationRead(req, res) {
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch { }
+      } catch {}
     }
 
     return res.status(200).json({
@@ -228,11 +225,10 @@ async function getServices(req, res) {
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch { }
+      } catch {}
     }
     // 🔹 parse response
     return res.status(200).json(parsed);
-
   } catch (e) {
     const code = e.response?.status ?? 500;
     return res.status(code).json(e.response?.data ?? { message: e.message });
@@ -492,7 +488,7 @@ async function uploadUserAvatar(req, res) {
     let out = upstream.data;
     try {
       out = typeof out === "string" && out ? JSON.parse(out) : out;
-    } catch { }
+    } catch {}
     return res.status(ok ? 200 : upstream.status).json(
       out ?? {
         message: ok ? "Avatar uploaded successfully" : "Upload failed",
@@ -518,7 +514,6 @@ async function getUserDetails(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 
 async function updateUserDetails(req, res) {
   try {
@@ -636,7 +631,9 @@ async function getInvoices(req, res) {
       request_id = Number(q.request_id);
 
       if (Number.isNaN(request_id)) {
-        console.warn(`❌ [${traceId}] Invalid request_id`, { value: q.request_id });
+        console.warn(`❌ [${traceId}] Invalid request_id`, {
+          value: q.request_id,
+        });
         return res.status(400).json({ message: "invalid request_id" });
       }
     }
@@ -653,7 +650,6 @@ async function getInvoices(req, res) {
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-
       } catch (err) {
         console.error(`❌ [${traceId}] Failed to parse response_body`, {
           raw: data.response_body?.slice(0, 200),
@@ -665,9 +661,7 @@ async function getInvoices(req, res) {
 
     const items = Array.isArray(parsed) ? parsed : [];
 
-
     return res.status(200).json({ items });
-
   } catch (e) {
     console.error(`❌ [${traceId}] ERROR`, {
       status: e.response?.status,
@@ -678,12 +672,9 @@ async function getInvoices(req, res) {
 
     const code = e.response?.status ?? 500;
 
-    return res.status(code).json(
-      e.response?.data ?? { message: e.message }
-    );
+    return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
 
 // POST /ayconnect/initiateService
 async function initiateService(req, res) {
@@ -940,7 +931,7 @@ async function downloadInvoicePdf(req, res) {
     res.setHeader(
       "Content-Disposition",
       upstream.headers["content-disposition"] ||
-      'inline; filename="invoice.pdf"',
+        'inline; filename="invoice.pdf"',
     );
 
     upstream.data.on("end", () => {
@@ -990,7 +981,7 @@ async function getParkingInfo(req, res) {
 }
 async function getApplicationDocument(req, res) {
   try {
-  const user_id = String(req.user?.id || "");
+    const user_id = String(req.user?.id || "");
     const request_id = Number(req.query?.request_id);
     console.log("📄 [APPLICATION DOC] Incoming request:", {
       request_id,
@@ -1035,17 +1026,11 @@ async function getApplicationDocument(req, res) {
     const headers = upstream.headers || {};
 
     if (headers["content-type"]) {
-      res.setHeader(
-        "Content-Type",
-        headers["content-type"],
-      );
+      res.setHeader("Content-Type", headers["content-type"]);
     }
 
     if (headers["content-length"]) {
-      res.setHeader(
-        "Content-Length",
-        headers["content-length"],
-      );
+      res.setHeader("Content-Length", headers["content-length"]);
     }
 
     res.setHeader(
@@ -1056,7 +1041,6 @@ async function getApplicationDocument(req, res) {
     console.log("✅ Streaming application document...");
 
     upstream.data.pipe(res);
-
   } catch (e) {
     console.error("❌ getApplicationDocument ERROR:", {
       message: e.message,
@@ -1066,13 +1050,11 @@ async function getApplicationDocument(req, res) {
 
     const code = e.response?.status ?? 500;
 
-    return res
-      .status(code)
-      .json(
-        e.response?.data ?? {
-          message: e.message,
-        },
-      );
+    return res.status(code).json(
+      e.response?.data ?? {
+        message: e.message,
+      },
+    );
   }
 }
 // // POST /ayconnect/parking/pay
