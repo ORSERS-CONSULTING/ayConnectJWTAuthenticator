@@ -16,15 +16,6 @@ async function callGateway(method, path, { params, data } = {}) {
   return res.data;
 }
 
-function ordsProcessPayment(request_id) {
-  if (!request_id) throw new Error("request_id is required");
-
-  return callGateway("POST", "processPayment", {
-    params: { request_id: Number(request_id) },
-  });
-}
-
-
 async function ordsInitPayment({
   user_id,
   payment_type,

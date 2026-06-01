@@ -934,14 +934,6 @@ async function downloadInvoicePdf(req, res) {
         'inline; filename="invoice.pdf"',
     );
 
-    upstream.data.on("end", () => {
-      console.log("✅ [API] Stream completed in", Date.now() - start, "ms");
-    });
-
-    upstream.data.on("error", (err) => {
-      console.error("❌ [API] Stream error", err.message);
-    });
-
     upstream.data.pipe(res);
   } catch (e) {
     console.error("❌ [API] downloadInvoicePdf ERROR", {
@@ -984,11 +976,6 @@ async function getApplicationDocument(req, res) {
   try {
     const user_id = String(req.user?.id || "");
     const request_id = Number(req.query?.request_id);
-    console.log("📄 [APPLICATION DOC] Incoming request:", {
-      request_id,
-      user_id,
-      originalUrl: req.originalUrl,
-    });
 
     if (!request_id) {
 

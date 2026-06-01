@@ -361,11 +361,7 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
 
     const PATH = "getInvoicePdf";
     const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
-    console.log("📄 [ORDS INVOICE PDF] Request:", {
-      url,
-      request_id,
-      user_id,
-    });
+
     const token = await getIdcsToken(url);
 
     const response = await axios({
