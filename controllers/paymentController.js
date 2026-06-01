@@ -846,19 +846,13 @@ async function paymentWebhook(req, res) {
 }
 async function paymentReturn(req, res) {
   try {
-    const {
-      payment_type,
-      orderId,
-      plate_number,
-      plate_category,
-      plate_area_name,
-    } = req.query;
+    const { payment_type, orderId } = req.query;
 
     let deepLink;
 
     if (payment_type === "PARKING") {
       deepLink = orderId
-        ? `ayconnect://parking/page?orderId=${orderId}&plate=${plate_number}&plate_category=${plate_category}&plate_area_name=${plate_area_name}`
+        ? `ayconnect://parking/page?orderId=${encodeURIComponent(orderId)}`
         : `ayconnect://parking/page`;
     } else {
       deepLink = `ayconnect://requests`;
