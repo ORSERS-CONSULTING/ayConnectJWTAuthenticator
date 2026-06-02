@@ -331,7 +331,6 @@ function ordsGetServiceStatus(user_id, service_id) {
     p_service_id: Number(service_id),
   };
 
-  // ORDS endpoint: getServiceStatus?p_user_id=...&p_service_id=...
   return callGateway("GET", "getServiceStatus", { params });
 }
 

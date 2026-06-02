@@ -54,6 +54,7 @@ async function initiateHostedCheckout({
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
   const currency = process.env.CURRENCY || "AED";
+  const parking_url = prcoess.env.PARKING_URL
 
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
   
@@ -64,8 +65,8 @@ async function initiateHostedCheckout({
       operation: "PURCHASE",
       merchant: {
         name: "AY Connect",
-        url: "https://ayconnect.yalayis.org",
-        logo: "https://ayconnect.yalayis.org/assets/yalayis_logo.png",
+        url: `${parking_url}`,
+        logo: `${parking_url}/assets/yalayis_logo.png`,
       },
       locale: "en_US",
       displayControl: {
@@ -73,7 +74,7 @@ async function initiateHostedCheckout({
         customerEmail: "HIDE",
         shipping: "HIDE",
       },
-      returnUrl: `https://ayconnect.yalayis.org/payment/return?payment_type=${payment_type}&paymentId=${payment_id}`,
+      returnUrl: `${parking_url}/payment/return?payment_type=${payment_type}&paymentId=${payment_id}`,
     },
     order: {
       id: orderId,

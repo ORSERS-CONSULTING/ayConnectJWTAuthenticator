@@ -34,6 +34,7 @@ async function loadConfig() {
     ETISALAT_PASSWORD: await required("ETISALAT_PASSWORD", "ETISALAT_PASSWORD_OCID"),
     ETISALAT_SENDER: await required("ETISALAT_SENDER", "ETISALAT_SENDER_OCID"),
     REFRESH_TOKEN_DAYS: await required("REFRESH_TOKEN_DAYS"),
+    PARKING_URL: await required("PARKING_URL"),
   };
 }
 
