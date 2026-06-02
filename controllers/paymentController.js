@@ -51,14 +51,12 @@ async function initPayment(req, res) {
             message: "plate_number is required for parking",
           });
         }
-        console.log("Hello")
         const parking = await ordsGetParkingInfo({
           plate_number,
           plate_category,
           plate_area_name,
         });
         
-        console.log(parking)
 
         if (!parking?.financials) {
           throw new Error("Unable to retrieve parking financial snapshot");
