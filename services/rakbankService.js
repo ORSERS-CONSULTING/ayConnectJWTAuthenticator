@@ -54,7 +54,7 @@ async function initiateHostedCheckout({
   const baseUrl = process.env.MPGS_BASE_URL;
   const merchantId = process.env.MERCHANT_ID;
   const currency = process.env.CURRENCY || "AED";
-  const parking_url = prcoess.env.PARKING_URL
+  const parking_url = process.env.PARKING_URL
 
   const url = `${baseUrl}/api/rest/version/100/merchant/${merchantId}/session`;
   
