@@ -113,7 +113,7 @@ function ordsGetParkingInfo({ plate_number, plate_category, plate_area_name }) {
     );
   }
 
-  return callGateway("POST", "getParkingInfo", {
+  return callGateway("GET", "getParkingInfo", {
     data: {
       plate_number,
       plate_category,
