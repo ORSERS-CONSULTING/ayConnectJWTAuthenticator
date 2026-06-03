@@ -279,7 +279,7 @@ async function register(req, res) {
     mobile_number = normalizeUaeMobile(mobile_number);
 
     const data = await registerUser({ email, mobile_number, full_name });
-
+    console.log(data)
     const out_user_id = Number(data.user_id);
     const out_mobile = data.mobile;
     const out_email = data.email;
