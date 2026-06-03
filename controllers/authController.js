@@ -340,8 +340,9 @@ async function loginClient(req, res) {
       return res.status(400).json({ message: "Provide client code please." });
     }
 
+    console.log("hello")
     const data = await registerClient({ client_code });
-
+    console.log(data)
     const out_user_id = Number(data.user_id);
     const out_mobile = data.mobile;
     const out_email = data.email;
