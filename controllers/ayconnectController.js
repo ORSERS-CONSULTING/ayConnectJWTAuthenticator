@@ -625,6 +625,7 @@ async function getInvoices(req, res) {
       return res.status(401).json({ message: "No user in token" });
     }
 
+    console.log("Hello");
     let request_id = null;
 
     if (q.request_id != null) {
@@ -646,6 +647,7 @@ async function getInvoices(req, res) {
     });
     // ---------- Parsing ----------
     let parsed = data;
+    console.log(data);
 
     if (typeof data?.response_body === "string") {
       try {
