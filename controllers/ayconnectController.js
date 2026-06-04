@@ -25,6 +25,7 @@ const {
   ordsGetInvoices,
   ordsGetParkingInfo,
   ordsGetApplicationDocument,
+  ordsApplicationDocumentExists
 } = require("../services/ayconnectServices");
 
 async function updateBeneficiary(req, res) {
@@ -1037,6 +1038,81 @@ async function getApplicationDocument(req, res) {
     );
   }
 }
+
+async function applicationDocumentExists(req, res) {
+  try {
+    const user_id = String(req.user?.id || "");
+    const request_id = Number(req.query?.request_id);
+
+    console.log("🔍 [applicationDocumentExists] request", {
+      user_id,
+      request_id,
+    });
+
+    if (!user_id) {
+      return res.status(401).json({
+        success: false,
+        exists: false,
+        message: "No user in token",
+      });
+    }
+
+    if (!request_id) {
+      return res.status(400).json({
+        success: false,
+        exists: false,
+        message: "request_id is required",
+      });
+    }
+
+    const data = await ordsApplicationDocumentExists({
+      request_id,
+      user_id,
+    });
+
+    console.log("✅ [applicationDocumentExists] ORDS response", data);
+
+    let parsed = data;
+
+    if (typeof data?.response_body === "string") {
+      try {
+        parsed = JSON.parse(data.response_body);
+      } catch (err) {
+        console.error("❌ [applicationDocumentExists] parse failed", {
+          response_body: data.response_body,
+          error: err.message,
+        });
+
+        return res.status(500).json({
+          success: false,
+          exists: false,
+          message: "Invalid ORDS response",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: parsed?.success === true,
+      exists: parsed?.exists === true,
+    });
+  } catch (e) {
+    console.error("❌ applicationDocumentExists ERROR:", {
+      message: e.message,
+      status: e.response?.status,
+      data: e.response?.data,
+    });
+
+    const code = e.response?.status ?? 500;
+
+    return res.status(code).json(
+      e.response?.data ?? {
+        success: false,
+        exists: false,
+        message: e.message,
+      },
+    );
+  }
+}
 module.exports = {
   getServices,
   getUserDocs,
@@ -1062,4 +1138,5 @@ module.exports = {
   getInvoices,
   getParkingInfo,
   getApplicationDocument,
+  applicationDocumentExists
 };

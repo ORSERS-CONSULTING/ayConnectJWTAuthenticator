@@ -450,6 +450,24 @@ async function ordsGetApplicationDocument({
 
   return response;
 }
+
+function ordsApplicationDocumentExists({ request_id, user_id }) {
+  if (!request_id) {
+    throw new Error("request_id is required");
+  }
+
+  if (!user_id) {
+    throw new Error("user_id is required");
+  }
+
+  return callGateway("GET", "applicationDocumentExists", {
+    params: {
+      request_id: Number(request_id),
+      user_id: Number(user_id),
+    },
+  });
+}
+
 module.exports = {
   ordsGetUserAvatar,
   ordsGetBeneficiaries,
@@ -474,5 +492,6 @@ module.exports = {
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
-  ordsGetApplicationDocument
+  ordsGetApplicationDocument,
+  ordsApplicationDocumentExists
 };
