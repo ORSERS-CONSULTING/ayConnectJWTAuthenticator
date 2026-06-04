@@ -437,9 +437,6 @@ async function paymentWebhook(req, res) {
 
     // 🔥 Only process actual payment event
     if (transaction?.type !== "PAYMENT") {
-      console.log(
-        `⏭️ [Ignored non-payment webhook type: ${transaction?.type}`,
-      );
 
       return res.sendStatus(200);
     }

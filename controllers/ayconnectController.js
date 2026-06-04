@@ -626,7 +626,6 @@ async function getInvoices(req, res) {
       return res.status(401).json({ message: "No user in token" });
     }
 
-    console.log("Hello");
     let request_id = null;
 
     if (q.request_id != null) {
@@ -648,7 +647,6 @@ async function getInvoices(req, res) {
     });
     // ---------- Parsing ----------
     let parsed = data;
-    console.log(data);
 
     if (typeof data?.response_body === "string") {
       try {
@@ -1044,11 +1042,6 @@ async function applicationDocumentExists(req, res) {
     const user_id = String(req.user?.id || "");
     const request_id = Number(req.query?.request_id);
 
-    console.log("🔍 [applicationDocumentExists] request", {
-      user_id,
-      request_id,
-    });
-
     if (!user_id) {
       return res.status(401).json({
         success: false,
@@ -1070,7 +1063,6 @@ async function applicationDocumentExists(req, res) {
       user_id,
     });
 
-    console.log("✅ [applicationDocumentExists] ORDS response", data);
 
     let parsed = data;
 
