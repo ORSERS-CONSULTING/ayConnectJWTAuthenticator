@@ -1111,12 +1111,12 @@ async function applicationDocumentExists(req, res) {
 
 async function deleteAccount(req, res) {
   try {
-    const { user_id } = req.body;
+    const user_id = req.user?.user_id || req.user?.id;
 
     if (!user_id) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: "user_id is required",
+        message: "Unauthorized",
       });
     }
 
