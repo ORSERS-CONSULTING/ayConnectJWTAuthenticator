@@ -2,18 +2,18 @@ const axios = require("axios");
 const { getIdcsToken } = require("./idcsServices");
 
 async function callGateway(method, path, { params, data } = {}) {
-    const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
-    const token = await getIdcsToken(url);
-    const res = await axios({
-        url,
-        method,
-        params,
-        data,
-        headers: {
-            Authorization: `Bearer ${token}`,
-        },
-    });
-    return res.data;
+  const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
+  const token = await getIdcsToken(url);
+  const res = await axios({
+    url,
+    method,
+    params,
+    data,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data;
 }
 
 async function callGatewayUpload(path, data = {}, extraHeaders = {}) {
@@ -331,7 +331,6 @@ function ordsGetServiceStatus(user_id, service_id) {
     p_service_id: Number(service_id),
   };
 
-  // ORDS endpoint: getServiceStatus?p_user_id=...&p_service_id=...
   return callGateway("GET", "getServiceStatus", { params });
 }
 
@@ -361,11 +360,7 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
 
     const PATH = "getInvoicePdf";
     const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
-console.log("📄 [ORDS INVOICE PDF] Request:", {
-      url,
-      request_id,
-      user_id,
-    });
+
     const token = await getIdcsToken(url);
 
     const response = await axios({
@@ -414,8 +409,8 @@ function ordsGetParkingInfo({ plate_number, plate_category, plate_area_name }) {
     );
   }
 
-  return callGateway("GET", "getParkingInfo", {
-    params: {
+  return callGateway("POST", "getParkingInfo", {
+    data: {
       plate_number,
       plate_category,
       plate_area_name,
@@ -438,14 +433,7 @@ async function ordsGetApplicationDocument({
 
   const url = `${process.env.GATEWAY_BASE_URL}/getApplicationDoc`;
 
-  console.log("📄 [ORDS APP DOC] Request:", {
-    url,
-    request_id,
-    user_id,
-  });
-
   const token = await getIdcsToken(url);
-
   const response = await axios({
     method: "GET",
     url,
@@ -460,14 +448,26 @@ async function ordsGetApplicationDocument({
     validateStatus: () => true,
   });
 
-  console.log("📥 [ORDS APP DOC] Response:", {
-    status: response?.status,
-    contentType: response?.headers?.["content-type"],
-    contentLength: response?.headers?.["content-length"],
-  });
-
   return response;
 }
+
+function ordsApplicationDocumentExists({ request_id, user_id }) {
+  if (!request_id) {
+    throw new Error("request_id is required");
+  }
+
+  if (!user_id) {
+    throw new Error("user_id is required");
+  }
+
+  return callGateway("GET", "applicationDocumentExists", {
+    params: {
+      request_id: Number(request_id),
+      user_id: Number(user_id),
+    },
+  });
+}
+
 module.exports = {
   ordsGetUserAvatar,
   ordsGetBeneficiaries,
@@ -492,5 +492,6 @@ module.exports = {
   ordsDownloadInvoicePdf,
   ordsGetInvoices,
   ordsGetParkingInfo,
-  ordsGetApplicationDocument
+  ordsGetApplicationDocument,
+  ordsApplicationDocumentExists
 };

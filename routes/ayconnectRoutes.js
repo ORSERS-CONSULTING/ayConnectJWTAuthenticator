@@ -38,4 +38,5 @@ router.get("/downloadInvoicePdf", authUser, ctrl.downloadInvoicePdf);
 router.get("/getInvoices", authUser, ctrl.getInvoices);
 router.get("/getParkingInfo", ctrl.getParkingInfo);
 router.get("/getApplicationDocument", authUser, ctrl.getApplicationDocument);
+router.get("/applicationDocumentExists", authUser, ctrl.applicationDocumentExists);
 module.exports = router;

@@ -47,23 +47,16 @@ async function initPayment(req, res) {
         const { plate_number, plate_category, plate_area_name } = req.body;
 
         if (!plate_number) {
-          console.warn(`⚠️ [${traceId}] Missing plate_number`);
           return res.status(400).json({
             message: "plate_number is required for parking",
           });
         }
-
-        // 🔥 1️⃣ FINAL SNAPSHOT BEFORE PAYMENT
-        // This is the ONLY final pricing truth before checkout
-        console.log(
-          `🚗 [${traceId}] Fetching final parking snapshot before checkout...`,
-        );
-
         const parking = await ordsGetParkingInfo({
           plate_number,
           plate_category,
           plate_area_name,
         });
+        
 
         if (!parking?.financials) {
           throw new Error("Unable to retrieve parking financial snapshot");
@@ -86,9 +79,6 @@ async function initPayment(req, res) {
 
         // 2️⃣ Generate orderId
         const orderId = `P-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-
-        // 🔥 3️⃣ STORE FROZEN SNAPSHOT IN META
-        console.log(`🧾 [${traceId}] Freezing parking snapshot into meta...`);
 
         await ordsInsertParkingPaymentMeta({
           order_id: orderId,
@@ -119,11 +109,6 @@ async function initPayment(req, res) {
 
           locked_already_paid: Number(parking.financials.alreadyPaid || 0),
         });
-
-        // 🔥 4️⃣ MPGS MUST USE LOCKED AMOUNT
-        console.log(
-          `💳 [${traceId}] Initiating checkout with frozen amount: AED ${lockedAmountDue}`,
-        );
 
         const { sessionId } = await initiateHostedCheckout({
           amount: lockedAmountDue,
@@ -208,115 +193,6 @@ async function initPayment(req, res) {
   }
 }
 
-/**
- * ----------------------------------------------------
- * VERIFY PAYMENT (after return)
- * ----------------------------------------------------
- * POST /payment/ver
- */
-// async function verifyPayment(req, res) {
-//   try {
-//     console.log("📥 [VERIFY] Incoming body:", req.body);
-
-//     const {
-//       orderId,
-//       payment_type,
-//     } = req.body;
-
-//     /* ========================= */
-//     /* ===== PARKING FLOW ====== */
-//     /* ========================= */
-
-//     if (payment_type === "PARKING") {
-//       const traceId = `VERIFY-PARK-${Date.now()}`;
-
-//       try {
-//         console.log(`🚀 [${traceId}] VERIFY PARKING START`);
-//         console.log(`📥 [${traceId}] Incoming body:`, req.body);
-
-//         if (!orderId) {
-//           console.warn(`⚠️ [${traceId}] Missing orderId`);
-//           return res.status(400).json({
-//             message: "orderId is required for parking",
-//           });
-//         }
-
-//         // ✅ GET META (to confirm exists)
-//         const meta = await ordsGetParkingPaymentMeta({
-//           order_id: orderId,
-//         });
-
-//         if (!meta) {
-//           console.warn(`⚠️ [${traceId}] No parking meta found`);
-//           return res.json({ status: "PENDING" });
-//         }
-
-//         // ✅ CHECK META STATUS (set by webhook)
-//         console.log(`📦 [${traceId}] META STATUS:`, meta.status);
-
-//         if (meta.status === "SUCCESS") {
-//           return res.json({ status: "PAID" });
-//         }
-
-//         if (meta.status === "FAILED") {
-//           return res.json({ status: "FAILED" });
-//         }
-
-//         return res.json({ status: "PENDING" });
-
-//       } catch (err) {
-//         console.error(`💥 [${traceId}] VERIFY PARKING ERROR`, {
-//           message: err.message,
-//           details: err?.response?.data || null,
-//           stack: err.stack,
-//         });
-
-//         return res.status(500).json({
-//           message: err.message,
-//           traceId,
-//         });
-//       }
-//     }
-
-//     /* ========================= */
-//     /* ===== SERVICE FLOW ====== */
-//     /* ========================= */
-
-//     if (!orderId) {
-//       return res.status(400).json({
-//         message: "orderId is required",
-//       });
-//     }
-
-//     console.log("🔍 [VERIFY] Fetching service payment from ORDS...", orderId);
-
-//     const payment = await ordsGetPayment(orderId);
-
-//     if (!payment) {
-//       console.warn("⚠️ [VERIFY] Payment not found");
-//       return res.status(404).json({ message: "Payment not found" });
-//     }
-
-//     const currentStatus = payment.status || payment.payment_status;
-
-//     console.log("📦 [VERIFY RESULT]:", {
-//       orderId,
-//       status: currentStatus,
-//     });
-
-//     // ✅ JUST RETURN DB STATUS (webhook already updated it)
-//     return res.json({
-//       status: currentStatus,
-//     });
-
-//   } catch (e) {
-//     console.error("❌ [verifyPayment] ERROR:", e);
-//     return res.status(500).json({
-//       message: e.message,
-//       details: e.response?.data || null,
-//     });
-//   }
-// }
 
 async function verifyPayment(req, res) {
   const traceId = `VERIFY-${Date.now()}`;
@@ -336,19 +212,10 @@ async function verifyPayment(req, res) {
           });
         }
 
-        console.log(
-          `🚗 [${traceId}] Starting parking payment verification for orderId: ${orderId}`,
-        );
-
         // 🔥 1️⃣ GET FROZEN META SNAPSHOT
         const meta = await ordsGetParkingPaymentMeta({
           order_id: orderId,
         });
-
-        console.log(
-          `🧾 [${traceId}] META SNAPSHOT:`,
-          JSON.stringify(meta, null, 2),
-        );
 
         if (!meta) {
           console.warn(`⚠️ [${traceId}] No meta found`);
@@ -357,22 +224,15 @@ async function verifyPayment(req, res) {
 
         // 🔥 Already finalized
         if (meta.status === "SUCCESS") {
-          console.log(`✅ [${traceId}] Meta already SUCCESS`);
           return res.json({ status: "PAID" });
         }
 
         if (meta.status === "FAILED") {
-          console.log(`❌ [${traceId}] Meta already FAILED`);
           return res.json({ status: "FAILED" });
         }
 
         // 🔥 2️⃣ VERIFY MPGS STATUS
         const order = await retrieveOrder(orderId);
-
-        console.log(
-          `💳 [${traceId}] MPGS ORDER RESPONSE:`,
-          JSON.stringify(order, null, 2),
-        );
 
         const mpgsOrderStatus = order?.order?.status || order?.status;
 
@@ -385,13 +245,6 @@ async function verifyPayment(req, res) {
           mpgsOrderStatus,
         );
 
-        console.log(`📊 [${traceId}] Payment Status Check`, {
-          mpgsOrderStatus,
-          mpgsResult,
-          isCaptured,
-          isFailed,
-        });
-
         /* =================================================== */
         /* ================= PAYMENT SUCCESS ================= */
         /* =================================================== */
@@ -401,10 +254,6 @@ async function verifyPayment(req, res) {
             order?.authentication?.["3ds"]?.transactionId ||
             order?.authentication?.["3ds2"]?.dsTransactionId ||
             null;
-
-          console.log(
-            `💾 [${traceId}] Using frozen meta snapshot (NO RECALCULATION)`,
-          );
 
           const parkingInsertPayload = {
             entry_guid: meta.entry_guid,
@@ -431,11 +280,6 @@ async function verifyPayment(req, res) {
             locked_already_paid: meta.locked_already_paid,
           };
 
-          console.log(
-            `🚨 [${traceId}] FINAL PARKING INSERT PAYLOAD:`,
-            JSON.stringify(parkingInsertPayload, null, 2),
-          );
-
           let insertResult = null;
 
           try {
@@ -447,15 +291,11 @@ async function verifyPayment(req, res) {
             ) {
               throw new Error(insertResult?.message || "Parking insert failed");
             }
-            console.log(
-              `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
-              JSON.stringify(insertResult, null, 2),
-            );
           } catch (err) {
             if (err.message.includes("ORA-00001")) {
-              console.log(`⏭️ [${traceId}] Duplicate insert skipped`);
+              console.log(`Duplicate insert skipped`);
             } else {
-              console.error(`💥 [${traceId}] PARKING INSERT FAILED`, {
+              console.error(`PARKING INSERT FAILED`, {
                 message: err.message,
                 status: err?.response?.status,
                 data: err?.response?.data,
@@ -472,15 +312,10 @@ async function verifyPayment(req, res) {
             );
           }
 
-          // 🔥 4️⃣ MARK META SUCCESS
-          console.log(`🟢 [${traceId}] Updating meta status to SUCCESS`);
-
           await ordsUpdateParkingPaymentMetaStatus({
             order_id: orderId,
             status: "SUCCESS",
           });
-
-          console.log(`🏁 [${traceId}] Parking payment fully verified`);
 
           return res.json({
             status: "PAID",
@@ -491,7 +326,6 @@ async function verifyPayment(req, res) {
         /* ================= PAYMENT FAILED ================== */
         /* =================================================== */
         if (isFailed) {
-          console.log(`❌ [${traceId}] Payment marked FAILED`);
 
           await ordsUpdateParkingPaymentMetaStatus({
             order_id: orderId,
@@ -502,11 +336,6 @@ async function verifyPayment(req, res) {
             status: "FAILED",
           });
         }
-
-        /* =================================================== */
-        /* ================= STILL PENDING =================== */
-        /* =================================================== */
-        console.log(`⏳ [${traceId}] Payment still pending`);
 
         return res.json({
           status: "PENDING",
@@ -596,8 +425,6 @@ async function paymentWebhook(req, res) {
     const traceId = `WEBHOOK-${Date.now()}`;
     const secret = req.headers["x-notification-secret"];
 
-    console.log(`📩 [${traceId}] Incoming webhook received`);
-
     if (secret !== process.env.MPGS_WEBHOOK_SECRET) {
       console.warn(`❌ [${traceId}] Invalid webhook secret`);
 
@@ -608,16 +435,8 @@ async function paymentWebhook(req, res) {
 
     const orderId = order?.id;
 
-    console.log(
-      `📦 [${traceId}] Webhook Payload:`,
-      JSON.stringify(req.body, null, 2),
-    );
-
     // 🔥 Only process actual payment event
     if (transaction?.type !== "PAYMENT") {
-      console.log(
-        `⏭️ [${traceId}] Ignored non-payment webhook type: ${transaction?.type}`,
-      );
 
       return res.sendStatus(200);
     }
@@ -630,27 +449,16 @@ async function paymentWebhook(req, res) {
 
     const isSuccess = order?.status === "CAPTURED";
 
-    console.log(`📊 [${traceId}] Basic Webhook Status`, {
-      orderId,
-      orderStatus: order?.status,
-      result,
-      isSuccess,
-    });
 
     /* ======================================================= */
     /* ==================== PARKING FLOW ===================== */
     /* ======================================================= */
     if (orderId.startsWith("P-")) {
-      console.log(`🚗 [${traceId}] Processing parking payment webhook`);
 
       const meta = await ordsGetParkingPaymentMeta({
         order_id: orderId,
       });
 
-      console.log(
-        `🧾 [${traceId}] META SNAPSHOT:`,
-        JSON.stringify(meta, null, 2),
-      );
 
       if (!meta) {
         console.warn(`⚠️ [${traceId}] No parking meta found`);
@@ -660,17 +468,11 @@ async function paymentWebhook(req, res) {
 
       // 🔥 Already finalized
       if (meta.status === "SUCCESS") {
-        console.log(`✅ [${traceId}] Meta already SUCCESS — skipping`);
 
         return res.sendStatus(200);
       }
 
       const mpgsOrder = await retrieveOrder(orderId);
-
-      console.log(
-        `💳 [${traceId}] MPGS ORDER RESPONSE:`,
-        JSON.stringify(mpgsOrder, null, 2),
-      );
 
       const mpgsOrderStatus = mpgsOrder?.order?.status || mpgsOrder?.status;
 
@@ -683,13 +485,6 @@ async function paymentWebhook(req, res) {
         mpgsOrderStatus,
       );
 
-      console.log(`📊 [${traceId}] MPGS Final Status`, {
-        mpgsOrderStatus,
-        mpgsResult,
-        isCaptured,
-        isFailed,
-      });
-
       /* =================================================== */
       /* ================= PAYMENT SUCCESS ================= */
       /* =================================================== */
@@ -700,9 +495,6 @@ async function paymentWebhook(req, res) {
           mpgsOrder?.authentication?.["3ds2"]?.dsTransactionId ||
           null;
 
-        console.log(
-          `💾 [${traceId}] PARKING SUCCESS USING FROZEN META SNAPSHOT`,
-        );
 
         const parkingInsertPayload = {
           entry_guid: meta.entry_guid,
@@ -731,11 +523,6 @@ async function paymentWebhook(req, res) {
           locked_already_paid: meta.locked_already_paid,
         };
 
-        console.log(
-          `🚨 [${traceId}] FINAL PARKING INSERT PAYLOAD:`,
-          JSON.stringify(parkingInsertPayload, null, 2),
-        );
-
         let insertResult = null;
 
         try {
@@ -751,13 +538,9 @@ async function paymentWebhook(req, res) {
             );
           }
 
-          console.log(
-            `✅ [${traceId}] PARKING INSERT SUCCESS RESPONSE:`,
-            JSON.stringify(insertResult, null, 2),
-          );
         } catch (err) {
           if (err.message.includes("ORA-00001")) {
-            console.log(`⏭️ [${traceId}] Duplicate insert skipped`);
+            console.log(`Duplicate insert skipped`);
           } else {
             console.error(`💥 [${traceId}] PARKING INSERT FAILED`, {
               message: err.message,
@@ -776,20 +559,16 @@ async function paymentWebhook(req, res) {
           );
         }
 
-        console.log(`🟢 [${traceId}] Updating meta status to SUCCESS`);
-
         await ordsUpdateParkingPaymentMetaStatus({
           order_id: orderId,
           status: "SUCCESS",
         });
 
-        console.log(`🏁 [${traceId}] Parking webhook fully processed`);
       } else if (isFailed) {
 
         /* =================================================== */
         /* ================= PAYMENT FAILED ================== */
         /* =================================================== */
-        console.log(`❌ [${traceId}] PARKING PAYMENT FAILED`);
 
         await ordsUpdateParkingPaymentMetaStatus({
           order_id: orderId,
@@ -823,8 +602,6 @@ async function paymentWebhook(req, res) {
           return res.sendStatus(200);
         }
 
-        console.log("🔑 Transaction ID:", mpgsTransactionId);
-
         if ((payment.status || payment.payment_status) === "PAID") {
           return res.sendStatus(200);
         }
@@ -846,19 +623,13 @@ async function paymentWebhook(req, res) {
 }
 async function paymentReturn(req, res) {
   try {
-    const {
-      payment_type,
-      orderId,
-      plate_number,
-      plate_category,
-      plate_area_name,
-    } = req.query;
+    const { payment_type, orderId } = req.query;
 
     let deepLink;
 
     if (payment_type === "PARKING") {
       deepLink = orderId
-        ? `ayconnect://parking/page?orderId=${orderId}&plate=${plate_number}&plate_category=${plate_category}&plate_area_name=${plate_area_name}`
+        ? `ayconnect://parking/page?orderId=${encodeURIComponent(orderId)}`
         : `ayconnect://parking/page`;
     } else {
       deepLink = `ayconnect://requests`;

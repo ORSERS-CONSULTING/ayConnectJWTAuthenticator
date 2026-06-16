@@ -160,7 +160,7 @@ function resendClientCode({ email }) {
   }
 
   return callGateway("POST", "resendWalkingCode", {
-    data: { email },
+    params: { email },
   });
 }
 

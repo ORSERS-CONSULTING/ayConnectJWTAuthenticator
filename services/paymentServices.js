@@ -16,15 +16,6 @@ async function callGateway(method, path, { params, data } = {}) {
   return res.data;
 }
 
-function ordsProcessPayment(request_id) {
-  if (!request_id) throw new Error("request_id is required");
-
-  return callGateway("POST", "processPayment", {
-    params: { request_id: Number(request_id) },
-  });
-}
-
-
 async function ordsInitPayment({
   user_id,
   payment_type,
@@ -43,7 +34,7 @@ async function ordsInitPayment({
   }
 
   return callGateway("POST", "initiatePayment", {
-    params: {
+    data: {
       user_id: Number(user_id),
       payment_type,
       reference_id: Number(reference_id),
@@ -62,14 +53,13 @@ async function ordsUpdatePaymentSession({
   }
 
   return callGateway("POST", "updatePaymentSession", {
-    params: {
+    data: {
       payment_id: Number(payment_id),
       mpgs_order_id,
       mpgs_session_id,
     },
   });
 }
-
 
 async function ordsUpdatePaymentStatus({
   payment_id,
@@ -83,7 +73,7 @@ async function ordsUpdatePaymentStatus({
 
   try {
     const res = await callGateway("POST", "updatePaymentStatus", {
-      params: {
+      data: {
         payment_id: Number(payment_id),
         status,
         mpgs_transaction_id,
@@ -96,14 +86,16 @@ async function ordsUpdatePaymentStatus({
     console.error("💥 [ORDS ERROR FULL]:", {
       message: err.message,
       status: err.response?.status,
-      data: err.response?.data, // 🔥 THIS is what you need
+      data: err.response?.data,
       url: err.config?.url,
       params: err.config?.params,
+      requestData: err.config?.data,
     });
 
-    throw err; // important → so webhook still knows it failed
+    throw err;
   }
 }
+
 async function ordsGetPayment(order_id) {
   if (!order_id) throw new Error("order_id is required");
 
@@ -121,8 +113,8 @@ function ordsGetParkingInfo({ plate_number, plate_category, plate_area_name }) {
     );
   }
 
-  return callGateway("GET", "getParkingInfo", {
-    params: {
+  return callGateway("POST", "getParkingInfo", {
+    data: {
       plate_number,
       plate_category,
       plate_area_name,
@@ -144,17 +136,18 @@ function ordsInitiateParkingPayment({
   }
 
   return callGateway("POST", "initiateParkingPayment", {
-    params: {
+    data: {
       entry_guid: String(entry_guid),
       plate_number: String(plate_number),
       time_in: String(time_in),
-      time_spent_min: String(time_spent_min),
-      amount_due: String(amount), // ✅ FIX
-      center_fees_spent: String(center_fees_spent ?? 0),
-      minutes_free: String(minutes_free ?? 0),
+      time_spent_min: Number(time_spent_min),
+      amount_due: Number(amount),
+      center_fees_spent: Number(center_fees_spent ?? 0),
+      minutes_free: Number(minutes_free ?? 0),
     },
   });
 }
+
 function ordsUpdateParkingSession({
   payment_id,
   mpgs_order_id,
@@ -163,13 +156,14 @@ function ordsUpdateParkingSession({
   if (!payment_id) throw new Error("payment_id is required");
 
   return callGateway("POST", "updateParkingSession", {
-    params: {
+    data: {
       payment_id: Number(payment_id),
       mpgs_order_id,
       mpgs_session_id,
     },
   });
 }
+
 function ordsUpdateParkingStatus({
   payment_id,
   payment_status,
@@ -179,8 +173,9 @@ function ordsUpdateParkingStatus({
   if (!payment_id || !payment_status) {
     throw new Error("payment_id and payment_status are required");
   }
+
   return callGateway("POST", "updateParkingStatus", {
-    params: {
+    data: {
       payment_id: Number(payment_id),
       payment_status,
       amount_paid: amount_paid != null ? Number(amount_paid) : null,
@@ -188,6 +183,7 @@ function ordsUpdateParkingStatus({
     },
   });
 }
+
 async function ordsGetParkingPayment(payment_id) {
   if (!payment_id) throw new Error("payment_id is required");
 
@@ -197,6 +193,7 @@ async function ordsGetParkingPayment(payment_id) {
 
   return res?.items?.[0] || null;
 }
+
 function ordsInsertParkingPayment({
   entry_guid,
 
@@ -216,60 +213,36 @@ function ordsInsertParkingPayment({
   mpgs_txn_id,
 }) {
   if (!entry_guid || amount_paid == null) {
-    throw new Error(
-      "Missing required parking insert fields"
-    );
+    throw new Error("Missing required parking insert fields");
   }
 
-  return callGateway(
-    "POST",
-    "insertParkingPayment",
-    {
-      params: {
-        entry_guid: String(entry_guid),
+  return callGateway("POST", "insertParkingPayment", {
+    data: {
+      entry_guid: String(entry_guid),
 
-        locked_time_spent_min: String(
-          locked_time_spent_min ?? 0
-        ),
+      locked_time_spent_min: Number(locked_time_spent_min ?? 0),
 
-        amount_paid: String(amount_paid),
+      amount_paid: Number(amount_paid),
 
-        locked_center_fees_spent: String(
-          locked_center_fees_spent ?? 0
-        ),
+      locked_center_fees_spent: Number(locked_center_fees_spent ?? 0),
 
-        locked_minutes_free: String(
-          locked_minutes_free ?? 0
-        ),
+      locked_minutes_free: Number(locked_minutes_free ?? 0),
 
-        // 🔥 DEADLINE SNAPSHOT RESTORED
-        locked_deadline_to_leave:
-          locked_deadline_to_leave
-            ? String(locked_deadline_to_leave)
-            : null,
+      locked_deadline_to_leave: locked_deadline_to_leave
+        ? String(locked_deadline_to_leave)
+        : null,
 
-        locked_gross_amount: String(
-          locked_gross_amount ?? amount_paid
-        ),
+      locked_gross_amount: Number(locked_gross_amount ?? amount_paid),
 
-        locked_already_paid: String(
-          locked_already_paid ?? 0
-        ),
+      locked_already_paid: Number(locked_already_paid ?? 0),
 
-        mpgs_order_id: mpgs_order_id
-          ? String(mpgs_order_id)
-          : null,
+      mpgs_order_id: mpgs_order_id ? String(mpgs_order_id) : null,
 
-        mpgs_session_id: mpgs_session_id
-          ? String(mpgs_session_id)
-          : null,
+      mpgs_session_id: mpgs_session_id ? String(mpgs_session_id) : null,
 
-        mpgs_txn_id: mpgs_txn_id
-          ? String(mpgs_txn_id)
-          : null,
-      },
-    }
-  );
+      mpgs_txn_id: mpgs_txn_id ? String(mpgs_txn_id) : null,
+    },
+  });
 }
 
 function ordsInsertParkingPaymentMeta({
@@ -279,7 +252,6 @@ function ordsInsertParkingPaymentMeta({
   plate_category,
   plate_area_name,
 
-  // 🔒 Frozen payment snapshot
   locked_amount_due,
   locked_time_spent_min,
   locked_center_fees_spent,
@@ -294,7 +266,6 @@ function ordsInsertParkingPaymentMeta({
     throw new Error("order_id, entry_guid and plate_number are required");
   }
 
-  // 🔥 Core financial snapshot required
   if (
     locked_amount_due == null ||
     locked_time_spent_min == null ||
@@ -307,7 +278,7 @@ function ordsInsertParkingPaymentMeta({
   }
 
   return callGateway("POST", "insertParkingPaymentMeta", {
-    params: {
+    data: {
       order_id: String(order_id),
       entry_guid: String(entry_guid),
 
@@ -315,12 +286,13 @@ function ordsInsertParkingPaymentMeta({
       plate_category: plate_category ? String(plate_category) : null,
       plate_area_name: plate_area_name ? String(plate_area_name) : null,
 
-      // 🔒 Locked snapshot values
       locked_amount_due: Number(locked_amount_due),
       locked_time_spent_min: Number(locked_time_spent_min),
 
       locked_center_fees_spent:
-        locked_center_fees_spent != null ? Number(locked_center_fees_spent) : 0,
+        locked_center_fees_spent != null
+          ? Number(locked_center_fees_spent)
+          : 0,
 
       locked_minutes_free:
         locked_minutes_free != null ? Number(locked_minutes_free) : 0,
@@ -337,6 +309,19 @@ function ordsInsertParkingPaymentMeta({
 
       locked_already_paid:
         locked_already_paid != null ? Number(locked_already_paid) : 0,
+    },
+  });
+}
+
+function ordsUpdateParkingPaymentMetaStatus({ order_id, status }) {
+  if (!order_id || !status) {
+    throw new Error("order_id and status are required");
+  }
+
+  return callGateway("POST", "updateParkingPaymentMetaStatus", {
+    data: {
+      order_id: String(order_id),
+      status: String(status),
     },
   });
 }
@@ -362,18 +347,6 @@ async function ordsGetParkingPaymentMeta({ order_id }) {
   const result = res?.items?.[0] || null;
 
   return result;
-}
-function ordsUpdateParkingPaymentMetaStatus({ order_id, status }) {
-  if (!order_id || !status) {
-    throw new Error("order_id and status are required");
-  }
-
-  return callGateway("POST", "updateParkingPaymentMetaStatus", {
-    params: {
-      order_id: String(order_id),
-      status: String(status),
-    },
-  });
 }
 
 

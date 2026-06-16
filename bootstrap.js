@@ -20,6 +20,7 @@ const loadConfig = require('./config/env');
   process.env.TEST_RESOURCE = config.TEST_RESOURCE,
   process.env.TEST_CLEINT = config.TEST_CLEINT,
   process.env.REFRESH_TOKEN_DAYS = config.REFRESH_TOKEN_DAYS,
+  process.env.PARKING_URL = config.PARKING_URL,
   require('./index');
 })();
 
