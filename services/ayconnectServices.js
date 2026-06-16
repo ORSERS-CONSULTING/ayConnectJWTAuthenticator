@@ -436,7 +436,7 @@ async function ordsGetApplicationDocument({
 
   const PATH = "getApplicationDoc";
 
-  const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
+  const url = `${process.env.GATEWAY_BASE_URL}/getApplicationDoc`;
 
   console.log("📄 [ORDS APP DOC] Request:", {
     url,
