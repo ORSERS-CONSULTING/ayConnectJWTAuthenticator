@@ -495,7 +495,7 @@ async function clienCodeExist(req, res) {
 
     const chk = await checkClientCode({ client_code });
     let status = chk?.status;
-
+console.log("Client code check result:", { client_code, status });
     if (!status) {
       return res
         .status(500)

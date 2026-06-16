@@ -27,7 +27,6 @@ const {
   ordsGetApplicationDocument,
   ordsApplicationDocumentExists,
   ordsDeleteAccount
-
 } = require("../services/ayconnectServices");
 
 async function updateBeneficiary(req, res) {
