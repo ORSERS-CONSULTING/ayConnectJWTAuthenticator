@@ -504,7 +504,7 @@ function ordsApplicationDocumentExists({ request_id, user_id }) {
 async function ordsDeleteAccount(user_id) {
   if (!user_id) throw new Error("user_id is required");
 
-  return callGatewayJson("DELETE", "deleteAccount", {
+  return callGatewayJson("DELETE", "deleteUserAccount", {
     data: {
       user_id: Number(user_id),
     },
