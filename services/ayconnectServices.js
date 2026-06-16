@@ -81,12 +81,46 @@ async function callGatewayBinary(
 }
 
 
+// async function callGatewayJson(method, path, { params, data } = {}) {
+//   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
+//   const token = await getIdcsToken(url);
+
+//   const res = await axios({
+//     method: "POST",
+//     url,
+//     params,
+//     data,
+//     headers: {
+//       Accept: "application/json",
+//       "Content-Type": "application/json",
+//       Authorization: `Bearer ${token}`,
+//     },
+//     validateStatus: () => true, // we’ll handle non-2xx ourselves
+//     responseType: "text", // keep raw (could be "", JSON, or JSON string)
+//     transformResponse: [(x) => x], // do not auto-parse
+//   });
+
+//   // Try to parse JSON if possible; otherwise keep as text
+//   let parsed;
+//   try {
+//     parsed = res.data ? JSON.parse(res.data) : {};
+//   } catch {
+//     parsed = { __raw: res.data }; // non-JSON response
+//   }
+
+//   return {
+//     status: res.status,
+//     headers: res.headers,
+//     data: parsed,
+//     raw: res.data,
+//   };
+// }
 async function callGatewayJson(method, path, { params, data } = {}) {
   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
   const token = await getIdcsToken(url);
 
   const res = await axios({
-    method: "POST",
+    method,
     url,
     params,
     data,
@@ -95,17 +129,16 @@ async function callGatewayJson(method, path, { params, data } = {}) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    validateStatus: () => true, // we’ll handle non-2xx ourselves
-    responseType: "text", // keep raw (could be "", JSON, or JSON string)
-    transformResponse: [(x) => x], // do not auto-parse
+    validateStatus: () => true,
+    responseType: "text",
+    transformResponse: [(x) => x],
   });
 
-  // Try to parse JSON if possible; otherwise keep as text
   let parsed;
   try {
     parsed = res.data ? JSON.parse(res.data) : {};
   } catch {
-    parsed = { __raw: res.data }; // non-JSON response
+    parsed = { __raw: res.data };
   }
 
   return {
@@ -115,7 +148,6 @@ async function callGatewayJson(method, path, { params, data } = {}) {
     raw: res.data,
   };
 }
-
 
 function ordsGetServices(user_id) {
   return callGateway("GET", "getServices", {
@@ -468,6 +500,16 @@ function ordsApplicationDocumentExists({ request_id, user_id }) {
   });
 }
 
+
+async function ordsDeleteAccount(user_id) {
+  if (!user_id) throw new Error("user_id is required");
+
+  return callGatewayJson("DELETE", "deleteAccount", {
+    data: {
+      user_id: Number(user_id),
+    },
+  });
+}
 module.exports = {
   ordsGetUserAvatar,
   ordsGetBeneficiaries,
@@ -493,5 +535,6 @@ module.exports = {
   ordsGetInvoices,
   ordsGetParkingInfo,
   ordsGetApplicationDocument,
-  ordsApplicationDocumentExists
+  ordsApplicationDocumentExists,
+  ordsDeleteAccount
 };

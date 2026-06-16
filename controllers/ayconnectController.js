@@ -25,7 +25,9 @@ const {
   ordsGetInvoices,
   ordsGetParkingInfo,
   ordsGetApplicationDocument,
-  ordsApplicationDocumentExists
+  ordsApplicationDocumentExists,
+  ordsDeleteAccount
+
 } = require("../services/ayconnectServices");
 
 async function updateBeneficiary(req, res) {
@@ -1105,6 +1107,50 @@ async function applicationDocumentExists(req, res) {
     );
   }
 }
+
+
+async function deleteAccount(req, res) {
+  try {
+    const { user_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "user_id is required",
+      });
+    }
+
+    const result = await ordsDeleteAccount(user_id);
+
+    console.log("🗑️ [DELETE ACCOUNT] ORDS result:", result);
+
+    if (result.status !== 200) {
+      return res.status(result.status || 500).json({
+        success: false,
+        message:
+          result.data?.response_message ||
+          result.data?.message ||
+          "Failed to delete account",
+        details: result.data,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+      data: result.data,
+    });
+  } catch (error) {
+    console.error("❌ [DELETE ACCOUNT] Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to delete account",
+    });
+  }
+}
+
+
 module.exports = {
   getServices,
   getUserDocs,
@@ -1130,5 +1176,6 @@ module.exports = {
   getInvoices,
   getParkingInfo,
   getApplicationDocument,
-  applicationDocumentExists
+  applicationDocumentExists,
+  deleteAccount,
 };
