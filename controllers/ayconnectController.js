@@ -1121,7 +1121,6 @@ async function deleteAccount(req, res) {
 
     const result = await ordsDeleteAccount(user_id);
 
-    console.log("🗑️ [DELETE ACCOUNT] ORDS result:", result);
 
     if (result.status !== 200) {
       return res.status(result.status || 500).json({

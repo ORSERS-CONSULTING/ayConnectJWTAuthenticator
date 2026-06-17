@@ -490,10 +490,8 @@ async function registerExistingClientFromMainDB(req, res) {
   try {
     let { client_code } = req.body || {};
 
-    console.log("🆕 [REGISTER EXISTING CLIENT] Request:", { client_code });
 
     if (!client_code) {
-      console.log("❌ [REGISTER EXISTING CLIENT] Missing client_code");
 
       return res.status(400).json({
         ok: false,
@@ -502,13 +500,10 @@ async function registerExistingClientFromMainDB(req, res) {
     }
 
     client_code = String(client_code).trim().toUpperCase();
-    console.log("📤 [REGISTER EXISTING CLIENT] Sending to ORDS:", {
-      client_code,
-    });
+ 
 
     const data = await registerExistingClient({ client_code });
 
-    console.log("📥 [REGISTER EXISTING CLIENT] ORDS response:", data);
 
     const out_email =
       data?.out_email ??
@@ -531,12 +526,8 @@ async function registerExistingClientFromMainDB(req, res) {
       data?.MESSAGE ??
       "Client does not exist";
 
-    console.log("📧 [REGISTER EXISTING CLIENT] Extracted email:", out_email);
-    console.log("👤 [REGISTER EXISTING CLIENT] Extracted name:", out_name);
-    console.log("💬 [REGISTER EXISTING CLIENT] Message:", response_message);
 
     if (!out_email) {
-      console.log("❌ [REGISTER EXISTING CLIENT] Failed: no email returned");
 
       return res.status(404).json({
         ok: false,
@@ -553,7 +544,6 @@ async function registerExistingClientFromMainDB(req, res) {
       },
     };
 
-    console.log("✅ [REGISTER EXISTING CLIENT] Success:", result);
 
     return res.json(result);
   } catch (e) {
@@ -580,7 +570,6 @@ async function clienCodeExist(req, res) {
 
     const chk = await checkClientCode({ client_code });
     let status = chk?.status;
-    console.log("Client code check result:", { client_code, status });
     if (!status) {
       return res.status(500).json({ ok: false, message: "User doesn't exist" });
     }
