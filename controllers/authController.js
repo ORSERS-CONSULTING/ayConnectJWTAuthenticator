@@ -450,43 +450,127 @@ async function getClientCode(req, res) {
   }
 }
 
+// async function registerExistingClientFromMainDB(req, res) {
+//   try {
+//     let { client_code } = req.body || {};
+
+//     if (!client_code) {
+//       return res.status(400).json({ message: "Provide client code please." });
+//     }
+
+//     const data = await registerExistingClient({ client_code });
+
+//     const out_email =
+//       data.out_email ?? data.OUT_EMAIL ?? data.email ?? data.EMAIL ?? null;
+
+//     const out_name =
+//       data.out_name ?? data.OUT_NAME ?? data.name ?? data.NAME ?? null;
+//     const response_message =
+//       data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
+
+//     if (!out_email) {
+//       return res.status(404).json({ message: "Login failed" });
+//     }
+
+//     return res.json({
+//       message: response_message,
+//       profile: {
+//         email: out_email,
+//         full_name: out_name,
+//       },
+//     });
+//   } catch (e) {
+//     const code = e.response?.status ?? e.upstream?.status ?? 500;
+//     return res
+//       .status(code)
+//       .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
+//   }
+// }
 async function registerExistingClientFromMainDB(req, res) {
   try {
     let { client_code } = req.body || {};
 
+    console.log("🆕 [REGISTER EXISTING CLIENT] Request:", { client_code });
+
     if (!client_code) {
-      return res.status(400).json({ message: "Provide client code please." });
+      console.log("❌ [REGISTER EXISTING CLIENT] Missing client_code");
+
+      return res.status(400).json({
+        ok: false,
+        message: "Provide client code please.",
+      });
     }
+
+    client_code = String(client_code).trim().toUpperCase();
+
+    console.log("📤 [REGISTER EXISTING CLIENT] Sending to ORDS:", {
+      client_code,
+    });
 
     const data = await registerExistingClient({ client_code });
 
+    console.log("📥 [REGISTER EXISTING CLIENT] ORDS response:", data);
+
     const out_email =
-      data.out_email ?? data.OUT_EMAIL ?? data.email ?? data.EMAIL ?? null;
+      data?.out_email ??
+      data?.OUT_EMAIL ??
+      data?.email ??
+      data?.EMAIL ??
+      null;
 
     const out_name =
-      data.out_name ?? data.OUT_NAME ?? data.name ?? data.NAME ?? null;
+      data?.out_name ??
+      data?.OUT_NAME ??
+      data?.name ??
+      data?.NAME ??
+      null;
+
     const response_message =
-      data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
+      data?.response_message ??
+      data?.RESPONSE_MESSAGE ??
+      data?.message ??
+      data?.MESSAGE ??
+      "Client does not exist";
+
+    console.log("📧 [REGISTER EXISTING CLIENT] Extracted email:", out_email);
+    console.log("👤 [REGISTER EXISTING CLIENT] Extracted name:", out_name);
+    console.log("💬 [REGISTER EXISTING CLIENT] Message:", response_message);
 
     if (!out_email) {
-      return res.status(404).json({ message: "Login failed" });
+      console.log("❌ [REGISTER EXISTING CLIENT] Failed: no email returned");
+
+      return res.status(404).json({
+        ok: false,
+        message: "Login failed",
+      });
     }
 
-    return res.json({
+    const result = {
+      ok: true,
       message: response_message,
       profile: {
         email: out_email,
         full_name: out_name,
       },
-    });
+    };
+
+    console.log("✅ [REGISTER EXISTING CLIENT] Success:", result);
+
+    return res.json(result);
   } catch (e) {
+    console.error("🔥 [REGISTER EXISTING CLIENT] Error:", {
+      message: e.message,
+      status: e.response?.status ?? e.upstream?.status,
+      data: e.response?.data ?? e.upstream?.data,
+    });
+
     const code = e.response?.status ?? e.upstream?.status ?? 500;
+
     return res
       .status(code)
       .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
-
 async function clienCodeExist(req, res) {
   try {
     let { client_code } = req.body || {};
