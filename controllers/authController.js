@@ -502,7 +502,6 @@ async function registerExistingClientFromMainDB(req, res) {
     }
 
     client_code = String(client_code).trim().toUpperCase();
-
     console.log("📤 [REGISTER EXISTING CLIENT] Sending to ORDS:", {
       client_code,
     });
