@@ -168,7 +168,6 @@ async function refresh(req, res) {
 async function logout(req, res) {
   const { refresh_token, device_id } = req.body || {};
 
-
   if (!refresh_token) {
     return res.status(400).json({ message: "refresh_token required" });
   }
@@ -190,7 +189,6 @@ async function logout(req, res) {
       .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
-
 
 async function login(req, res) {
   try {
@@ -231,7 +229,7 @@ async function login(req, res) {
     }
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m"
+      "30m",
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -255,7 +253,6 @@ async function login(req, res) {
         full_name: out_name,
       },
     });
-
   } catch (e) {
     const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
@@ -295,7 +292,7 @@ async function register(req, res) {
     }
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m"
+      "30m",
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -338,7 +335,7 @@ async function loginClient(req, res) {
     if (!client_code) {
       return res.status(400).json({ message: "Provide client code please." });
     }
-    
+
     const data = await registerClient({ client_code });
 
     const out_user_id = Number(data.user_id);
@@ -358,7 +355,7 @@ async function loginClient(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m"
+      "30m",
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -437,8 +434,9 @@ async function getClientCode(req, res) {
       data?.message ??
       "Request processed.";
 
-    const success =
-      /your client code has been sent to your email/i.test(message);
+    const success = /your client code has been sent to your email/i.test(
+      message,
+    );
 
     return res.status(success ? 200 : 400).json({
       ...data,
@@ -446,45 +444,122 @@ async function getClientCode(req, res) {
     });
   } catch (e) {
     const code = e.response?.status ?? e.upstream?.status ?? 500;
-    const payload = e.response?.data ?? e.upstream?.data ?? { message: e.message };
+    const payload = e.response?.data ??
+      e.upstream?.data ?? { message: e.message };
     return res.status(code).json(payload);
   }
 }
 
+// async function registerExistingClientFromMainDB(req, res) {
+//   try {
+//     let { client_code } = req.body || {};
+
+//     if (!client_code) {
+//       return res.status(400).json({ message: "Provide client code please." });
+//     }
+
+//     const data = await registerExistingClient({ client_code });
+
+//     const out_email =
+//       data.out_email ?? data.OUT_EMAIL ?? data.email ?? data.EMAIL ?? null;
+
+//     const out_name =
+//       data.out_name ?? data.OUT_NAME ?? data.name ?? data.NAME ?? null;
+//     const response_message =
+//       data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
+
+//     if (!out_email) {
+//       return res.status(404).json({ message: "Login failed" });
+//     }
+
+//     return res.json({
+//       message: response_message,
+//       profile: {
+//         email: out_email,
+//         full_name: out_name,
+//       },
+//     });
+//   } catch (e) {
+//     const code = e.response?.status ?? e.upstream?.status ?? 500;
+//     return res
+//       .status(code)
+//       .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
+//   }
+// }
 async function registerExistingClientFromMainDB(req, res) {
   try {
     let { client_code } = req.body || {};
 
+
     if (!client_code) {
-      return res.status(400).json({ message: "Provide client code please." });
+
+      return res.status(400).json({
+        ok: false,
+        message: "Provide client code please.",
+      });
     }
+
+    client_code = String(client_code).trim().toUpperCase();
+ 
 
     const data = await registerExistingClient({ client_code });
 
-    const out_email = data.out_email ?? data.OUT_EMAIL ?? null;
-    const out_name = data.out_name ?? data.OUT_NAME ?? null;
+
+    const out_email =
+      data?.out_email ??
+      data?.OUT_EMAIL ??
+      data?.email ??
+      data?.EMAIL ??
+      null;
+
+    const out_name =
+      data?.out_name ??
+      data?.OUT_NAME ??
+      data?.name ??
+      data?.NAME ??
+      null;
+
     const response_message =
-      data.response_message ?? data.RESPONSE_MESSAGE ?? "Client does not exist";
+      data?.response_message ??
+      data?.RESPONSE_MESSAGE ??
+      data?.message ??
+      data?.MESSAGE ??
+      "Client does not exist";
+
 
     if (!out_email) {
-      return res.status(404).json({ message: "Login failed" });
+
+      return res.status(404).json({
+        ok: false,
+        message: "Login failed",
+      });
     }
 
-    return res.json({
+    const result = {
+      ok: true,
       message: response_message,
       profile: {
         email: out_email,
         full_name: out_name,
       },
-    });
+    };
+
+
+    return res.json(result);
   } catch (e) {
+    console.error("🔥 [REGISTER EXISTING CLIENT] Error:", {
+      message: e.message,
+      status: e.response?.status ?? e.upstream?.status,
+      data: e.response?.data ?? e.upstream?.data,
+    });
+
     const code = e.response?.status ?? e.upstream?.status ?? 500;
+
     return res
       .status(code)
       .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
   }
 }
-
 async function clienCodeExist(req, res) {
   try {
     let { client_code } = req.body || {};
@@ -495,11 +570,8 @@ async function clienCodeExist(req, res) {
 
     const chk = await checkClientCode({ client_code });
     let status = chk?.status;
-
     if (!status) {
-      return res
-        .status(500)
-        .json({ ok: false, message: "User doesn't exist" });
+      return res.status(500).json({ ok: false, message: "User doesn't exist" });
     }
 
     if (status === "NOT_FOUND") {
@@ -520,7 +592,10 @@ async function clienCodeExist(req, res) {
     const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
       .status(code)
-      .json(e.response?.data ?? e.upstream?.data ?? { ok: false, message: e.message });
+      .json(
+        e.response?.data ??
+          e.upstream?.data ?? { ok: false, message: e.message },
+      );
   }
 }
 
