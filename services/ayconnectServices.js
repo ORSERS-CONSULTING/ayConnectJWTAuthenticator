@@ -80,7 +80,6 @@ async function callGatewayBinary(
   });
 }
 
-
 // async function callGatewayJson(method, path, { params, data } = {}) {
 //   const url = `${process.env.GATEWAY_BASE_URL}/${path}`;
 //   const token = await getIdcsToken(url);
@@ -167,7 +166,6 @@ function ordsGetUserDocs(user_id) {
 function ordsGetDocumentTypes() {
   return callGateway("GET", "documentTypes");
 }
-
 
 function uploadDocuments(docPayload) {
   // ensure pure base64 (no data: prefix)
@@ -264,6 +262,28 @@ function ordsUpdateBeneficiary({ beneficiary_id, user_id }, body = {}) {
   });
 }
 
+// async function ordsDownloadUserDoc({ doc_id, user_id }) {
+//   if (!user_id) throw new Error("user_id is required");
+//   if (!doc_id) throw new Error("doc_id is required");
+
+//   const PATH = "downloadUserDoc";
+//   const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
+//   const token = await getIdcsToken(url);
+
+//   return axios({
+//     method: "GET",
+//     url,
+//     params: {
+//       doc_id: Number(doc_id),
+//       user_id: String(user_id), // ✅ do not force Number unless required
+//     },
+//     headers: {
+//       Authorization: `Bearer ${token}`,
+//     },
+//     responseType: "stream",
+//     validateStatus: () => true,
+//   });
+// }
 async function ordsDownloadUserDoc({ doc_id, user_id }) {
   if (!user_id) throw new Error("user_id is required");
   if (!doc_id) throw new Error("doc_id is required");
@@ -272,21 +292,40 @@ async function ordsDownloadUserDoc({ doc_id, user_id }) {
   const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
   const token = await getIdcsToken(url);
 
-  return axios({
+  console.log("📥 [ORDS USER DOC] Calling ORDS", {
+    url,
+    doc_id,
+    doc_id_number: Number(doc_id),
+    user_id,
+    user_id_number: Number(user_id),
+    doc_id_is_valid: Number.isFinite(Number(doc_id)),
+    user_id_is_valid: Number.isFinite(Number(user_id)),
+  });
+
+  const response = await axios({
     method: "GET",
     url,
     params: {
       doc_id: Number(doc_id),
-      user_id: Number(user_id),
+      user_id: Number(user_id), // match ORDS TO_NUMBER(:user_id)
     },
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    responseType: "stream", // ✅ CRITICAL
-    validateStatus: () => true, // let caller decide
+    responseType: "stream",
+    validateStatus: () => true,
   });
-}
 
+  console.log("📤 [ORDS USER DOC] Response", {
+    status: response.status,
+    statusText: response.statusText,
+    contentType: response.headers["content-type"],
+    contentLength: response.headers["content-length"],
+    contentDisposition: response.headers["content-disposition"],
+  });
+
+  return response;
+}
 function ordsGetRequests({ instance_svc_id, user_id }) {
   if (!user_id) throw new Error("user_id is required");
 
@@ -330,8 +369,6 @@ function ordsMarkNotificationRead({ user_id, notif_id }) {
 
   return callGateway("POST", "markNotificationRead", { params });
 }
-
-
 
 function ordsInitiateService(
   service_id,
@@ -421,7 +458,6 @@ async function ordsDownloadInvoicePdf({ request_id, user_id }) {
   }
 }
 
-
 function ordsGetInvoices({ user_id, request_id }) {
   if (!user_id) throw new Error("user_id is required");
 
@@ -449,10 +485,7 @@ function ordsGetParkingInfo({ plate_number, plate_category, plate_area_name }) {
     },
   });
 }
-async function ordsGetApplicationDocument({
-  request_id,
-  user_id,
-}) {
+async function ordsGetApplicationDocument({ request_id, user_id }) {
   if (!request_id) {
     throw new Error("request_id is required");
   }
@@ -500,7 +533,6 @@ function ordsApplicationDocumentExists({ request_id, user_id }) {
   });
 }
 
-
 async function ordsDeleteAccount(user_id) {
   if (!user_id) throw new Error("user_id is required");
 
@@ -536,5 +568,5 @@ module.exports = {
   ordsGetParkingInfo,
   ordsGetApplicationDocument,
   ordsApplicationDocumentExists,
-  ordsDeleteAccount
+  ordsDeleteAccount,
 };

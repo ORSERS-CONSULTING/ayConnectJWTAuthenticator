@@ -1,4 +1,3 @@
-// In the next step we’ll wire these to API Gateway/ORDS via services/ords.service.js
 
 const {
   ordsGetServices,
@@ -33,7 +32,7 @@ async function updateBeneficiary(req, res) {
   try {
     const user_id = String(req.user?.id || "");
 
-    const b = req.body || req.query || {};
+    const b = req.body || req.query || {}; 
 
     const beneficiary_id = Number(b.beneficiary_id);
 
@@ -59,22 +58,28 @@ async function updateBeneficiary(req, res) {
   }
 }
 
-// GET /ayconnect/docs/download?doc_id=...
-// GET /ayconnect/downloadUserDoc?doc_id=...
+
 async function downloadUserDoc(req, res) {
   try {
     const user_id = String(req.user?.id || "");
     const doc_id = Number(req.query?.doc_id);
 
+    console.log("[downloadUserDoc] user_id:", user_id);
+    console.log("[downloadUserDoc] doc_id:", doc_id);
+
     if (!user_id) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    if (!doc_id) {
-      return res.status(400).json({ message: "doc_id is required" });
+
+    if (!Number.isFinite(doc_id) || doc_id <= 0) {
+      return res.status(400).json({ message: "Valid doc_id is required" });
     }
 
-    // 🔹 Call ORDS (returns stream)
     const upstream = await ordsDownloadUserDoc({ doc_id, user_id });
+
+    console.log("[downloadUserDoc] upstream status:", upstream.status);
+    console.log("[downloadUserDoc] upstream content-type:", upstream.headers["content-type"]);
+    console.log("[downloadUserDoc] upstream disposition:", upstream.headers["content-disposition"]);
 
     if (upstream.status >= 400) {
       return res.status(upstream.status).json({
@@ -82,10 +87,9 @@ async function downloadUserDoc(req, res) {
       });
     }
 
-    // 🔹 Forward headers
     res.setHeader(
       "Content-Type",
-      upstream.headers["content-type"] || "application/octet-stream",
+      upstream.headers["content-type"] || "application/octet-stream"
     );
 
     if (upstream.headers["content-length"]) {
@@ -94,19 +98,31 @@ async function downloadUserDoc(req, res) {
 
     res.setHeader(
       "Content-Disposition",
-      upstream.headers["content-disposition"] || "inline",
+      upstream.headers["content-disposition"] ||
+        `attachment; filename="document-${doc_id}"`
     );
 
-    // 🔥 STREAM
+    upstream.data.on("error", (err) => {
+      console.error("[downloadUserDoc] stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Download stream failed" });
+      } else {
+        res.destroy(err);
+      }
+    });
+
     upstream.data.pipe(res);
   } catch (e) {
+    console.error("[downloadUserDoc] error:", e.response?.data || e.message);
+
     const code = e.response?.status ?? 500;
-    return res.status(code).json({ message: e.message });
+    return res.status(code).json({
+      message: e.response?.data?.message || e.message || "Download failed",
+    });
   }
 }
 
-// GET /ayconnect/requests
-// Optional: ?instance_svc_id=...
+
 async function getRequests(req, res) {
   try {
     const user_id = String(req.user?.id || "");
@@ -135,7 +151,6 @@ async function getRequests(req, res) {
   }
 }
 
-// GET /ayconnect/media?path=...
 async function media(req, res) {
   try {
     const path = String(req.query?.path || "");
@@ -149,7 +164,6 @@ async function media(req, res) {
       return res.status(upstream.status).end();
     }
 
-    // 🔹 Forward headers
     const headers = upstream.headers || {};
 
     if (headers["content-type"]) {
@@ -165,7 +179,6 @@ async function media(req, res) {
       headers["content-disposition"] || "inline",
     );
 
-    // 🔹 STREAM, DO NOT JSON
     upstream.data.pipe(res);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -187,13 +200,11 @@ async function markNotificationRead(req, res) {
     let data;
 
     if (notif_id) {
-      // ✅ mark single notification
       data = await ordsMarkNotificationRead({ user_id, notif_id });
     } else {
       // ✅ mark ALL notifications
       data = await ordsMarkNotificationRead({ user_id });
-      // OR (better if you split it):
-      // data = await ordsMarkAllNotificationsRead({ user_id });
+ 
     }
 
     let parsed = data;
@@ -216,20 +227,16 @@ async function markNotificationRead(req, res) {
 
 async function getServices(req, res) {
   try {
-    // 🔹 same pattern as markNotificationRead
     const user_id = String(req.user?.id || "");
     const b = req.query || req.body || {};
 
-    // 🔹 pass it (even if empty)
     const data = await ordsGetServices(user_id);
-    // 🔹 parse response if needed (same pattern you used)
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
       } catch {}
     }
-    // 🔹 parse response
     return res.status(200).json(parsed);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -240,7 +247,6 @@ async function getServices(req, res) {
 async function getDocumentTypes(_req, res) {
   try {
     const data = await ordsGetDocumentTypes();
-    // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
     const items = Array.isArray(data) ? data : (data.items ?? data);
     return res.json({ items });
   } catch (e) {
@@ -252,7 +258,6 @@ async function getDocumentTypes(_req, res) {
 async function getDepartments(_req, res) {
   try {
     const data = await ordsGetDepartments();
-    // ORDS might already send { items: [...] }. If it sends plain array, normalize it.
     const items = Array.isArray(data) ? data : (data.items ?? data);
     return res.json({ items });
   } catch (e) {
@@ -280,7 +285,7 @@ async function uploadUserDocuments(req, res) {
     const b = req.body || {};
     const body = {
       user_id: user_id,
-      beneficiary_id: Number(b.beneficiary_id), // ✅ REQUIRED
+      beneficiary_id: Number(b.beneficiary_id), 
       document_id: Number(b.document_id),
       file_name: b.file_name,
       file_type: b.file_type,
@@ -333,10 +338,9 @@ async function uploadUserDocuments(req, res) {
     });
 
     const is2xx = resp.status >= 200 && resp.status < 300;
-    const raw = resp.data; // string (possibly empty) because responseType:'text'
+    const raw = resp.data; 
     let parsed = null;
 
-    // Try to parse JSON if present
     if (typeof raw === "string" && raw.trim().length) {
       try {
         parsed = JSON.parse(raw);
@@ -345,7 +349,6 @@ async function uploadUserDocuments(req, res) {
       }
     }
 
-    // Try to extract ID from Location header if ORDS sent one
     const location = resp.headers?.location || resp.headers?.Location;
     let idFromLocation = null;
     if (typeof location === "string") {
@@ -353,14 +356,13 @@ async function uploadUserDocuments(req, res) {
       if (m) idFromLocation = Number(m[1]);
     }
 
-    // Success policy: any 2xx = success, but prefer explicit flags/ids if present
     const uploadedExplicit =
       parsed?.uploaded === true ||
       typeof parsed?.id === "number" ||
       typeof parsed?.document_id === "number" ||
       typeof idFromLocation === "number";
 
-    const uploaded = is2xx && (uploadedExplicit || true); // accept empty 2xx as success
+    const uploaded = is2xx && (uploadedExplicit || true); 
     const resolvedId =
       parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
     console.info("[uploadUserDocuments] Upload result summary", {
@@ -385,7 +387,6 @@ async function uploadUserDocuments(req, res) {
       });
     }
 
-    // 201 if created-ish, else 200
     const outStatus = resp.status === 201 ? 201 : is2xx ? 201 : 200;
 
     return res.status(outStatus).json({
@@ -409,7 +410,6 @@ async function uploadUserDocuments(req, res) {
   }
 }
 
-// --- GET avatar (stream image) ---
 async function getUserAvatar(req, res) {
   try {
     const user_id = String(req.user?.id || "");
@@ -419,11 +419,9 @@ async function getUserAvatar(req, res) {
     const upstream = await ordsGetUserAvatar(user_id);
 
     if (upstream.status >= 400) {
-      // ORDS might return JSON error; just proxy status
       return res.status(upstream.status).json({ message: "Avatar not found" });
     }
 
-    // Forward headers (content-type/length if available)
     const ct = upstream.headers["content-type"] || "image/jpeg";
     res.setHeader("Content-Type", ct);
     if (upstream.headers["content-length"]) {
@@ -431,7 +429,6 @@ async function getUserAvatar(req, res) {
     }
     res.setHeader("Cache-Control", "public, max-age=86400");
 
-    // Stream the image
     upstream.data.pipe(res);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -447,18 +444,14 @@ async function uploadUserAvatar(req, res) {
 
     const b = req.body || {};
 
-    // 1) multipart
     let file_buffer = req.file?.buffer || null;
     let mime_type = req.file?.mimetype || null;
 
-    // 2) raw binary (from express.raw)
     if (!file_buffer && req.is("image/*")) {
-      // express.raw gives Buffer in req.body
       file_buffer = Buffer.isBuffer(req.body) ? req.body : null;
       mime_type = req.headers["content-type"] || mime_type;
     }
 
-    // 3) JSON base64
     if (!file_buffer && typeof b.file_base64 === "string") {
       const base64 = b.file_base64.includes(",")
         ? b.file_base64.split(",")[1]
@@ -509,7 +502,6 @@ async function getUserDetails(req, res) {
     if (!user_id) return res.status(401).json({ message: "No user in token" });
 
     const data = await ordsGetUserDetails(user_id);
-    // ordsGetUserDetails already returns parsed JSON via callGateway
     return res.status(200).json(data);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -536,7 +528,6 @@ async function updateUserDetails(req, res) {
     const upstream = await ordsUpdateUserDetails(user_id, payload);
     const ok = upstream.status >= 200 && upstream.status < 300;
 
-    // `callGatewayJson` tried to parse JSON; fall back to a default message
     return res.status(ok ? 200 : upstream.status).json(
       upstream.data ?? {
         message: ok ? "User details updated successfully" : "Update failed",
@@ -555,10 +546,8 @@ async function getBeneficiaries(req, res) {
     if (!user_id) return res.status(401).json({ message: "No user in token" });
 
     const data = await ordsGetBeneficiaries(user_id);
-    // ORDS may return {items:[...]} or a raw array
     const items = Array.isArray(data) ? data : (data.items ?? data);
 
-    // Optional: sort SELF first, like your SQL does
     const sorted = Array.isArray(items)
       ? [...items].sort((a, b) => (a.type === "SELF" ? -1 : 1))
       : items;
@@ -593,19 +582,16 @@ async function createBeneficiary(req, res) {
       relationship,
     });
 
-    // upstream = { status, headers, data, raw }
     const status = upstream.status || 200;
     const data = upstream.data ?? {};
 
-    // Normalize a friendly shape for the app
-    // Your ORDS OUTs: out_beneficiary_id, out_type, out_full_name, out_relationship, response_message
     const out = {
       beneficiary_id: data.out_beneficiary_id ?? data.beneficiary_id ?? null,
       type: data.out_type ?? type,
       full_name: data.out_full_name ?? full_name ?? null,
       relationship: data.out_relationship ?? relationship ?? null,
       message: data.response_message ?? data.message ?? null,
-      upstream: data, // keep everything for debugging if you like
+      upstream: data, 
     };
 
     return res.status(status).json(out);
@@ -646,7 +632,6 @@ async function getInvoices(req, res) {
       user_id,
       request_id,
     });
-    // ---------- Parsing ----------
     let parsed = data;
 
     if (typeof data?.response_body === "string") {
@@ -678,7 +663,6 @@ async function getInvoices(req, res) {
   }
 }
 
-// POST /ayconnect/initiateService
 async function initiateService(req, res) {
   try {
     const user_id = String(req.user?.id || "");
@@ -701,7 +685,6 @@ async function initiateService(req, res) {
         .status(400)
         .json({ success: false, message: "beneficiary_id is required" });
 
-    // 🔹 Call ORDS backend
     const data = await ordsInitiateService(
       service_id,
       user_id,
@@ -709,7 +692,6 @@ async function initiateService(req, res) {
       procedure_id,
     );
 
-    // 🔹 Parse ORDS JSON wrapper
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
@@ -719,7 +701,6 @@ async function initiateService(req, res) {
       }
     }
 
-    // 🔹 SUCCESS → return fields from PL/SQL EXACTLY AS THEY ARE
     if (parsed?.success === true) {
       return res.status(200).json({
         success: true,
@@ -732,7 +713,6 @@ async function initiateService(req, res) {
       });
     }
 
-    // 🔹 FAILED
     return res.status(500).json({
       success: false,
       message: parsed?.error || parsed?.message || "Failed to initiate service",
@@ -752,7 +732,6 @@ async function initiateService(req, res) {
   }
 }
 
-// GET /ayconnect/getServiceStatus
 async function getServiceStatus(req, res) {
   try {
     const user_id = String(req.user?.id || "");
@@ -766,7 +745,6 @@ async function getServiceStatus(req, res) {
 
     const data = await ordsGetServiceStatus(user_id, service_id);
 
-    // Normalize ORDS-style response
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
@@ -784,7 +762,6 @@ async function getServiceStatus(req, res) {
       });
     }
 
-    // Expected shape: { user_id, service_id, status }
     return res.status(200).json({
       success: true,
       user_id: parsed.user_id,
@@ -820,7 +797,6 @@ async function registerPushToken(req, res) {
 
     let parsed = data;
 
-    // Unwrap ORDS response_body if present
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
@@ -863,7 +839,6 @@ async function getNotifications(req, res) {
 
     const data = await ordsGetNotifications(user_id);
 
-    // ORDS may wrap responses inside { response_body: "<json>" }
     let parsed = data;
 
     if (typeof data?.response_body === "string") {
@@ -874,7 +849,6 @@ async function getNotifications(req, res) {
       }
     }
 
-    // Ensure consistent output shape
     return res.status(200).json(parsed);
   } catch (e) {
     const code = e.response?.status ?? 500;
@@ -920,7 +894,6 @@ async function downloadInvoicePdf(req, res) {
       });
     }
 
-    // 🔹 Headers
     res.setHeader(
       "Content-Type",
       upstream.headers["content-type"] || "application/pdf",
@@ -947,7 +920,6 @@ async function downloadInvoicePdf(req, res) {
     return res.status(code).json({ message: e.message });
   }
 }
-// GET /ayconnect/parking/info?plate_number=...
 async function getParkingInfo(req, res) {
   try {
     const plate_number = String(req.query?.plate_number || "");
@@ -1120,7 +1092,6 @@ async function deleteAccount(req, res) {
     }
 
     const result = await ordsDeleteAccount(user_id);
-
 
     if (result.status !== 200) {
       return res.status(result.status || 500).json({
