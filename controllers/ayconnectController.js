@@ -64,8 +64,6 @@ async function downloadUserDoc(req, res) {
     const user_id = String(req.user?.id || "");
     const doc_id = Number(req.query?.doc_id);
 
-    console.log("[downloadUserDoc] user_id:", user_id);
-    console.log("[downloadUserDoc] doc_id:", doc_id);
 
     if (!user_id) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -77,9 +75,6 @@ async function downloadUserDoc(req, res) {
 
     const upstream = await ordsDownloadUserDoc({ doc_id, user_id });
 
-    console.log("[downloadUserDoc] upstream status:", upstream.status);
-    console.log("[downloadUserDoc] upstream content-type:", upstream.headers["content-type"]);
-    console.log("[downloadUserDoc] upstream disposition:", upstream.headers["content-disposition"]);
 
     if (upstream.status >= 400) {
       return res.status(upstream.status).json({

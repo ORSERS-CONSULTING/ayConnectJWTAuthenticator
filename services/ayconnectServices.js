@@ -292,15 +292,6 @@ async function ordsDownloadUserDoc({ doc_id, user_id }) {
   const url = `${process.env.GATEWAY_BASE_URL}/${PATH}`;
   const token = await getIdcsToken(url);
 
-  console.log("📥 [ORDS USER DOC] Calling ORDS", {
-    url,
-    doc_id,
-    doc_id_number: Number(doc_id),
-    user_id,
-    user_id_number: Number(user_id),
-    doc_id_is_valid: Number.isFinite(Number(doc_id)),
-    user_id_is_valid: Number.isFinite(Number(user_id)),
-  });
 
   const response = await axios({
     method: "GET",
@@ -316,13 +307,6 @@ async function ordsDownloadUserDoc({ doc_id, user_id }) {
     validateStatus: () => true,
   });
 
-  console.log("📤 [ORDS USER DOC] Response", {
-    status: response.status,
-    statusText: response.statusText,
-    contentType: response.headers["content-type"],
-    contentLength: response.headers["content-length"],
-    contentDisposition: response.headers["content-disposition"],
-  });
 
   return response;
 }
