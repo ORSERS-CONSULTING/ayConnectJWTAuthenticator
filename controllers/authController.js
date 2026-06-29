@@ -23,6 +23,7 @@ const { sendSms } = require("../services/etisalatServices");
 const { normalizeUaeMobile } = require("../utils/normalizeMobile");
 
 const days = process.env.REFRESH_TOKEN_DAYS;
+const ACCESS_TOKEN_TTL = process.env.ACCESS_TOKEN_TTL;
 
 async function persistRefreshToken(userId, refresh_token, device_id) {
   await authTokensCreate({
@@ -121,12 +122,12 @@ async function verifyOtp(req, res) {
 async function refresh(req, res) {
   const { refresh_token, device_id } = req.body || {};
 
-  if (!refresh_token) {
-    return res.status(400).json({ message: "refresh_token required" });
-  }
-
-  if (!device_id) {
-    return res.status(400).json({ message: "device_id required" });
+  if (!refresh_token || !device_id) {
+    return res.status(401).json({
+      success: false,
+      code: "REFRESH_TOKEN_MISSING",
+      message: "Session expired. Please login again.",
+    });
   }
 
   try {
@@ -134,7 +135,11 @@ async function refresh(req, res) {
 
     const userId = Number(data?.user_id);
     if (!userId) {
-      return res.status(401).json({ message: "Invalid refresh token" });
+      return res.status(401).json({
+        success: false,
+        code: "REFRESH_TOKEN_EXPIRED",
+        message: "Session expired. Please login again.",
+      });
     }
 
     const access_token = signAccessToken({
@@ -154,14 +159,16 @@ async function refresh(req, res) {
     });
 
     return res.json({
+      success: true,
       access_token,
       refresh_token: new_refresh_token,
     });
   } catch (e) {
-    const code = e.response?.status ?? e.upstream?.status ?? 500;
-    return res
-      .status(code)
-      .json(e.response?.data ?? e.upstream?.data ?? { message: e.message });
+    return res.status(401).json({
+      success: false,
+      code: "REFRESH_TOKEN_EXPIRED",
+      message: "Session expired. Please login again.",
+    });
   }
 }
 
@@ -229,7 +236,7 @@ async function login(req, res) {
     }
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m",
+      ACCESS_TOKEN_TTL,
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -292,7 +299,7 @@ async function register(req, res) {
     }
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m",
+      ACCESS_TOKEN_TTL,
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
@@ -355,7 +362,7 @@ async function loginClient(req, res) {
 
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
-      "30m",
+      ACCESS_TOKEN_TTL,
     );
 
     const refresh_token = crypto.randomBytes(64).toString("hex");
