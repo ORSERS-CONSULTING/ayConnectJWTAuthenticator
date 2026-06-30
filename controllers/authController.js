@@ -70,7 +70,7 @@ async function sendOtp(req, res) {
     }
 
     const data = await sendEmailOtp(target);
-    return res.json({ sent: true, ...data });
+    return res.json({ sent: true});
   } catch (e) {
     const code = e.response?.status ?? e.upstream?.status ?? 500;
     return res
