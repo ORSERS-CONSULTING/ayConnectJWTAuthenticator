@@ -272,6 +272,8 @@ async function register(req, res) {
   try {
     let { email, mobile_number, full_name, device_id } = req.body || {};
 
+    console.log(email, mobile_number, full_name, device_id),
+    
     if (!device_id) {
       return res.status(400).json({ message: "device_id required" });
     }
@@ -283,6 +285,7 @@ async function register(req, res) {
     mobile_number = normalizeUaeMobile(mobile_number);
 
     const data = await registerUser({ email, mobile_number, full_name });
+        console.log(data);
     const out_user_id = Number(data.user_id);
     const out_mobile = data.mobile;
     const out_email = data.email;
@@ -297,6 +300,8 @@ async function register(req, res) {
         message: data?.message || "Login failed.",
       });
     }
+
+
     const access_token = signAccessToken(
       { sub: String(out_user_id), role: "user", email: out_email },
       ACCESS_TOKEN_TTL,
