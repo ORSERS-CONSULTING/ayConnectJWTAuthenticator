@@ -40,4 +40,5 @@ router.get("/getParkingInfo", ctrl.getParkingInfo);
 router.get("/getApplicationDocument", authUser, ctrl.getApplicationDocument);
 router.get("/applicationDocumentExists", authUser, ctrl.applicationDocumentExists);
 router.delete("/deleteAccount", authUser, ctrl.deleteAccount);
+router.get("/pro/companies", authUser, ctrl.getProCompanies);
 module.exports = router;

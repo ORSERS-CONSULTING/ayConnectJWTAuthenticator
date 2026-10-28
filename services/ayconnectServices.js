@@ -526,6 +526,18 @@ async function ordsDeleteAccount(user_id) {
     },
   });
 }
+
+function ordsGetProCompanies(user_id) {
+  const userId = Number(user_id);
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    throw new Error("A valid user_id is required");
+  }
+
+  return callGateway("GET", "pro/companies", {
+    params: { user_id: userId },
+  });
+}
+
 module.exports = {
   ordsGetUserAvatar,
   ordsGetBeneficiaries,
@@ -553,4 +565,5 @@ module.exports = {
   ordsGetApplicationDocument,
   ordsApplicationDocumentExists,
   ordsDeleteAccount,
+  ordsGetProCompanies
 };

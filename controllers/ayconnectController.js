@@ -25,7 +25,8 @@ const {
   ordsGetParkingInfo,
   ordsGetApplicationDocument,
   ordsApplicationDocumentExists,
-  ordsDeleteAccount
+  ordsDeleteAccount,
+  ordsGetProCompanies
 } = require("../services/ayconnectServices");
 
 async function updateBeneficiary(req, res) {
@@ -1114,6 +1115,60 @@ async function deleteAccount(req, res) {
   }
 }
 
+async function getProCompanies(req, res) {
+  try {
+    const user_id = Number(req.user?.id ?? req.user?.user_id);
+
+    if (!Number.isSafeInteger(user_id) || user_id <= 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+
+    const data = await ordsGetProCompanies(user_id);
+    let parsed = data;
+
+    try {
+      if (typeof data === "string") {
+        parsed = JSON.parse(data);
+      } else if (typeof data?.response_body === "string") {
+        parsed = JSON.parse(data.response_body);
+      }
+    } catch {
+      return res.status(502).json({
+        success: false,
+        message: "Invalid response from company service",
+      });
+    }
+
+    if (
+      !parsed ||
+      typeof parsed.success !== "boolean" ||
+      (parsed.success &&
+        (typeof parsed.is_pro !== "boolean" ||
+          !Array.isArray(parsed.companies)))
+    ) {
+      return res.status(502).json({
+        success: false,
+        message: "Invalid response from company service",
+      });
+    }
+
+    return res.status(parsed.success ? 200 : 502).json(parsed);
+  } catch (e) {
+    const code = e.response?.status ?? 500;
+
+    return res.status(code).json(
+      e.response?.data ?? {
+        success: false,
+        message: "Unable to retrieve PRO companies",
+      },
+    );
+  }
+}
 
 module.exports = {
   getServices,
@@ -1142,4 +1197,5 @@ module.exports = {
   getApplicationDocument,
   applicationDocumentExists,
   deleteAccount,
+  getProCompanies
 };
