@@ -26,7 +26,8 @@ const {
   ordsGetApplicationDocument,
   ordsApplicationDocumentExists,
   ordsDeleteAccount,
-  ordsGetProCompanies
+  ordsGetProCompanies,
+  ordsUpdateProCompany
 } = require("../services/ayconnectServices");
 
 async function updateBeneficiary(req, res) {
@@ -1170,6 +1171,170 @@ async function getProCompanies(req, res) {
   }
 }
 
+async function updateProCompany(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+
+  try {
+    const user_id = Number(req.user?.id ?? req.user?.user_id);
+
+    if (!Number.isSafeInteger(user_id) || user_id <= 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const body = req.body;
+
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return res.status(400).json({
+        success: false,
+        message: "A JSON request body is required.",
+      });
+    }
+
+    const payload = {};
+
+    for (const field of [
+      "company_id",
+      "emirate_id",
+      "country_iso_id",
+    ]) {
+      const value = body[field];
+
+      if (
+        typeof value !== "number" ||
+        !Number.isSafeInteger(value) ||
+        value <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `${field} must be a positive integer.`,
+        });
+      }
+
+      payload[field] = value;
+    }
+
+    const textFields = [
+      ["address", "Address", 1000],
+      ["city", "City", 255],
+      ["tnr", "Tax registration number", 100],
+      ["issuing_authority", "Issuing authority", 200],
+      ["peppol_id", "Peppol ID", 50],
+    ];
+
+    for (const [field, label, maxBytes] of textFields) {
+      const value = body[field];
+
+      if (typeof value !== "string" || !value.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: `${label} is required.`,
+        });
+      }
+
+      const trimmed = value.trim();
+
+      if (Buffer.byteLength(trimmed, "utf8") > maxBytes) {
+        return res.status(400).json({
+          success: false,
+          message: `${label} is too long.`,
+        });
+      }
+
+      payload[field] = trimmed;
+    }
+
+    const upstream = await ordsUpdateProCompany(user_id, payload);
+
+    let parsed = upstream.data;
+
+    try {
+      if (typeof parsed === "string") {
+        parsed = JSON.parse(parsed);
+      }
+
+      if (typeof parsed?.response_body === "string") {
+        parsed = JSON.parse(parsed.response_body);
+      }
+    } catch {
+      return res.status(502).json({
+        success: false,
+        message: "Invalid response from company service.",
+      });
+    }
+
+    const status = upstream.status;
+
+    if (
+      !parsed ||
+      typeof parsed.success !== "boolean" ||
+      !Number.isInteger(status) ||
+      status < 200 ||
+      status > 599
+    ) {
+      console.error("[updateProCompany] Invalid upstream response", {
+        status,
+      });
+
+      return res.status(502).json({
+        success: false,
+        message: "Invalid response from company service.",
+      });
+    }
+
+    if (status >= 200 && status < 300 && parsed.success === true) {
+      if (parsed.company_id !== payload.company_id) {
+        return res.status(502).json({
+          success: false,
+          message: "Invalid company confirmation from company service.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        company_id: parsed.company_id,
+        message: "Company details updated successfully.",
+      });
+    }
+
+    // Preserve expected validation/ownership errors from our ORDS handler.
+    if (
+      parsed.success === false &&
+      [400, 403, 404, 409].includes(status)
+    ) {
+      return res.status(status).json({
+        success: false,
+        message:
+          typeof parsed.message === "string"
+            ? parsed.message
+            : "Unable to update company details.",
+      });
+    }
+
+    console.error("[updateProCompany] Company service failed", {
+      status,
+    });
+
+    return res.status(502).json({
+      success: false,
+      message: "Unable to update company details. Please try again.",
+    });
+  } catch (error) {
+    // Avoid logging tokens, request bodies or Axios configuration.
+    console.error("[updateProCompany] Request failed", {
+      code: error.code,
+      status: error.response?.status,
+    });
+
+    return res.status(502).json({
+      success: false,
+      message: "Unable to reach company service. Please try again.",
+    });
+  }
+}
+
 module.exports = {
   getServices,
   getUserDocs,
@@ -1197,5 +1362,6 @@ module.exports = {
   getApplicationDocument,
   applicationDocumentExists,
   deleteAccount,
-  getProCompanies
+  getProCompanies,
+  updateProCompany
 };

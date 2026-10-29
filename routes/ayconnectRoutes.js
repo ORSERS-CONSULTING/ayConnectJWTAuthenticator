@@ -2,7 +2,7 @@ const router = require("express").Router();
 const express = require("express");
 const multer = require("multer");
 const upload = multer({ limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB cap
-const { authUser, optionalAuthUser  } = require("../middleware/authUser");
+const { authUser, optionalAuthUser } = require("../middleware/authUser");
 const ctrl = require("../controllers/ayconnectController");
 const rawImages = express.raw({
   type: ["image/*", "application/octet-stream"],
@@ -41,4 +41,5 @@ router.get("/getApplicationDocument", authUser, ctrl.getApplicationDocument);
 router.get("/applicationDocumentExists", authUser, ctrl.applicationDocumentExists);
 router.delete("/deleteAccount", authUser, ctrl.deleteAccount);
 router.get("/pro/companies", authUser, ctrl.getProCompanies);
+router.post("/pro/companies", authUser, express.json({ limit: "32kb" }), ctrl.updateProCompany);
 module.exports = router;

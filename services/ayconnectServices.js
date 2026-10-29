@@ -538,6 +538,32 @@ function ordsGetProCompanies(user_id) {
   });
 }
 
+function ordsUpdateProCompany(user_id, fields = {}) {
+  const userId = Number(user_id);
+
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    throw new Error("A valid user_id is required");
+  }
+
+  // Only forward the allowed form fields.
+  // Identity always comes from the controller's verified JWT.
+  const data = {
+    company_id: fields.company_id,
+    address: fields.address,
+    emirate_id: fields.emirate_id,
+    country_iso_id: fields.country_iso_id,
+    city: fields.city,
+    tnr: fields.tnr,
+    issuing_authority: fields.issuing_authority,
+    peppol_id: fields.peppol_id,
+  };
+
+  return callGatewayJson("POST", "pro/companies", {
+    params: { user_id: userId },
+    data,
+  });
+}
+
 module.exports = {
   ordsGetUserAvatar,
   ordsGetBeneficiaries,
@@ -565,5 +591,6 @@ module.exports = {
   ordsGetApplicationDocument,
   ordsApplicationDocumentExists,
   ordsDeleteAccount,
-  ordsGetProCompanies
+  ordsGetProCompanies,
+  ordsUpdateProCompany
 };
