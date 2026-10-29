@@ -34,7 +34,7 @@ async function updateBeneficiary(req, res) {
   try {
     const user_id = String(req.user?.id || "");
 
-    const b = req.body || req.query || {}; 
+    const b = req.body || req.query || {};
 
     const beneficiary_id = Number(b.beneficiary_id);
 
@@ -96,7 +96,7 @@ async function downloadUserDoc(req, res) {
     res.setHeader(
       "Content-Disposition",
       upstream.headers["content-disposition"] ||
-        `attachment; filename="document-${doc_id}"`
+      `attachment; filename="document-${doc_id}"`
     );
 
     upstream.data.on("error", (err) => {
@@ -201,14 +201,14 @@ async function markNotificationRead(req, res) {
     } else {
       // ✅ mark ALL notifications
       data = await ordsMarkNotificationRead({ user_id });
- 
+
     }
 
     let parsed = data;
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch {}
+      } catch { }
     }
 
     return res.status(200).json({
@@ -232,7 +232,7 @@ async function getServices(req, res) {
     if (typeof data?.response_body === "string") {
       try {
         parsed = JSON.parse(data.response_body);
-      } catch {}
+      } catch { }
     }
     return res.status(200).json(parsed);
   } catch (e) {
@@ -282,7 +282,7 @@ async function uploadUserDocuments(req, res) {
     const b = req.body || {};
     const body = {
       user_id: user_id,
-      beneficiary_id: Number(b.beneficiary_id), 
+      beneficiary_id: Number(b.beneficiary_id),
       document_id: Number(b.document_id),
       file_name: b.file_name,
       file_type: b.file_type,
@@ -335,7 +335,7 @@ async function uploadUserDocuments(req, res) {
     });
 
     const is2xx = resp.status >= 200 && resp.status < 300;
-    const raw = resp.data; 
+    const raw = resp.data;
     let parsed = null;
 
     if (typeof raw === "string" && raw.trim().length) {
@@ -359,7 +359,7 @@ async function uploadUserDocuments(req, res) {
       typeof parsed?.document_id === "number" ||
       typeof idFromLocation === "number";
 
-    const uploaded = is2xx && (uploadedExplicit || true); 
+    const uploaded = is2xx && (uploadedExplicit || true);
     const resolvedId =
       parsed?.id ?? parsed?.document_id ?? idFromLocation ?? null;
     console.info("[uploadUserDocuments] Upload result summary", {
@@ -480,7 +480,7 @@ async function uploadUserAvatar(req, res) {
     let out = upstream.data;
     try {
       out = typeof out === "string" && out ? JSON.parse(out) : out;
-    } catch {}
+    } catch { }
     return res.status(ok ? 200 : upstream.status).json(
       out ?? {
         message: ok ? "Avatar uploaded successfully" : "Upload failed",
@@ -588,7 +588,7 @@ async function createBeneficiary(req, res) {
       full_name: data.out_full_name ?? full_name ?? null,
       relationship: data.out_relationship ?? relationship ?? null,
       message: data.response_message ?? data.message ?? null,
-      upstream: data, 
+      upstream: data,
     };
 
     return res.status(status).json(out);
@@ -903,7 +903,7 @@ async function downloadInvoicePdf(req, res) {
     res.setHeader(
       "Content-Disposition",
       upstream.headers["content-disposition"] ||
-        'inline; filename="invoice.pdf"',
+      'inline; filename="invoice.pdf"',
     );
 
     upstream.data.pipe(res);
@@ -1247,16 +1247,7 @@ async function updateProCompany(req, res) {
     }
 
     const upstream = await ordsUpdateProCompany(user_id, payload);
-console.log("[updateProCompany] Upstream response", {
-  method: "POST",
-  path: "pro/companies",
-  status: upstream.status,
-  allow: upstream.headers?.allow,
-  contentType: upstream.headers?.["content-type"],
-  code: upstream.data?.code,
-  title: upstream.data?.title,
-  message: upstream.data?.message,
-});
+
     let parsed = upstream.data;
 
     try {
