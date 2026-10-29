@@ -1247,7 +1247,16 @@ async function updateProCompany(req, res) {
     }
 
     const upstream = await ordsUpdateProCompany(user_id, payload);
-
+console.log("[updateProCompany] Upstream response", {
+  method: "POST",
+  path: "pro/companies",
+  status: upstream.status,
+  allow: upstream.headers?.allow,
+  contentType: upstream.headers?.["content-type"],
+  code: upstream.data?.code,
+  title: upstream.data?.title,
+  message: upstream.data?.message,
+});
     let parsed = upstream.data;
 
     try {
