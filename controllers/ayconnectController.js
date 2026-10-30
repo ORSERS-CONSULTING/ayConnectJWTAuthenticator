@@ -857,20 +857,22 @@ async function downloadInvoicePdf(req, res) {
   const start = Date.now();
 
   try {
-    const user_id = String(req.user?.id || "");
+    const user_id = Number(req.user?.id ?? req.user?.user_id);
     const request_id = Number(req.query?.request_id);
 
-    if (!user_id) {
-      console.warn("❌ [API] Missing user_id");
-      return res.status(401).json({ message: "Unauthorized" });
+    if (!Number.isSafeInteger(user_id) || user_id <= 0) {
+      return res.status(401).json({
+        message: "Unauthorized",
+      });
     }
 
-    if (!request_id) {
-      console.warn("❌ [API] Missing request_id");
-      return res.status(400).json({ message: "request_id is required" });
+    if (!Number.isSafeInteger(request_id) || request_id <= 0) {
+      return res.status(400).json({
+        message: "A valid request_id is required.",
+      });
     }
 
-    const ordsStart = Date.now();
+    res.setHeader("Cache-Control", "no-store");
 
     const upstream = await ordsDownloadInvoicePdf({
       request_id,
@@ -878,99 +880,146 @@ async function downloadInvoicePdf(req, res) {
     });
 
     if (!upstream) {
-      console.error("❌ [API] Upstream is null (ORDS failed)");
-      return res.status(500).json({
-        message: "Failed to fetch invoice from ORDS",
+      console.error("[downloadInvoicePdf] No upstream response", {
+        user_id,
+        request_id,
+        durationMs: Date.now() - start,
+      });
+
+      return res.status(502).json({
+        message: "Unable to reach the invoice service.",
       });
     }
 
     if (upstream.status >= 400) {
-  // Axios responseType is "stream", including for ORDS JSON errors.
-  const chunks = [];
-  let totalBytes = 0;
-  const maxBytes = 32 * 1024;
+      const chunks = [];
+      let totalBytes = 0;
+      const maxBytes = 32 * 1024;
 
-  try {
-    for await (const chunk of upstream.data) {
-      const buffer = Buffer.isBuffer(chunk)
-        ? chunk
-        : Buffer.from(chunk);
+      try {
+        for await (const chunk of upstream.data) {
+          const buffer = Buffer.isBuffer(chunk)
+            ? chunk
+            : Buffer.from(chunk);
 
-      const remaining = maxBytes - totalBytes;
+          const remaining = maxBytes - totalBytes;
 
-      if (remaining <= 0) break;
+          if (remaining <= 0) break;
 
-      const part = buffer.subarray(0, remaining);
-      chunks.push(part);
-      totalBytes += part.length;
+          const part = buffer.subarray(0, remaining);
+          chunks.push(part);
+          totalBytes += part.length;
 
-      if (totalBytes >= maxBytes) break;
+          if (totalBytes >= maxBytes) break;
+        }
+
+        const raw = Buffer.concat(chunks).toString("utf8");
+        let details;
+
+        try {
+          const errorBody = JSON.parse(raw);
+
+          details = {
+            code: errorBody.code,
+            message: errorBody.message,
+            cause: errorBody.cause,
+            action: errorBody.action,
+            instance: errorBody.instance,
+          };
+        } catch {
+          details = {
+            responsePreview: raw.slice(0, 2000),
+          };
+        }
+
+        console.error("[downloadInvoicePdf] ORDS failure", {
+          status: upstream.status,
+          user_id,
+          request_id,
+          durationMs: Date.now() - start,
+          ...details,
+        });
+      } catch (readError) {
+        console.error("[downloadInvoicePdf] Cannot read ORDS error", {
+          status: upstream.status,
+          user_id,
+          request_id,
+          message: readError.message,
+        });
+      }
+
+      return res.status(upstream.status === 404 ? 404 : 502).json({
+        message:
+          upstream.status === 404
+            ? "Invoice not found."
+            : "Unable to generate the invoice PDF. Please try again.",
+      });
     }
 
-    const raw = Buffer.concat(chunks).toString("utf8");
-
-    let details;
-
-    try {
-      const errorBody = JSON.parse(raw);
-
-      details = {
-        code: errorBody.code,
-        message: errorBody.message,
-        cause: errorBody.cause,
-        action: errorBody.action,
-        instance: errorBody.instance,
-      };
-    } catch {
-      details = { responsePreview: raw.slice(0, 2000) };
-    }
-
-    console.error("[downloadInvoicePdf] ORDS failure", {
-      status: upstream.status,
-      request_id,
-      ...details,
-    });
-  } catch (readError) {
-    console.error("[downloadInvoicePdf] Cannot read ORDS error", {
-      status: upstream.status,
-      message: readError.message,
-    });
-  }
-
-  return res.status(
-    upstream.status === 404 ? 404 : 502,
-  ).json({
-    message:
-      upstream.status === 404
-        ? "Invoice not found."
-        : "Unable to generate the invoice PDF. Please try again.",
-  });
-}
+    const headers = upstream.headers || {};
 
     res.setHeader(
       "Content-Type",
-      upstream.headers["content-type"] || "application/pdf",
+      headers["content-type"] || "application/pdf",
     );
 
-    if (upstream.headers["content-length"]) {
-      res.setHeader("Content-Length", upstream.headers["content-length"]);
+    if (headers["content-length"]) {
+      res.setHeader("Content-Length", headers["content-length"]);
     }
 
     res.setHeader(
       "Content-Disposition",
-      upstream.headers["content-disposition"] ||
-      'inline; filename="invoice.pdf"',
+      headers["content-disposition"] ||
+        'inline; filename="invoice.pdf"',
     );
 
-    upstream.data.pipe(res);
-  } catch (e) {
-    console.error("❌ [API] downloadInvoicePdf ERROR", {
-      message: e.message,
-      code: e.code,
+    upstream.data.on("error", (error) => {
+      console.error("[downloadInvoicePdf] PDF stream failed", {
+        user_id,
+        request_id,
+        message: error.message,
+      });
+
+      if (!res.headersSent) {
+        res.removeHeader("Content-Length");
+        res.removeHeader("Content-Disposition");
+
+        res.status(502).json({
+          message: "Unable to download the invoice PDF.",
+        });
+      } else {
+        res.destroy(error);
+      }
     });
 
-    const code = e.response?.status ?? 500;
-    return res.status(code).json({ message: e.message });
+    res.on("close", () => {
+      if (!upstream.data.destroyed) {
+        upstream.data.destroy();
+      }
+    });
+
+    upstream.data.pipe(res);
+  } catch (error) {
+    console.error("[downloadInvoicePdf] Request failed", {
+      user_id: req.user?.id ?? req.user?.user_id,
+      request_id: req.query?.request_id,
+      message: error.message,
+      code: error.code,
+      upstreamStatus: error.response?.status,
+      durationMs: Date.now() - start,
+    });
+
+    if (res.headersSent) {
+      res.destroy(error);
+      return;
+    }
+
+    res.removeHeader("Content-Length");
+    res.removeHeader("Content-Disposition");
+
+    return res.status(502).json({
+      message: "Unable to download the invoice. Please try again.",
+    });
   }
 }
 async function getParkingInfo(req, res) {
