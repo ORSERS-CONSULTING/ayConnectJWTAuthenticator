@@ -414,10 +414,18 @@ async function verifyPayment(req, res) {
     }
 
     return res.json({ status: "PENDING" });
-  } catch (e) {
-    console.error(`💥 [${traceId}] VERIFY ERROR`, e.message);
-    return res.status(500).json({ message: e.message });
-  }
+} catch (e) {
+  console.error(`[${traceId}] VERIFY ERROR`, {
+    message: e.message,
+    code: e.code,
+    httpStatus: e.response?.status,
+    ordsResponse: e.response?.data,
+  });
+
+  return res.status(500).json({
+    message: "Unable to verify payment. Please try again.",
+  });
+}
 }
 
 async function paymentWebhook(req, res) {
@@ -616,10 +624,16 @@ async function paymentWebhook(req, res) {
     }
 
     return res.sendStatus(200);
-  } catch (err) {
-    console.error("💥 [WEBHOOK ERROR]", err);
-    return res.sendStatus(500);
-  }
+} catch (err) {
+  console.error("[WEBHOOK ERROR]", {
+    message: err.message,
+    code: err.code,
+    httpStatus: err.response?.status,
+    ordsResponse: err.response?.data,
+  });
+
+  return res.sendStatus(500);
+}
 }
 async function paymentReturn(req, res) {
   try {
