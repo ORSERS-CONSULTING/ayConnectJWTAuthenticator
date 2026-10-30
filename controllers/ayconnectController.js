@@ -775,7 +775,7 @@ async function getServiceStatus(req, res) {
     return res.status(code).json(e.response?.data ?? { message: e.message });
   }
 }
-
+ 
 async function registerPushToken(req, res) {
   try {
     const user_id = String(req.user?.id || "");
@@ -885,11 +885,67 @@ async function downloadInvoicePdf(req, res) {
     }
 
     if (upstream.status >= 400) {
-      console.error("❌ [API] ORDS returned error", upstream.status);
-      return res.status(upstream.status).json({
-        message: "Failed to download invoice",
-      });
+  // Axios responseType is "stream", including for ORDS JSON errors.
+  const chunks = [];
+  let totalBytes = 0;
+  const maxBytes = 32 * 1024;
+
+  try {
+    for await (const chunk of upstream.data) {
+      const buffer = Buffer.isBuffer(chunk)
+        ? chunk
+        : Buffer.from(chunk);
+
+      const remaining = maxBytes - totalBytes;
+
+      if (remaining <= 0) break;
+
+      const part = buffer.subarray(0, remaining);
+      chunks.push(part);
+      totalBytes += part.length;
+
+      if (totalBytes >= maxBytes) break;
     }
+
+    const raw = Buffer.concat(chunks).toString("utf8");
+
+    let details;
+
+    try {
+      const errorBody = JSON.parse(raw);
+
+      details = {
+        code: errorBody.code,
+        message: errorBody.message,
+        cause: errorBody.cause,
+        action: errorBody.action,
+        instance: errorBody.instance,
+      };
+    } catch {
+      details = { responsePreview: raw.slice(0, 2000) };
+    }
+
+    console.error("[downloadInvoicePdf] ORDS failure", {
+      status: upstream.status,
+      request_id,
+      ...details,
+    });
+  } catch (readError) {
+    console.error("[downloadInvoicePdf] Cannot read ORDS error", {
+      status: upstream.status,
+      message: readError.message,
+    });
+  }
+
+  return res.status(
+    upstream.status === 404 ? 404 : 502,
+  ).json({
+    message:
+      upstream.status === 404
+        ? "Invoice not found."
+        : "Unable to generate the invoice PDF. Please try again.",
+  });
+}
 
     res.setHeader(
       "Content-Type",
